@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 // Import Icons
 import arrowLeft from '../../../assets/images/_arrowLeft.svg';
 import arrowRight from '../../../assets/images/_arrowRight.svg';
@@ -11,7 +13,6 @@ import monitorImg from '../../../assets/images/_monitorImg.png';
 import chairImg from '../../../assets/images/_chairImg.png';
 
 const RelatedItems = () => {
-    // Dữ liệu sản phẩm
     const products = [
         {
             id: 1,
@@ -134,9 +135,9 @@ const RelatedItems = () => {
                             </div>
 
                             {/* Bid Now Button Overlay */}
-                            <a href="#" className="absolute bottom-0 w-full bg-black text-white text-center py-2 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <Link to="/product" className="absolute bottom-0 w-full bg-black text-white text-center py-2 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                 Bid Now
-                            </a>
+                            </Link>
                         </div>
 
                         {/* Product Info */}

@@ -38,7 +38,6 @@ const Product = () => {
                     {/* Thumbnails List */}
                     <div className="flex md:flex-col gap-4 justify-between w-full md:w-[110px] flex-none h-auto md:h-full overflow-x-auto md:overflow-hidden">
                         {[0, 1, 2, 3].map((item, index) => {
-                            // Tạo các biến thể xoay ảnh giả lập thumbnail khác nhau
                             let transformClass = "";
                             if (index === 1) transformClass = "-scale-x-100";
                             if (index === 2) transformClass = "rotate-45";

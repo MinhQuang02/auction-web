@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 import keyboardImg from '../../../assets/images/_keyboardImg.png';
 
 const AuctionProducts = () => {
@@ -69,7 +71,9 @@ const AuctionProducts = () => {
                                 
                                 {/* Hover Action Button */}
                                 <button className="absolute bottom-0 w-full bg-black text-white py-2 text-sm font-medium hover:bg-gray-800 transition md:opacity-0 md:group-hover:opacity-100 duration-300">
-                                    View Details
+                                    <Link to={`/product`}>
+                                        View Details
+                                    </Link>
                                 </button>
                             </div>
 

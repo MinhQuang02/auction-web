@@ -1,10 +1,9 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
-// Import Product Image (Dùng chung cho demo)
 import keyboardImg from '../../../assets/images/_keyboardImg.png';
 
 const Wishlists = () => {
-    // Dữ liệu sản phẩm trong Wishlist
     const products = [
         {
             id: 1,
@@ -115,7 +114,9 @@ const Wishlists = () => {
                                 
                                 {/* View Details Overlay Button */}
                                 <button className="absolute bottom-0 w-full bg-black text-white py-2 text-sm font-medium hover:bg-gray-800 transition">
-                                    View Details
+                                    <Link to={`/product`}>
+                                        View Details
+                                    </Link>
                                 </button>
                             </div>
 

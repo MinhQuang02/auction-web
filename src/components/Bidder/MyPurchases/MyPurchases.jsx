@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 import gamepadImg from '../../../assets/images/_gamepadImg.png';
 import jacketImg from '../../../assets/images/_gamepadImg.png';
 
@@ -115,7 +117,9 @@ const MyPurchases = () => {
                                 
                                 {/* Pay Now Button Overlay */}
                                 <button className="absolute bottom-0 w-full bg-black text-white py-2 text-sm font-medium hover:bg-gray-800 transition">
-                                    Pay Now
+                                    <Link to={`/billing`}>
+                                        Pay Now
+                                    </Link>
                                 </button>
                             </div>
 

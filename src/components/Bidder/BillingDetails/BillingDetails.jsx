@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
 
-// Import Product Images (Dùng ảnh từ HTML mẫu)
 import monitorImg from '../../../assets/images/_monitorImg.png';
 import gamepadImg from '../../../assets/images/_gamepadImg.png';
 
 const BillingDetails = () => {
-    // State quản lý phương thức thanh toán
     const [paymentMethod, setPaymentMethod] = useState('cod'); // 'bank' hoặc 'cod'
 
-    // Dữ liệu giỏ hàng (Giả lập)
     const cartItems = [
         {
             id: 1,

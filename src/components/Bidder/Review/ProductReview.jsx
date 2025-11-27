@@ -1,7 +1,6 @@
 import React from 'react';
 
 const ProductReview = () => {
-    // Dữ liệu đánh giá mẫu
     const reviews = [
         {
             id: 1,
@@ -37,12 +36,11 @@ const ProductReview = () => {
         }
     ];
 
-    // Helper render sao (Tái sử dụng logic từ ProductDetail nếu cần, hoặc viết inline đơn giản)
     const renderStars = (count) => {
         return (
             <div className="flex text-[#EBC37E] text-xs gap-1">
                 {[...Array(5)].map((_, i) => (
-                    <span key={i}>{i < count ? '★' : '☆'}</span> // Dùng ký tự sao đơn giản hoặc SVG
+                    <span key={i}>{i < count ? '★' : '☆'}</span>
                 ))}
             </div>
         );
@@ -96,16 +94,12 @@ const ProductReview = () => {
             <div className="bg-[#EAEAEA] rounded-b shadow-lg p-8 md:px-12 md:py-10">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-0 border-dashed border-gray-400 border-t border-b md:border-none">
                     {reviews.map((review, index) => {
-                        // Logic border cho lưới 2 cột:
-                        // Item chẵn (0, 2...): có border phải và border dưới (trừ dòng cuối)
-                        // Item lẻ (1, 3...): có border dưới (trừ dòng cuối)
-                        // Tuy nhiên để đơn giản hoá giống HTML mẫu, ta set cứng class dựa trên index
                         
                         let borderClasses = "p-6 flex flex-col gap-4 ";
-                        if (index === 0) borderClasses += "md:border-r md:border-b border-dashed border-gray-400"; // Top Left
-                        else if (index === 1) borderClasses += "md:border-b border-dashed border-gray-400"; // Top Right
-                        else if (index === 2) borderClasses += "md:border-r border-dashed border-gray-400"; // Bottom Left
-                        else borderClasses += ""; // Bottom Right (No border)
+                        if (index === 0) borderClasses += "md:border-r md:border-b border-dashed border-gray-400";
+                        else if (index === 1) borderClasses += "md:border-b border-dashed border-gray-400";
+                        else if (index === 2) borderClasses += "md:border-r border-dashed border-gray-400";
+                        else borderClasses += "";
 
                         return (
                             <div key={review.id} className={borderClasses}>

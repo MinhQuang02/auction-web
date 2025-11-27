@@ -11,7 +11,6 @@ const ProfileForm = () => {
         confirmPassword: ''
     });
 
-    // Hàm xử lý thay đổi input
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -20,10 +19,8 @@ const ProfileForm = () => {
         }));
     };
 
-    // Hàm xử lý submit form
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Xử lý logic lưu dữ liệu ở đây (VD: Gọi API)
         console.log('Form Submitted:', formData);
         alert('Changes saved successfully!');
     };

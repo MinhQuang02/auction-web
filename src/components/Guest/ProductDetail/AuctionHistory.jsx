@@ -24,7 +24,6 @@ const AuctionHistory = () => {
                 {/* Table Body */}
                 <div className="flex flex-col text-sm md:text-base text-gray-600">
                     {historyData.map((item, index) => {
-                        // Logic màu nền xen kẽ: Chẵn là xám, Lẻ là trắng
                         const rowBgClass = index % 2 === 0 ? 'bg-[#F5F5F5]' : 'bg-white';
 
                         return (

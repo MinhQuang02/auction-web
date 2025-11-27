@@ -13,13 +13,11 @@ import headphoneIcon from '../../../assets/images/_headphoneIcon.svg';
 import gamingIcon from '../../../assets/images/_gamingIcon.svg';
 
 const Categories = () => {
-    // Dữ liệu danh mục
-    // 'type': xác định nguồn icon là file ảnh ('img') hay mã svg trực tiếp ('svg')
     const categories = [
         { id: 1, name: 'Phones', type: 'img', src: phoneIcon },
         { id: 2, name: 'Computers', type: 'img', src: computerIcon },
         { id: 3, name: 'SmartWatch', type: 'img', src: watchIcon },
-        { id: 4, name: 'Camera', type: 'img', src: cameraIcon, isActive: true }, // Item này đang Active trong HTML mẫu
+        { id: 4, name: 'Camera', type: 'img', src: cameraIcon},
         { id: 5, name: 'HeadPhones', type: 'img', src: headphoneIcon },
         { id: 6, name: 'Gaming', type: 'img', src: gamingIcon },
         { 
@@ -74,12 +72,10 @@ const Categories = () => {
             {/* Categories List */}
             <div className="flex gap-8 overflow-x-auto pb-6 scrollbar-hide snap-x">
                 {categories.map((item) => {
-                    // Logic style cho trạng thái Active và Inactive
                     const activeClasses = "bg-primary text-white shadow-lg";
                     const inactiveClasses = "border border-gray-300 hover:bg-primary hover:text-white hover:shadow-lg";
                     const containerClasses = item.isActive ? activeClasses : inactiveClasses;
 
-                    // Logic icon: Active thì trắng sẵn, Inactive thì trắng khi hover
                     const iconClasses = item.isActive 
                         ? "invert brightness-0" 
                         : "group-hover:invert group-hover:brightness-0 transition-all";

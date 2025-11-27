@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 import decorativeBg from '../../../assets/images/_decorativeBg2.svg';
 import arrowIcon from '../../../assets/images/_arrowIcon.svg';
 
@@ -74,7 +76,6 @@ const ClosingSoon = () => {
                 {/* Product Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 relative z-10">
                     {products.map((product, index) => {
-                        // Logic xác định kiểu hiển thị: 2 phần tử đầu tiên lớn hơn (col-span-3), 3 phần tử sau nhỏ hơn (col-span-2)
                         const isLargeItem = index < 2;
                         const colSpanClass = isLargeItem ? 'lg:col-span-3' : 'lg:col-span-2';
                         const imageHeightClass = isLargeItem ? 'h-[350px]' : 'h-[291px]';
@@ -94,10 +95,10 @@ const ClosingSoon = () => {
                                     <div className="bg-[#1a1a1a] text-[#b3b3b2] text-xs px-3 py-2 rounded-full">
                                         {product.dateRange}
                                     </div>
-                                    <a href="#" className="bg-[#1f1f1f] border border-[#404040] text-[#d1d1d6] text-sm px-5 py-3.5 rounded-lg flex items-center gap-1 hover:bg-black transition">
+                                    <Link to="/product" className="bg-[#1f1f1f] border border-[#404040] text-[#d1d1d6] text-sm px-5 py-3.5 rounded-lg flex items-center gap-1 hover:bg-black transition">
                                         <span>Bid Now</span> 
                                         <img src={arrowIcon} alt="arrow" />
-                                    </a>
+                                    </Link>
                                 </div>
 
                                 {/* Title */}
@@ -105,9 +106,9 @@ const ClosingSoon = () => {
 
                                 {/* Price & Author */}
                                 <div className="flex items-center gap-4 text-sm">
-                                    <span className="text-textGray">Price</span> {/* text-textGray cần config trong tailwind hoặc thay bằng text-gray-500 */}
+                                    <span className="text-textGray">Price</span>
                                     <span className="w-1 h-1 bg-[#ccc] rounded-full"></span>
-                                    <span className="font-medium text-textDark">{product.price}</span> {/* text-textDark cần config hoặc thay bằng text-black */}
+                                    <span className="font-medium text-textDark">{product.price}</span> 
                                     
                                     <span className="text-textGray">By</span>
                                     <span className="w-1 h-1 bg-[#ccc] rounded-full"></span>

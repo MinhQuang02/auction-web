@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 import decorativeBg from '../../../assets/images/_decorativeBg.svg';
 import arrowIcon from '../../../assets/images/_arrowIcon.svg';
 
@@ -74,9 +76,6 @@ const CompetitiveAuctions = () => {
                 {/* Product Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 relative z-10">
                     {products.map((product, index) => {
-                        // Logic xác định layout:
-                        // 2 item đầu (index 0, 1) => Lớn (col-span-3)
-                        // 3 item sau (index 2, 3, 4) => Nhỏ (col-span-2)
                         const isLargeItem = index < 2;
                         
                         const colSpanClass = isLargeItem ? 'lg:col-span-3' : 'lg:col-span-2';
@@ -97,10 +96,10 @@ const CompetitiveAuctions = () => {
                                     <div className="bg-[#1a1a1a] text-[#b3b3b2] text-xs px-3 py-2 rounded-full">
                                         {product.dateRange}
                                     </div>
-                                    <a href="#" className="bg-[#1f1f1f] border border-[#404040] text-[#d1d1d6] text-sm px-5 py-3.5 rounded-lg flex items-center gap-1 hover:bg-black transition">
+                                    <Link to="/product" className="bg-[#1f1f1f] border border-[#404040] text-[#d1d1d6] text-sm px-5 py-3.5 rounded-lg flex items-center gap-1 hover:bg-black transition">
                                         <span>Bid Now</span> 
                                         <img src={arrowIcon} alt="arrow" />
-                                    </a>
+                                    </Link>
                                 </div>
 
                                 {/* Title */}

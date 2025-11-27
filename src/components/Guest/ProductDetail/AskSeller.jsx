@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
 
 const AskSeller = () => {
-    // State để theo dõi câu hỏi nào đang được mở (null = đóng tất cả)
     const [activeIndex, setActiveIndex] = useState(null);
 
-    // Hàm xử lý khi click vào câu hỏi
     const toggleFaq = (index) => {
-        // Nếu click vào câu đang mở -> đóng lại (null), ngược lại -> mở câu đó (index)
         setActiveIndex(activeIndex === index ? null : index);
     };
 
-    // Dữ liệu câu hỏi (Trích xuất từ HTML)
     const faqData = [
         {
             id: 1,

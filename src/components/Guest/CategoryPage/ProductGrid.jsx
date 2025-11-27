@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 import wishIcon from '../../../assets/images/_wishIcon.svg';
 import viewIcon from '../../../assets/images/_viewIcon.svg';
 
@@ -85,16 +87,12 @@ const ProductGrid = () => {
     return (
         <div className="flex-grow bg-transparent p-0 flex flex-col font-sans text-[#1f1f1f] relative h-full">
             
-            {/* --- Top Controls Section --- */}
             <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                {/* Breadcrumbs */}
                 <div className="text-sm">
                     <span className="text-gray-400">Account /</span> <span className="font-medium text-black ml-1">Gaming</span>
                 </div>
                 
-                {/* Controls: Sort, View, Pagination */}
                 <div className="flex items-center gap-3">
-                    {/* Sort Button */}
                     <div className="relative group">
                         <button className="bg-white border border-gray-300 rounded px-3 py-1.5 text-xs flex items-center gap-6 hover:bg-gray-50 transition">
                             <span>Sort by Price</span>
@@ -104,14 +102,12 @@ const ProductGrid = () => {
                         </button>
                     </div>
                     
-                    {/* View Mode Toggle (Grid/List) */}
                     <button className="bg-white border border-gray-300 rounded p-1.5 hover:bg-gray-50 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4 text-black">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                         </svg>
                     </button>
 
-                    {/* Simple Pagination Arrows */}
                     <div className="flex gap-1 ml-2">
                         <button className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300 transition">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-4 h-4 text-black">
@@ -127,19 +123,15 @@ const ProductGrid = () => {
                 </div>
             </div>
 
-            {/* --- Products Grid --- */}
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-6">
                 
                 {products.map((product) => (
                     <div key={product.id} className="group flex flex-col gap-2">
-                        {/* Image Container */}
                         <div className="relative bg-[#F5F5F5] rounded h-[150px] flex items-center justify-center overflow-hidden">
-                            {/* Price Tag Badge */}
                             <span className="absolute top-2 left-2 bg-[#AE9B84] text-white text-[10px] px-2 py-0.5 rounded shadow-sm">
                                 {product.priceTag}
                             </span>
                             
-                            {/* Action Buttons */}
                             <div className="absolute top-2 right-2 flex flex-col gap-1.5">
                                 <button className="bg-white rounded-full p-1 shadow hover:bg-gray-100 transition">
                                     <img src={wishIcon} alt="Wish" className="w-3 h-3" />
@@ -149,20 +141,17 @@ const ProductGrid = () => {
                                 </button>
                             </div>
                             
-                            {/* Main Product Image */}
                             <img 
                                 src={product.image} 
                                 alt={product.title} 
                                 className="max-h-[100px] w-auto object-contain drop-shadow-md" 
                             />
                             
-                            {/* Hover Overlay Button */}
                             <button className="absolute bottom-0 w-full bg-black text-white py-1.5 text-xs font-medium opacity-0 group-hover:opacity-100 transition-all duration-300">
-                                View Details
+                                <Link to={`/product`}>View Details</Link>
                             </button>
                         </div>
 
-                        {/* Product Info */}
                         <div>
                             <h3 className="font-bold text-sm mb-0.5 truncate" title={product.title}>
                                 {product.title}

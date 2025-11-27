@@ -1,16 +1,18 @@
+import { Link } from 'react-router-dom';
+
 import React from 'react';
 
 const Sidebar = () => {
     const categories = [
-        { name: 'Woman’s Fashion', href: './category.html' },
-        { name: 'Men’s Fashion', href: './category.html' },
-        { name: 'Electronics', href: './category.html' },
-        { name: 'Home & Lifestyle', href: './category.html' },
-        { name: 'Medicine', href: './category.html' },
-        { name: 'Sports & Outdoor', href: './category.html' },
-        { name: 'Baby’s & Toys', href: './category.html' },
-        { name: 'Groceries & Pets', href: './category.html' },
-        { name: 'Health & Beauty', href: './category.html' },
+        { name: 'Woman’s Fashion', to: '/category' },
+        { name: 'Men’s Fashion', to: '/category' },
+        { name: 'Electronics', to: '/category' },
+        { name: 'Home & Lifestyle', to: '/category' },
+        { name: 'Medicine', to: '/category' },
+        { name: 'Sports & Outdoor', to: '/category' },
+        { name: 'Baby’s & Toys', to: '/category' },
+        { name: 'Groceries & Pets', to: '/category' },
+        { name: 'Health & Beauty', to: '/category' },
     ];
 
     return (
@@ -39,15 +41,15 @@ const Sidebar = () => {
                         <ul className="flex flex-col gap-5 text-[15px] text-[#1f1f1f]">
                             {categories.map((category) => (
                                 <li key={category.name}>
-                                    <a 
-                                        href={category.href} 
+                                    <Link 
+                                        to={category.to} 
                                         className="flex justify-between items-center group hover:font-semibold transition-all cursor-pointer"
                                     >
                                         <span>{category.name}</span>
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-4 h-4 text-black transition-transform">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                                         </svg>
-                                    </a>
+                                    </Link>
                                 </li>
                             ))}
                         </ul>
