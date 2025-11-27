@@ -1,14 +1,14 @@
 import React from 'react';
 // Import tất cả các hình ảnh được sử dụng trong Footer
-import sendIcon from '../assets/images/I3_1152_128_1546_128_1539.svg';
-import qrCode from '../assets/images/991387c05dd6d44594e01b675513068803e2426d.png';
-import playStore from '../assets/images/a61d4c7110b18ab55a1e1a07ebf54a46ebb07284.png';
-import appStore from '../assets/images/38932d5accb54c528f9bcf326ca48ea29bd6d890.png';
-import fbIcon from '../assets/images/I3_1152_142_1664.svg';
-import twitterIcon from '../assets/images/I3_1152_142_1665_142_1608.svg';
-import instaIcon from '../assets/images/I3_1152_142_1666_142_1637.svg';
-import linkedInIcon from '../assets/images/I3_1152_142_1667.svg';
-import copyrightIcon from '../assets/images/I3_1152_128_1591_128_1587.svg';
+import sendIcon from '../assets/images/_sendIcon.svg';
+import qrCode from '../assets/images/_qrCode.png';
+import playStore from '../assets/images/_playStore.png';
+import appStore from '../assets/images/_appStore.png';
+import fbIcon from '../assets/images/_fbIcon.svg';
+import twitterIcon from '../assets/images/_twitterIcon.svg';
+import instaIcon from '../assets/images/_instaIcon.svg';
+import linkedInIcon from '../assets/images/_linkedInIcon.svg';
+import copyrightIcon from '../assets/images/_copyrightIcon.svg';
 
 const Footer = () => {
     return (

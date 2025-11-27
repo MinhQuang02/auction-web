@@ -1,6 +1,6 @@
-import deliveryIcon from '../../../assets/images/I3_1151_120_1519_120_1452_120_1380.svg';
-import serviceIcon from '../../../assets/images/I3_1151_120_1537_120_1465_120_1428.svg';
-import guaranteeIcon from '../../../assets/images/I3_1151_226_5016_120_1495_120_1442_120_1752.svg';
+import deliveryIcon from '../../../assets/images/_deliveryIcon.svg';
+import serviceIcon from '../../../assets/images/_serviceIcon.svg';
+import guaranteeIcon from '../../../assets/images/_guaranteeIcon.svg';
 
 const Services = () => {
     const serviceList = [

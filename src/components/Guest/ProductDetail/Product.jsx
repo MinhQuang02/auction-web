@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-import mainProductImg from '../../../assets/images/5d5c2e5250752d55f8b60f2aa2923183dadbc135.png';
+import mainProductImg from '../../../assets/images/_gamepadImg.png';
 
 const Product = () => {
     const [bidAmount, setBidAmount] = useState(150);

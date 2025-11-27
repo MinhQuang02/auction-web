@@ -1,5 +1,5 @@
-import logo from '../assets/images/3_1793.svg';
-import wishlistIcon from '../assets/images/3_1806.svg';
+import logo from '../assets/images/_logo.svg';
+import wishlistIcon from '../assets/images/_wishlist_icon.svg';
 
 const Header = () => {
     return (

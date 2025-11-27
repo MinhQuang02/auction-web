@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import upArrow from '../assets/images/I3_1153_165_4505.svg';
+import upArrow from '../assets/images/_upArrow.svg';
 
 const BackToTopButton = () => {
     const [isVisible, setIsVisible] = useState(false);

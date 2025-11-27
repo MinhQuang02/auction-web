@@ -1,16 +1,16 @@
 import React from 'react';
 
 // Import Icons (Navigation)
-import prevIcon from '../../../assets/images/I3_1164_61_2856.svg';
-import nextIcon from '../../../assets/images/I3_1165_61_2858.svg';
+import prevIcon from '../../../assets/images/_prevIcon.svg';
+import nextIcon from '../../../assets/images/_nextIcon.svg';
 
 // Import Category Icons (Files)
-import phoneIcon from '../../../assets/images/I3_1167_138_1627_138_1489.svg';
-import computerIcon from '../../../assets/images/I3_1168_138_1641.svg';
-import watchIcon from '../../../assets/images/I3_1169_138_1655_138_1515.svg';
-import cameraIcon from '../../../assets/images/I3_1170_262_5181.svg';
-import headphoneIcon from '../../../assets/images/I3_1171_138_1699.svg';
-import gamingIcon from '../../../assets/images/I3_1172_138_1677.svg';
+import phoneIcon from '../../../assets/images/_phoneIcon.svg';
+import computerIcon from '../../../assets/images/_computerIcon.svg';
+import watchIcon from '../../../assets/images/_watchIcon.svg';
+import cameraIcon from '../../../assets/images/_cameraIcon.svg';
+import headphoneIcon from '../../../assets/images/_headphoneIcon.svg';
+import gamingIcon from '../../../assets/images/_gamingIcon.svg';
 
 const Categories = () => {
     // Dữ liệu danh mục

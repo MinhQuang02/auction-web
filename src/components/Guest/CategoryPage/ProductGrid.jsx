@@ -1,10 +1,10 @@
-import wishIcon from '../../../assets/images/I3_1608_55_380.svg';
-import viewIcon from '../../../assets/images/I3_1609_55_355_55_350.svg';
+import wishIcon from '../../../assets/images/_wishIcon.svg';
+import viewIcon from '../../../assets/images/_viewIcon.svg';
 
-import keyboardImg from '../../../assets/images/e59d9f348cc24eeff489863523b63971c3ff8e4a.png';
-import monitorImg from '../../../assets/images/5e634682db5174aff99bb9337d2dc9598a0b44e4.png';
-import gamepadImg from '../../../assets/images/5d5c2e5250752d55f8b60f2aa2923183dadbc135.png';
-import chairImg from '../../../assets/images/288da330273c46e1c3dc0a8915c4b031d0345347.png';
+import keyboardImg from '../../../assets/images/_keyboardImg.png';
+import monitorImg from '../../../assets/images/_monitorImg.png';
+import gamepadImg from '../../../assets/images/_gamepadImg.png';
+import chairImg from '../../../assets/images/_chairImg.png';
 
 const ProductGrid = () => {
     const products = [
@@ -38,7 +38,7 @@ const ProductGrid = () => {
         {
             id: 4,
             title: 'AK-900 Wired Keyboard (12)',
-            image: keyboardImg, // HTML gốc dùng lại ảnh keyboard
+            image: keyboardImg,
             priceTag: '2400$',
             price: '$960',
             author: '***yen',
@@ -56,7 +56,7 @@ const ProductGrid = () => {
         {
             id: 6,
             title: 'AK-900 Wired Keyboard (66)',
-            image: keyboardImg, // HTML gốc dùng lại ảnh keyboard
+            image: keyboardImg,
             priceTag: '2400$',
             price: '$960',
             author: '***yen',
@@ -65,7 +65,7 @@ const ProductGrid = () => {
         {
             id: 7,
             title: 'AK-900 Wired Keyboard (13)',
-            image: keyboardImg, // HTML gốc dùng lại ảnh keyboard
+            image: keyboardImg,
             priceTag: '2400$',
             price: '$960',
             author: '***yen',
@@ -74,7 +74,7 @@ const ProductGrid = () => {
         {
             id: 8,
             title: 'AK-900 Wired Keyboard (13)',
-            image: keyboardImg, // HTML gốc dùng lại ảnh keyboard
+            image: keyboardImg,
             priceTag: '2400$',
             price: '$960',
             author: '***yen',

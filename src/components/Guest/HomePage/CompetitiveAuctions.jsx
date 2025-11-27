@@ -1,11 +1,11 @@
-import decorativeBg from '../../../assets/images/3_1325.svg';
-import arrowIcon from '../../../assets/images/3_1336.svg';
+import decorativeBg from '../../../assets/images/_decorativeBg.svg';
+import arrowIcon from '../../../assets/images/_arrowIcon.svg';
 
-import dress1 from '../../../assets/images/600c161c1788694a344dccb84696469f7ba1c877.png';
-import dress2 from '../../../assets/images/5a7256ce608a1d0d9eed7d8226021ba97970c776.png';
-import handbag from '../../../assets/images/065ff73c9c2ec3aa414a3c302d4fef0bb68ccee4.png';
-import sunHat from '../../../assets/images/b9de37164a36735c0ea99d642f76c78d3a576f10.png';
-import scarf from '../../../assets/images/09989f53a87fb4bb4f0de79c0c0a8c755624445f.png';
+import dress1 from '../../../assets/images/_dress1.png';
+import dress2 from '../../../assets/images/_dress2.png';
+import handbag from '../../../assets/images/_handbag.png';
+import sunHat from '../../../assets/images/_sunHat.png';
+import scarf from '../../../assets/images/_scarf.png';
 
 const CompetitiveAuctions = () => {
     const products = [

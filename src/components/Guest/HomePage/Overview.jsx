@@ -1,5 +1,5 @@
-import heroBanner from '../../../assets/images/f8095e6d55a76e6cff424c50ed846cf8bb2e8423.png';
-import fiveStars from '../../../assets/images/3_1722.svg';
+import heroBanner from '../../../assets/images/_heroBanner.png';
+import fiveStars from '../../../assets/images/_fiveStars.svg';
 
 const Overview = () => {
     return (

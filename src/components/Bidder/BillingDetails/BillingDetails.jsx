@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 
 // Import Product Images (Dùng ảnh từ HTML mẫu)
-import monitorImg from '../../../assets/images/5e634682db5174aff99bb9337d2dc9598a0b44e4.png';
-import gamepadImg from '../../../assets/images/5d5c2e5250752d55f8b60f2aa2923183dadbc135.png';
+import monitorImg from '../../../assets/images/_monitorImg.png';
+import gamepadImg from '../../../assets/images/_gamepadImg.png';
 
 const BillingDetails = () => {
     // State quản lý phương thức thanh toán
