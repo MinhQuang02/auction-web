@@ -53,13 +53,14 @@ const AskSeller = () => {
                                 onClick={() => toggleFaq(index)}
                             >
                                 {/* Question Header */}
-                                <div className="flex justify-between items-center p-3 md:p-4">
-                                    <div className="flex items-baseline gap-2">
-                                        <h3 className="font-bold text-sm md:text-base">{item.question}</h3>
-                                        <span className="text-xs text-gray-500 font-medium">by {item.author}</span>
+                                <div className="flex justify-between items-start p-3 md:p-4">
+                                    
+                                    <div className="flex flex-col gap-1 md:flex-row md:items-baseline md:gap-2 w-full pr-8 md:pr-4">
+                                        <h3 className="font-bold text-sm md:text-base leading-snug">{item.question}</h3>
+                                        <span className="text-xs text-gray-500 font-medium whitespace-nowrap">by {item.author}</span>
                                     </div>
                                     
-                                    {/* Toggle Icon */}
+                                    {/* Toggle Icon (Giữ vị trí bên phải) */}
                                     <div className={`faq-btn w-8 h-8 rounded-md flex flex-none items-center justify-center transition-all duration-300 bg-[#E0E0E0] text-gray-600`}>
                                         <svg 
                                             xmlns="http://www.w3.org/2000/svg" 

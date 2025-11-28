@@ -1,12 +1,22 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
 
-import heroBanner from '../../../assets/images/_heroBanner.png';
-import fiveStars from '../../../assets/images/_fiveStars.svg';
+import heroBanner from "../../../assets/images/_heroBanner.png";
+
+const FiveStars = () => (
+    <div className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map((star) => (
+            <svg key={star} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-[#FFB800]">
+                <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+            </svg>
+        ))}
+    </div>
+);
 
 const Overview = () => {
     return (
-        <div className="flex-grow bg-[#f2f2f2] rounded-2xl shadow-lg overflow-hidden flex flex-col font-sans text-[#1f1f1f]">
-            
+        <div className="flex-grow bg-[#f2f2f2] rounded-2xl shadow-lg overflow-hidden flex flex-col font-sans text-[#1f1f1f] h-auto lg:h-[530px]">
+            {/* Hero Image Section */}
             <div className="relative group shrink-0">
                 <img src={heroBanner} alt="Hero Banner" className="w-full h-[250px] object-cover block" />
                 
@@ -32,29 +42,30 @@ const Overview = () => {
                 </Link>
             </div>
 
+            {/* Content Section */}
             <div className="flex flex-col md:flex-row w-full h-full"> 
                 
                 {/* --- Left Column: Product Information --- */}
-                <div className="w-full md:w-1/2 border-b-2 md:border-b-0 md:border-r-2 border-dashed border-[#ccc] flex flex-col justify-center relative">
-                    
-                    <div className="p-8 pt-12 md:pt-14 pr-6">
-                        {/* Category Buttons */}
-                        <div className="flex gap-2.5 mb-4">
-                            <button className="border border-dashed border-gray-400 rounded-lg px-4 py-2 bg-transparent font-mono text-[10px] text-gray-600 hover:border-gray-800 transition">All</button>
-                            <button className="border border-dashed border-gray-400 rounded-lg px-4 py-2 bg-transparent font-mono text-[10px] text-gray-600 hover:border-gray-800 transition">Mens</button>
-                            <button className="border border-dashed border-gray-400 rounded-lg px-4 py-2 bg-transparent font-mono text-[10px] text-gray-600 hover:border-gray-800 transition">Womens</button>
+                <div className="w-full md:w-1/2 border-b-2 md:border-b-0 md:border-r-2 border-dashed border-[#ccc] flex flex-col relative">
+                    <div className="p-6 md:p-8 pt-8 md:pt-12 pr-6 flex flex-col h-full justify-start">
+                        <div className="flex flex-wrap gap-2.5 mb-4">
+                            <button className="border border-dashed border-gray-400 rounded-lg px-3 py-1.5 md:px-4 md:py-2 bg-transparent font-mono text-[10px] text-gray-600 hover:border-gray-800 transition whitespace-nowrap">All</button>
+                            <button className="border border-dashed border-gray-400 rounded-lg px-3 py-1.5 md:px-4 md:py-2 bg-transparent font-mono text-[10px] text-gray-600 hover:border-gray-800 transition whitespace-nowrap">Mens</button>
+                            <button className="border border-dashed border-gray-400 rounded-lg px-3 py-1.5 md:px-4 md:py-2 bg-transparent font-mono text-[10px] text-gray-600 hover:border-gray-800 transition whitespace-nowrap">Womens</button>
                         </div>
                         
-                        <h2 className="font-bold text-2xl mb-1 uppercase tracking-tight">HAVIT HV-G92 GAMEPAD</h2>
+                        <h2 className="font-bold text-xl md:text-2xl mb-1 uppercase tracking-tight truncate w-full" title="HAVIT HV-G92 GAMEPAD">
+                            HAVIT HV-G92 GAMEPAD
+                        </h2>
                         
                         <div className="flex items-center gap-2 mb-1">
-                            <img src={fiveStars} alt="5 stars" className="h-3" />
+                            <FiveStars />
                             <span className="text-sm font-semibold opacity-50">(88)</span>
                         </div>
 
-                        <p className="text-[10px] font-semibold mb-6">by ***inh</p>
+                        <p className="text-[10px] font-semibold mb-4 md:mb-6">by ***inh</p>
                         
-                        <p className="text-[11px] leading-relaxed text-gray-600">
+                        <p className="text-[11px] leading-relaxed text-gray-600 text-justify md:text-left pr-2 line-clamp-2 overflow-hidden">
                             PlayStation 5 Controller Skin High quality vinyl with air channel adhesive for easy bubble free install & mess free removal Pressure sensitive.
                         </p>
                     </div>
@@ -64,26 +75,26 @@ const Overview = () => {
                 <div className="w-full md:w-1/2 grid grid-cols-2"> 
                     
                     {/* Leading Bid Price */}
-                    <div className="p-6 md:pt-14 flex flex-col items-center justify-center text-center border-b-2 border-r-2 border-dashed border-[#ccc]">
-                        <span className="font-medium text-2xl mb-1">50.00$</span>
+                    <div className="p-4 md:p-6 md:pt-14 flex flex-col items-center justify-center text-center border-b-2 border-r-2 border-dashed border-[#ccc]">
+                        <span className="font-medium text-xl md:text-2xl mb-1">50.00$</span>
                         <span className="text-[10px] text-gray-500">Leading Bid Price</span>
                     </div>
 
                     {/* Leading Bidder */}
-                    <div className="p-6 md:pt-14 flex flex-col items-center justify-center text-center border-b-2 border-dashed border-[#ccc]">
-                        <span className="font-medium text-2xl mb-1">by ***kha</span>
+                    <div className="p-4 md:p-6 md:pt-14 flex flex-col items-center justify-center text-center border-b-2 border-dashed border-[#ccc]">
+                        <span className="font-medium text-xl md:text-2xl mb-1">by ***kha</span>
                         <span className="text-[10px] text-gray-500">Leading Bidder</span>
                     </div>
 
                     {/* Time Remaining */}
-                    <div className="p-6 flex flex-col items-center justify-center text-center border-r-2 md:border-b-0 border-dashed border-[#ccc] border-b-2"> 
-                        <span className="font-medium text-2xl mb-1">5 days, 3h</span>
+                    <div className="p-4 md:p-6 flex flex-col items-center justify-center text-center border-r-2 md:border-b-0 border-dashed border-[#ccc] border-b-2"> 
+                        <span className="font-medium text-xl md:text-2xl mb-1">5 days, 3h</span>
                         <span className="text-[10px] text-gray-500">Time Remaining</span>
                     </div>
 
                     {/* Buy It Now Price */}
-                    <div className="p-6 flex flex-col items-center justify-center text-center border-b-2 md:border-b-0 border-dashed border-[#ccc]">
-                        <span className="font-medium text-2xl mb-1">100.50$</span>
+                    <div className="p-4 md:p-6 flex flex-col items-center justify-center text-center border-b-2 md:border-b-0 border-dashed border-[#ccc]">
+                        <span className="font-medium text-xl md:text-2xl mb-1">100.50$</span>
                         <span className="text-[10px] text-gray-500">Buy It Now</span>
                     </div>
 
