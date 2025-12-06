@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -19,7 +19,41 @@ import Login from './components/Auth/Login';
 import Signup from './components/Auth/Signup';
 import ForgotPassword from './components/Auth/ForgotPassword';
 
+import AdminDashboard from 'pages/Admin/AdminDashboard/AdminDashboard';
+import CategoryManagement from 'pages/Admin/CategoryManagement/CategoryManagement';
+import AuctionManagement from 'pages/Admin/AuctionManagement/AuctionManagement';
+import UserManagement from 'pages/Admin/UserManagement/UserManagement';
+
+import MyProducts from 'pages/Seller/MyProducts/MyProducts';
+import EditProduct from 'pages/Seller/EditProduct/EditProduct';
+
 const MainLayout = () => {
+  return (
+    <>
+      <Header />
+      <main className="min-h-screen">
+        <Outlet />
+      </main>
+      <Footer />
+      <BackToTopButton />
+    </>
+  );
+};
+
+const AdminLayout = () => {
+  return (
+    <>
+      <Header />
+      <main className="min-h-screen">
+        <Outlet />
+      </main>
+      <Footer />
+      <BackToTopButton />
+    </>
+  );
+};
+
+const SellerLayout = () => {
   return (
     <>
       <Header />
@@ -42,7 +76,8 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
 
           <Route element={<MainLayout />}>
-            <Route path="/" element={<HomePage />} />
+            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route path="/home" element={<HomePage />} />
             <Route path="/category" element={<CategoryPage />} />
             <Route path="/product" element={<ProductDetail />} />
             
@@ -52,7 +87,22 @@ function App() {
             <Route path="/auctions" element={<AuctionProducts />} />
             <Route path="/my-purchases" element={<MyPurchases />} />
             <Route path="/billing" element={<BillingDetails />} />
-            
+            <Route path="*" element={<NotFound />} />
+          </Route>
+
+          <Route element={<AdminLayout />}>
+            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/categories" element={<CategoryManagement />} />
+            <Route path="/admin/auctions" element={<AuctionManagement />} />
+            <Route path="/admin/users" element={<UserManagement />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
+
+          <Route element={<SellerLayout />}>
+            <Route path="/seller" element={<Navigate to="/seller/products" replace />} />
+            <Route path="/seller/products" element={<MyProducts />} />
+            <Route path="/seller/edit-product" element={<EditProduct />} />
             <Route path="*" element={<NotFound />} />
           </Route>
 
