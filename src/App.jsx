@@ -1,31 +1,37 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
+import React from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Outlet,
+  Navigate,
+} from "react-router-dom";
 
-import Header from './components/Header';
-import Footer from './components/Footer';
-import BackToTopButton from './components/BackToTop';
-import HomePage from './components/Guest/HomePage/HomePage';
-import CategoryPage from './components/Guest/CategoryPage/CategoryPage';
-import ProductDetail from './components/Guest/ProductDetail/ProductDetail';
-import Profiles from './components/Bidder/Profiles/Profiles';
-import Review from './components/Bidder/Review/Review';
-import Wishlists from './components/Bidder/Wishlists/Wishlists';
-import AuctionProducts from './components/Bidder/AuctionProducts/AuctionProducts';
-import MyPurchases from './components/Bidder/MyPurchases/MyPurchases';
-import BillingDetails from './components/Bidder/BillingDetails/BillingDetails';
-import NotFound from './components/NotFound';
+import Header from "@shared/components/Header";
+import Footer from "@shared/components/Footer";
+import BackToTopButton from "@shared/components/BackToTop";
+import HomePage from "@guest/pages/HomePage/HomePage";
+import CategoryPage from "@guest/pages/CategoryPage/CategoryPage";
+import ProductDetail from "@guest/pages/ProductDetail/ProductDetail";
+import Profiles from "@bidder/pages/Profiles/Profiles";
+import Review from "@bidder/pages/Review/Review";
+import Wishlists from "@bidder/pages/Wishlists/Wishlists";
+import AuctionProducts from "@bidder/pages/AuctionProducts/AuctionProducts";
+import MyPurchases from "@bidder/pages/MyPurchases/MyPurchases";
+import BillingDetails from "@bidder/pages/BillingDetails/BillingDetails";
+import NotFound from "@shared/pages/NotFound";
 
-import Login from './components/Auth/Login'; 
-import Signup from './components/Auth/Signup';
-import ForgotPassword from './components/Auth/ForgotPassword';
+import Login from "@shared/pages/auth/Login";
+import Signup from "@shared/pages/auth/Signup";
+import ForgotPassword from "@shared/pages/auth/ForgotPassword";
 
-import AdminDashboard from 'pages/Admin/AdminDashboard/AdminDashboard';
-import CategoryManagement from 'pages/Admin/CategoryManagement/CategoryManagement';
-import AuctionManagement from 'pages/Admin/AuctionManagement/AuctionManagement';
-import UserManagement from 'pages/Admin/UserManagement/UserManagement';
+import AdminDashboard from "@admin/pages/AdminDashboard/AdminDashboard";
+import CategoryManagement from "@admin/pages/CategoryManagement/CategoryManagement";
+import AuctionManagement from "@admin/pages/AuctionManagement/AuctionManagement";
+import UserManagement from "@admin/pages/UserManagement/UserManagement";
 
-import MyProducts from 'pages/Seller/MyProducts/MyProducts';
-import EditProduct from 'pages/Seller/EditProduct/EditProduct';
+import MyProducts from "@seller/pages/MyProducts/MyProducts";
+import EditProduct from "@seller/pages/EditProduct/EditProduct";
 
 const MainLayout = () => {
   return (
@@ -80,7 +86,7 @@ function App() {
             <Route path="/home" element={<HomePage />} />
             <Route path="/category" element={<CategoryPage />} />
             <Route path="/product" element={<ProductDetail />} />
-            
+
             <Route path="/profile" element={<Profiles />} />
             <Route path="/reviews" element={<Review />} />
             <Route path="/wishlist" element={<Wishlists />} />
@@ -91,7 +97,10 @@ function App() {
           </Route>
 
           <Route element={<AdminLayout />}>
-            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route
+              path="/admin"
+              element={<Navigate to="/admin/dashboard" replace />}
+            />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/categories" element={<CategoryManagement />} />
             <Route path="/admin/auctions" element={<AuctionManagement />} />
@@ -100,12 +109,14 @@ function App() {
           </Route>
 
           <Route element={<SellerLayout />}>
-            <Route path="/seller" element={<Navigate to="/seller/products" replace />} />
+            <Route
+              path="/seller"
+              element={<Navigate to="/seller/products" replace />}
+            />
             <Route path="/seller/products" element={<MyProducts />} />
             <Route path="/seller/edit-product" element={<EditProduct />} />
             <Route path="*" element={<NotFound />} />
           </Route>
-
         </Routes>
       </div>
     </BrowserRouter>
