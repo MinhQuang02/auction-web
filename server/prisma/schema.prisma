@@ -1,0 +1,93 @@
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum user_role_enum {
+  bidder
+  seller
+  admin
+  guest
+}
+
+model User {
+  user_id              Int            @id @default(autoincrement())
+  email                String         @unique @db.VarChar
+  password             String         @db.VarChar
+  full_name            String         @db.VarChar
+  address              String?        @db.VarChar
+  otp                  String?        @db.VarChar
+  is_email_verified    Boolean        @default(false)
+  total_ratings        Int            @default(0)
+  avg_rating           Decimal?       @db.Decimal
+  dob                  DateTime?      @db.Date
+  created_at           DateTime       @default(now()) @db.Timestamp
+  upgrade_request_time DateTime?      @db.Timestamp
+  otp_expires          DateTime?      @db.Timestamp
+  role                 user_role_enum @default(bidder)
+
+  @@map("User")
+}
+
+enum product_status_enum {
+  active
+  sold
+  expired
+  inactive
+}
+
+model Product {
+  product_id          Int                 @id @default(autoincrement())
+  name                String              @db.VarChar
+  main_image_url      String              @db.VarChar
+  description         String?             @db.Text
+  category_id         Int
+  start_price         Decimal             @db.Decimal
+  step_price          Decimal             @db.Decimal
+  buy_now_price       Decimal?            @db.Decimal
+  current_price       Decimal             @db.Decimal
+  start_time          DateTime?           @db.Timestamp
+  end_time            DateTime            @db.Timestamp
+  bid_count           Int                 @default(0)
+  seller_id           Int
+  current_bidder_id   Int?
+  winner_id           Int?
+  auto_extend_enabled Boolean             @default(true)
+  status              product_status_enum @default(active)
+
+  @@map("Product")
+}
+
+model Rating {
+  rating_id     Int      @id @default(autoincrement())
+  created_at    DateTime @default(now()) @db.Timestamp
+  product_id    Int
+  rated_user_id Int
+  rater_id      Int
+  rating_value  Int
+  comment       String?  @db.Text
+
+  @@map("Rating")
+}
+
+model Watchlist {
+  user_id    Int
+  product_id Int
+
+  @@id([user_id, product_id])
+  @@map("Watchlist")
+}
+
+model UpgradeRequest {
+  request_id Int      @id @default(autoincrement())
+  user_id    Int      @unique
+  created_at DateTime @default(now()) @db.Timestamp
+
+  @@map("UpgradeRequest")
+}

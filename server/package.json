@@ -1,0 +1,31 @@
+{
+  "name": "express-orm-project",
+  "version": "1.0.0",
+  "description": "Express.js project with ORM",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest",
+    "postinstall": "prisma generate"
+  },
+  "keywords": [
+    "express",
+    "orm",
+    "nodejs",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11",
+    "prisma": "^5.22.0"
+  }
+}

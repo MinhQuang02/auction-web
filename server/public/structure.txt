@@ -1,0 +1,53 @@
+# Backend Project Structure
+
+This project follows a standard Layered Architecture (Controller-Service-Repository pattern) using Express.js and Prisma ORM.
+
+## Directory Structure
+
+### `src/` (Source Code)
+The core logic of the application resides here.
+
+- **`controllers/`**: 
+  - Handles incoming HTTP requests and sends responses.
+  - Extracts data from requests (body, query params) and calls the appropriate Service.
+  - Examples: `userController.js`, `productController.js`, `ratingController.js`.
+
+- **`services/`**: 
+  - Contains the business logic of the application.
+  - Interacts directly with the database using Prisma Client.
+  - Examples: `userService.js` (User logic), `productService.js` (Product filtering), `ratingService.js` (Fetching ratings).
+
+- **`routes/`**: 
+  - Defines API endpoints and maps them to Controller functions.
+  - Example: `userRoutes.js` maps `PUT /profile` to `userController.updateProfile`.
+
+- **`config/`**: 
+  - Configuration files (e.g., database connection setup).
+
+- **`middleware/`**: 
+  - Express middleware functions (e.g., for authentication, error handling, logging).
+
+- **`utils/`**: 
+  - Helper functions and utility classes used across the application.
+
+- **`index.js`**: 
+  - The entry point of the server.
+  - Configures Express app, registers routes, and starts the server.
+
+### `prisma/` (Database ORM)
+- **`schema.prisma`**: 
+  - Defines the database models (tables) and their relationships.
+  - Used by Prisma to generate the client and manage database migrations.
+
+### Root Files
+- **`package.json`**: Lists dependencies and run scripts (`npm run dev`).
+- **`.env`**: Stores environment variables (database URL, API keys).
+- **`public/`**: Stores documentation files (`api.txt`, `structure.txt`).
+
+## Data Flow
+1. **Request**: Client sends an HTTP request (e.g., PUT /api/users/profile).
+2. **Route**: `userRoutes.js` matches the URL and forwards it to `userController.updateProfile`.
+3. **Controller**: `userController` validates input and calls `userService.updateUserProfile`.
+4. **Service**: `userService` executes logic (checks email) and uses `prisma` to update the database.
+5. **Database**: Postgres database updates the record.
+6. **Response**: Data returns up the chain (Service -> Controller) and is sent back as JSON to the client.

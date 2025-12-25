@@ -1,0 +1,136 @@
+# API Documentation
+
+## Users
+
+### Get User Profile
+- **Method**: GET
+- **URL**: `/api/users/profile`
+- **Payload**: None
+- **Response**:
+  ```json
+  {
+    "user_id": 15,
+    "email": "user@example.com",
+    "full_name": "John Doe",
+    "address": "123 Street",
+    "is_email_verified": true,
+    "role": "bidder",
+    ...
+  }
+  ```
+
+### Update User Profile
+- **Method**: PUT
+- **URL**: `/api/users/profile`
+- **Payload**:
+  ```json
+  {
+    "full_name": "New Name",
+    "address": "New Address",
+    "email": "new@example.com"
+  }
+  ```
+- **Response**: Updated User object (same structure as Get Profile).
+  - Note: If `email` is changed, `is_email_verified` will be reset to `false`.
+
+---
+
+## Products
+
+### Get Products (Filter by Category)
+- **Method**: GET
+- **URL**: `/api/products`
+- **Query Parameters**:
+  - `category_id` (optional): Filter products by category ID.
+- **Example URL**: `/api/products?category_id=1`
+- **Response**: Array of Product objects.
+  ```json
+  [
+    {
+      "product_id": 101,
+      "name": "Iphone 15",
+      "start_price": "1000",
+      "current_price": "1200",
+      "main_image_url": "http://...",
+      "status": "active",
+      "start_time": "2023-01-01T00:00:00.000Z",
+      ...
+    }
+  ]
+  ```
+
+### Delete Watchlist Item
+- **Method**: DELETE
+- **URL**: `/api/watchlist/:product_id`
+- **Example URL**: `/api/watchlist/101`
+- **Response**:
+  ```json
+  {
+    "message": "Removed from watchlist"
+  }
+  ```
+
+---
+
+## Ratings
+
+### Get Ratings (Filter by Product)
+- **Method**: GET
+- **URL**: `/api/ratings`
+- **Query Parameters**:
+  - `product_id` (required): Filter ratings by product ID.
+- **Example URL**: `/api/ratings?product_id=62`
+- **Response**: Array of Rating objects.
+  ```json
+  [
+    {
+      "rating_id": 1,
+      "product_id": 62,
+      "rated_user_id": 15,
+      "rater_id": 25,
+      "rating_value": 5,
+      "comment": "Good product!",
+      "created_at": "2023-11-28T19:07:25.841Z"
+    }
+  ]
+
+---
+
+## Watchlist
+
+### Get Watchlist
+- **Method**: GET
+- **URL**: `/api/watchlist`
+- **Payload**: None
+- **Response**: Array of Watchlist objects (user_id=20 by default).
+  ```json
+  [
+    {
+      "user_id": 20,
+      "product_id": 101
+    }
+  ]
+
+---
+
+## Upgrade Requests
+
+### Request Upgrade (Bidder -> Seller)
+- **Method**: POST
+- **URL**: `/api/upgrades`
+- **Payload**: None (User ID retrieved from session - default 16)
+- **Response**:
+  ```json
+  {
+    "request_id": 1,
+    "user_id": 15,
+    "created_at": "..."
+  }
+  ```
+
+### Get Pending Requests (Admin)
+- **Method**: GET
+- **URL**: `/api/upgrades`
+- **Response**: Array of UpgradeRequest objects.
+  ```
+  ```

@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"],
+      "@admin/*": ["./src/apps/admin/*"],
+      "@seller/*": ["./src/apps/seller/*"],
+      "@bidder/*": ["./src/apps/bidder/*"],
+      "@guest/*": ["./src/apps/guest/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@assets/*": ["./src/assets/*"]
+    }
+  },
+  "include": ["src"]
+}
