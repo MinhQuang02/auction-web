@@ -35,4 +35,30 @@ const register = async (req, res) => {
   }
 };
 
-export default { register };
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "email and password are required" });
+    }
+
+    const { token, user } = await authService.login({ email, password });
+
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      user,
+    });
+  } catch (error) {
+    if (error.message === "Invalid credentials") {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export default { register, login };
