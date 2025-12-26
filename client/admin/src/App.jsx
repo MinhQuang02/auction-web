@@ -7,19 +7,19 @@ import {
   Navigate,
 } from "react-router-dom";
 
-import Header from "@shared/components/Header";
-import Footer from "@shared/components/Footer";
-import BackToTopButton from "@shared/components/BackToTop";
-import NotFound from "@shared/pages/NotFound";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import BackToTopButton from "@/components/BackToTop";
+import NotFound from "@/pages/NotFound";
 
-import AdminDashboard from "@admin/pages/AdminDashboard/AdminDashboard";
-import CategoryManagement from "@admin/pages/CategoryManagement/CategoryManagement";
-import AuctionManagement from "@admin/pages/AuctionManagement/AuctionManagement";
-import UserManagement from "@admin/pages/UserManagement/UserManagement";
+import AdminDashboard from "@/pages/AdminDashboard/AdminDashboard";
+import CategoryManagement from "@/pages/CategoryManagement/CategoryManagement";
+import AuctionManagement from "@/pages/AuctionManagement/AuctionManagement";
+import UserManagement from "@/pages/UserManagement/UserManagement";
 
-import Login from "@shared/pages/auth/Login";
-import Signup from "@shared/pages/auth/Signup";
-import ForgotPassword from "@shared/pages/auth/ForgotPassword";
+import Login from "@/pages/auth/Login";
+import Signup from "@/pages/auth/Signup";
+import ForgotPassword from "@/pages/auth/ForgotPassword";
 
 const AdminLayout = () => {
   return (
@@ -44,8 +44,14 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
 
           <Route element={<AdminLayout />}>
-            <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route
+              path="/"
+              element={<Navigate to="/admin/dashboard" replace />}
+            />
+            <Route
+              path="/admin"
+              element={<Navigate to="/admin/dashboard" replace />}
+            />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/categories" element={<CategoryManagement />} />
             <Route path="/admin/auctions" element={<AuctionManagement />} />

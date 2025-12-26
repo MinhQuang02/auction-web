@@ -1,5 +1,5 @@
-import Modal from "@shared/components/Modal";
-import VBox from "@shared/components/VBox";
+import Modal from "@/components/Modal";
+import VBox from "@/components/VBox";
 
 const UpgradeRequestReview = ({
   isOpen,

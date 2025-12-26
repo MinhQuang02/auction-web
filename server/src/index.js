@@ -8,6 +8,7 @@ import ratingRoutes from "./routes/ratingRoutes.js";
 import watchlistRoutes from "./routes/watchlistRoutes.js";
 import upgradeRoutes from "./routes/upgradeRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import sessionMiddleware from "./middleware/sessionMiddleware.js";
 
 dotenv.config();
 
@@ -16,6 +17,7 @@ const PORT = process.env.PORT || 8000;
 
 app.use(cors());
 app.use(express.json());
+app.use(sessionMiddleware);
 
 app.use("/", healthRoutes);
 app.use("/api/users", userRoutes);
