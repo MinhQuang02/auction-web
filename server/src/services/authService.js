@@ -45,8 +45,17 @@ const login = async ({ email, password }) => {
       user_id: user.user_id,
       email: user.email,
       full_name: user.full_name,
+      role: user.role,
     },
   };
 };
 
-export default { register, login };
+const getCurrentUser = async (userId) => {
+  const user = await prisma.user.findUnique({
+    where: { user_id: userId },
+    select: { user_id: true, email: true, full_name: true, role: true },
+  });
+  return user;
+};
+
+export default { register, login, getCurrentUser };
