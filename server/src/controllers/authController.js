@@ -8,19 +8,15 @@ class AuthController {
         req.body;
 
       if (!email || !password || !full_name) {
-        return res
-          .status(400)
-          .json({ message: "email, password, and full_name are required" });
+        return res.status(400).json({ message: "Missing required fields" });
       }
 
       const captchaValid = await verifyRecaptcha(captchaToken);
       if (!captchaValid) {
-        return res.status(400).json({
-          message: "Captcha verification failed",
-        });
+        return res.status(400).json({ message: "Captcha failed" });
       }
 
-      const user = await authService.register({
+      await authService.registerAndSendOtp({
         email,
         password,
         full_name,
@@ -29,18 +25,37 @@ class AuthController {
       });
 
       return res.status(201).json({
-        message: "User registered successfully",
-        user: {
-          user_id: user.user_id,
-          email: user.email,
-          full_name: user.full_name,
-        },
+        message: "Registration successful. Please verify your email.",
       });
-    } catch (error) {
-      if (error.code === "P2002") {
+    } catch (err) {
+      if (err.code === "P2002") {
         return res.status(400).json({ message: "Email already exists" });
       }
-      console.error(error);
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  async verifyEmail(req, res) {
+    try {
+      const { email, otp } = req.body;
+
+      if (!email || !otp) {
+        return res.status(400).json({ message: "Missing email or OTP" });
+      }
+
+      await authService.verifyEmail({ email, otp });
+
+      return res.json({ message: "Email verified successfully" });
+    } catch (err) {
+      if (
+        err.message === "Invalid request" ||
+        err.message === "Invalid OTP" ||
+        err.message === "OTP expired"
+      ) {
+        return res.status(400).json({ message: err.message });
+      }
+      console.error(err);
       return res.status(500).json({ message: "Internal server error" });
     }
   }
@@ -66,6 +81,9 @@ class AuthController {
       if (error.message === "Invalid credentials") {
         return res.status(401).json({ message: "Invalid credentials" });
       }
+      if (error.message === "Email not verified") {
+        return res.status(403).json({ message: "Email not verified" });
+      }
       console.error(error);
       return res.status(500).json({ message: "Internal server error" });
     }
@@ -73,7 +91,6 @@ class AuthController {
 
   async me(req, res) {
     try {
-      // Not logged in -> guest response
       if (!req.auth?.authenticated) {
         return res.status(200).json({
           authenticated: false,
@@ -84,7 +101,6 @@ class AuthController {
 
       const user = await authService.getCurrentUser(req.auth.userId);
 
-      // Token valid but user deleted -> treat as guest
       if (!user) {
         return res.status(200).json({
           authenticated: false,

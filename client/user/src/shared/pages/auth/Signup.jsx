@@ -99,8 +99,12 @@ const Signup = () => {
         throw new Error(data.message || "Signup failed");
       }
 
-      setSuccessMessage("Signup successful. Redirecting to login...");
-      setTimeout(() => navigate("/login"), 1500);
+      setSuccessMessage("Signup successful. Please verify your email.");
+      setTimeout(() => {
+        navigate("/verify-email", {
+          state: { email: form.email },
+        });
+      }, 1200);
     } catch (err) {
       setErrorMessage(err.message);
     }

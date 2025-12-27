@@ -29,6 +29,7 @@ import EditProduct from "@seller/pages/EditProduct/EditProduct";
 import Login from "@shared/pages/auth/Login";
 import Signup from "@shared/pages/auth/Signup";
 import ForgotPassword from "@shared/pages/auth/ForgotPassword";
+import VerifyEmail from "./shared/pages/auth/VerifyEmail";
 
 const MainLayout = () => {
   return (
@@ -63,6 +64,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
 
           <Route element={<MainLayout />}>
