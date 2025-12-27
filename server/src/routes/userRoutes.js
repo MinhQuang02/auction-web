@@ -1,8 +1,14 @@
 import express from 'express';
-const router = express.Router();
 import userController from '../controllers/userController.js';
+import authenticateToken from '../middlewares/authMiddleware.js';
 
-router.get('/profile', userController.getProfile);
-router.put('/profile', userController.updateProfile);
+const router = express.Router();
+
+router.post('/register', userController.register);
+router.post('/verify', userController.verify);
+router.post('/login', userController.login);
+
+router.get('/profile', authenticateToken, userController.getProfile);
+router.put('/profile', authenticateToken, userController.updateProfile);
 
 export default router;
