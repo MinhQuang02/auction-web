@@ -1,14 +1,23 @@
 import authService from "../services/authService.js";
+import verifyRecaptcha from "../utils/recaptcha.js";
 
 class AuthController {
   async register(req, res) {
     try {
-      const { email, password, full_name, address, dob } = req.body;
+      const { email, password, full_name, address, dob, captchaToken } =
+        req.body;
 
       if (!email || !password || !full_name) {
         return res
           .status(400)
           .json({ message: "email, password, and full_name are required" });
+      }
+
+      const captchaValid = await verifyRecaptcha(captchaToken);
+      if (!captchaValid) {
+        return res.status(400).json({
+          message: "Captcha verification failed",
+        });
       }
 
       const user = await authService.register({

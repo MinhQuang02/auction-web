@@ -1,13 +1,16 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import ReCAPTCHA from "react-google-recaptcha";
 
 const API_URL = import.meta.env.VITE_API_URL;
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
 const Signup = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [captchaToken, setCaptchaToken] = useState(null);
 
   const [form, setForm] = useState({
     firstName: "",
@@ -67,12 +70,18 @@ const Signup = () => {
       return;
     }
 
+    if (!captchaToken) {
+      setErrorMessage("Please complete the reCAPTCHA.");
+      return;
+    }
+
     const payload = {
       full_name: `${form.firstName.trim()} ${form.lastName.trim()}`,
       address: form.address,
       email: form.email,
       password: form.password,
       dob: form.dob,
+      captchaToken,
     };
 
     try {
@@ -110,7 +119,7 @@ const Signup = () => {
         </div>
 
         {/* Right Side - Form */}
-        <div className="w-full lg:w-5/12 flex flex-col justify-center px-8 py-10 md:px-12 lg:pl-16 lg:pr-0">
+        <div className="w-full lg:w-5/12 flex flex-col justify-center md:px-12 lg:pl-16 lg:pr-0">
           <div className="w-full max-w-[450px] mx-auto lg:mx-0">
             <h1 className="text-4xl font-bold mb-2 tracking-tight">Sign up</h1>
             <p className="text-gray-400 text-sm mb-8">
@@ -256,6 +265,18 @@ const Signup = () => {
                 <label className="absolute -top-2.5 left-3 bg-white lg:bg-[#F4F4F4] px-1 text-xs text-gray-400">
                   Password
                 </label>
+              </div>
+
+              {/* recaptcha */}
+              <div className="flex justify-center my-2">
+                <ReCAPTCHA
+                  sitekey={RECAPTCHA_SITE_KEY}
+                  onChange={(token) => {
+                    setCaptchaToken(token);
+                    setErrorMessage("");
+                  }}
+                  onExpired={() => setCaptchaToken(null)}
+                />
               </div>
 
               {/* Submit Button */}
