@@ -2,7 +2,12 @@ import userService from '../services/userService.js';
 
 const getProfile = async (req, res) => {
     try {
-        const userId = 15;
+        const userId = req.user?.user_id || parseInt(req.headers['user-id']);
+
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized: User ID required' });
+        }
+
         const user = await userService.getUserProfile(userId);
 
         if (!user) {
@@ -20,8 +25,12 @@ export default {
     getProfile,
     updateProfile: async (req, res) => {
         try {
-            const userId = 15;
+            const userId = req.user?.user_id || parseInt(req.headers['user-id']);
             const { full_name, address, email } = req.body;
+
+            if (!userId) {
+                return res.status(401).json({ message: 'Unauthorized: User ID required' });
+            }
 
             const updatedUser = await userService.updateUserProfile(userId, {
                 full_name,
