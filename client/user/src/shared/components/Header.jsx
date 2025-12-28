@@ -1,52 +1,125 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@context/AuthContext";
+import { useEffect, useRef, useState } from "react";
 import logo from "@assets/images/_logo.svg";
 import wishlistIcon from "@assets/images/_wishlist_icon.svg";
 
 const Header = () => {
+  const { user, isAuthenticated, logout } = useAuth();
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    setOpen(false);
+    navigate("/home");
+  };
+
   return (
     <header className="bg-[#F6F6F6] border-b border-gray-200 py-3 lg:py-5 sticky top-0 z-50">
       <div className="container mx-auto px-4 lg:px-12">
-        {/* Flex Container */}
         <div className="flex flex-wrap lg:flex-nowrap items-center justify-between gap-y-4">
+          {/* Logo */}
           <Link
             to="/"
-            className="order-1 lg:absolute lg:left-1/2 lg:top-1/2 lg:transform lg:-translate-x-1/2 lg:-translate-y-1/2 lg:order-2"
+            className="order-1 lg:absolute lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:order-2"
           >
             <img src={logo} alt="Style Loom Logo" className="h-6 lg:h-8" />
           </Link>
 
           <div className="flex items-center gap-2 lg:gap-4 order-2 lg:order-3 ml-auto lg:ml-0">
-            {/* Wishlist Icon */}
-            <Link
-              to="/wishlist"
-              className="w-[40px] h-[40px] lg:w-[46px] lg:h-[46px] bg-[#1a1a1a] rounded-lg flex justify-center items-center hover:bg-[#2b1b17] transition shrink-0"
-            >
-              <img
-                src={wishlistIcon}
-                alt="Wishlist"
-                className="w-5 h-5 lg:w-auto"
-              />
-            </Link>
+            {!isAuthenticated && (
+              <>
+                <Link
+                  to="/login"
+                  className="px-4 py-2.5 bg-textDark text-white rounded-lg text-xs font-mono hover:bg-[#2b1b17]"
+                >
+                  Login
+                </Link>
 
-            {/* Sign Up Button */}
-            <Link
-              to="/profile"
-              className="px-4 lg:px-8 py-2.5 lg:py-3.5 bg-primary text-white rounded-lg font-mono text-xs font-medium hover:bg-[#543b32] transition whitespace-nowrap"
-            >
-              Sign Up
-            </Link>
+                <Link
+                  to="/signup"
+                  className="px-4 py-2.5 bg-primary text-white rounded-lg text-xs font-mono hover:bg-[#543b32]"
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
+
+            {isAuthenticated && (
+              <div className="relative" ref={dropdownRef}>
+                {/* Username button */}
+                <button
+                  onClick={() => setOpen((v) => !v)}
+                  className="
+          px-4 lg:px-6
+          min-h-[40px] lg:min-h-[46px]
+          flex items-center gap-2
+          bg-textDark text-white
+          rounded-lg
+          font-mono text-xs
+          hover:bg-[#2b1b17]
+          shrink-0
+        "
+                >
+                  <span className="max-w-[120px] truncate">
+                    {user.full_name}
+                  </span>
+                  <span className="text-[10px]">▾</span>
+                </button>
+
+                {/* Dropdown */}
+                {open && (
+                  <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50">
+                    <Link
+                      to="/profile"
+                      onClick={() => setOpen(false)}
+                      className="block px-4 py-2 text-xs hover:bg-gray-100"
+                    >
+                      Profile
+                    </Link>
+
+                    <Link
+                      to="/wishlist"
+                      onClick={() => setOpen(false)}
+                      className="block px-4 py-2 text-xs hover:bg-gray-100"
+                    >
+                      Wishlist
+                    </Link>
+
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2 text-xs text-red-600 hover:bg-gray-100"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
+          {/* Left actions */}
           <div className="flex items-center gap-2 order-3 w-full lg:w-auto lg:order-1 lg:flex-none">
-            {/* Home Button */}
             <Link
               to="/"
-              className="flex-1 lg:flex-none text-center px-4 lg:px-5 py-2.5 lg:py-3.5 border border-dashed border-black rounded-lg font-mono text-xs text-textDark hover:bg-gray-100 transition [border-style:dashed] [border-width:2px] [border-dasharray:5_5]"
+              className="flex-1 lg:flex-none text-center px-4 lg:px-5 py-2.5 lg:py-3.5 border border-dashed border-black rounded-lg font-mono text-xs text-textDark hover:bg-gray-100 transition"
             >
               Home
             </Link>
 
-            {/* Seller Mode Button */}
             <Link
               to="/seller"
               className="flex-1 lg:flex-none text-center px-4 lg:px-5 py-2.5 lg:py-3.5 border border-textDark rounded-lg font-mono text-xs bg-textDark text-white hover:bg-[#2b1b17] transition"

@@ -1,4 +1,4 @@
-import VBox from "@shared/components/VBox";
+import VBox from "@/components/VBox";
 
 const UserDetail = ({ user, onUpgradeRequest }) => {
   return (

@@ -1,23 +1,23 @@
 {
-    "name": "auction-web-monorepo",
-    "version": "1.0.0",
-    "description": "Full-stack Auction Web Application",
-    "private": true,
-    "scripts": {
-        "install:all": "concurrently \"npm run install:client:admin\" \"npm run install:client:user\" \"npm run install:server\"",
-        "install:client:admin": "cd client/admin && npm install",
-        "install:client:user": "cd client/user && npm install",
-        "install:server": "cd server && npm install",
-        "dev": "concurrently -n \"USER,ADMIN,SERVER\" -c \"bgBlue.bold,bgGreen.bold,bgMagenta.bold\" \"npm run client:user\" \"npm run client:admin\" \"npm run server\"",
-        "client:user": "cd client/user && npm run dev",
-        "client:admin": "cd client/admin && npm run dev",
-        "server": "cd server && npm run dev",
-        "start": "npm run dev",
-        "build": "concurrently \"npm run build:user\" \"npm run build:admin\"",
-        "build:user": "cd client/user && npm run build",
-        "build:admin": "cd client/admin && npm run build"
-    },
-    "devDependencies": {
-        "concurrently": "^9.1.0"
-    }
+  "name": "auction-web-monorepo",
+  "version": "1.0.0",
+  "description": "Full-stack Auction Web Application",
+  "private": true,
+  "scripts": {
+    "install:all": "concurrently \"npm run install:client:admin\" \"npm run install:client:user\" \"npm run install:server\"",
+    "install:client:admin": "cd client/admin && npm install",
+    "install:client:user": "cd client/user && npm install",
+    "install:server": "cd server && npm install",
+    "dev": "concurrently -n \"USER,ADMIN,SERVER\" -c \"bgBlue.bold,bgGreen.bold,bgMagenta.bold\" \"npm run client:user\" \"npm run client:admin\" \"npm run server\"",
+    "client:user": "cd client/user && npm run dev",
+    "client:admin": "cd client/admin && npm run dev",
+    "server": "cd server && npm run dev",
+    "start": "npm run dev",
+    "build": "concurrently \"npm run build:user\" \"npm run build:admin\"",
+    "build:user": "cd client/user && npm run build",
+    "build:admin": "cd client/admin && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
 }

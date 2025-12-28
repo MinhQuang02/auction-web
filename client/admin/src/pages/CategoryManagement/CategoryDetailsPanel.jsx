@@ -1,6 +1,6 @@
-import Panel from "@shared/components/Panel";
-import VBox from "@shared/components/VBox";
-import HBox from "@shared/components/HBox";
+import Panel from "@/components/Panel";
+import VBox from "@/components/VBox";
+import HBox from "@/components/HBox";
 
 const CategoryDetailsPanel = ({
   id,

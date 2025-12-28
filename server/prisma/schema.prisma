@@ -1,7 +1,6 @@
-
-
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"] // For search requirements
 }
 
 datasource db {
@@ -9,17 +8,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// =========================
+// Enums
+// =========================
+
 enum user_role_enum {
   bidder
   seller
   admin
+<<<<<<< HEAD
+=======
   guest
 }
 
 model User {
   user_id              Int            @id @default(autoincrement())
   email                String         @unique @db.VarChar
-  password             String         @db.VarChar
+  password             String?        @db.VarChar
   full_name            String         @db.VarChar
   address              String?        @db.VarChar
   otp                  String?        @db.VarChar
@@ -33,61 +38,220 @@ model User {
   role                 user_role_enum @default(bidder)
 
   @@map("User")
+>>>>>>> e8b3de108bc01005424c904bea16a3e03c50c268
 }
 
 enum product_status_enum {
   active
   sold
-  expired
-  inactive
+  ended_no_winner
+  removed
+}
+
+enum transaction_status_enum {
+  pending_payment
+  pending_shipping
+  shipped
+  completed
+  cancelled
+}
+
+// =========================
+// Models (Tables)
+// =========================
+
+model User {
+  user_id              Int            @id @default(autoincrement())
+  full_name            String         @db.VarChar(100)
+  email                String         @unique @db.VarChar(100)
+  password             String?        @db.VarChar(255)
+  address              String?        @db.Text
+  dob                  DateTime?      @db.Date
+  role                 user_role_enum @default(bidder)
+  is_email_verified    Boolean        @default(false)
+  otp                  String?        @db.VarChar(255)
+  otp_expires          DateTime?      @db.Timestamp()
+  upgrade_request_time DateTime?      @db.Timestamp()
+  avg_rating           Decimal        @default(0.0) @db.Decimal(3, 2)
+  total_ratings        Int            @default(0)
+  created_at           DateTime?      @default(now()) @db.Timestamp()
+
+  // Relationships
+  products_sold       Product[]      @relation("SellerProducts")
+  products_won        Product[]      @relation("WonProducts")
+  current_bids        Product[]      @relation("CurrentHighBidder")
+  bid_history         Bid_History[]
+  questions_asked     Product_Question[]
+  watchlist           Watchlist[]
+  ratings_given       Rating[]       @relation("Rater")
+  ratings_received    Rating[]       @relation("RatedUser")
+  banned_from         Banned_Bidder[]
+  buyer_transactions  Transaction[]  @relation("BuyerTrans")
+  seller_transactions Transaction[]  @relation("SellerTrans")
+  messages_sent       Chat_Message[] @relation("Sender")
+  messages_received   Chat_Message[] @relation("Receiver")
+}
+
+model Category {
+  category_id Int     @id @default(autoincrement())
+  name        String  @db.VarChar(100)
+  parent_id   Int?
+  
+  // Self-relation for hierarchy
+  parent      Category?  @relation("CategoryHierarchy", fields: [parent_id], references: [category_id])
+  children    Category[] @relation("CategoryHierarchy")
+  
+  products    Product[]
 }
 
 model Product {
-  product_id          Int                 @id @default(autoincrement())
-  name                String              @db.VarChar
-  main_image_url      String              @db.VarChar
-  description         String?             @db.Text
-  category_id         Int
-  start_price         Decimal             @db.Decimal
-  step_price          Decimal             @db.Decimal
-  buy_now_price       Decimal?            @db.Decimal
-  current_price       Decimal             @db.Decimal
-  start_time          DateTime?           @db.Timestamp
-  end_time            DateTime            @db.Timestamp
-  bid_count           Int                 @default(0)
+  product_id          Int             @id @default(autoincrement())
+  name                String          @db.Text 
+  description         String?         @db.Text
+  start_price         Decimal         @default(0.00) @db.Decimal(12, 2)
+  step_price          Decimal         @db.Decimal(12, 2)
+  buy_now_price       Decimal?        @db.Decimal(12, 2)
+  current_price       Decimal         @db.Decimal(12, 2)
+  bid_count           Int             @default(0)
+  main_image_url      String          @db.Text 
+  start_time          DateTime?       @default(now()) @db.Timestamp()
+  end_time            DateTime        @db.Timestamp()
+  auto_extend_enabled Boolean         @default(false)
+  status              product_status_enum @default(active)
   seller_id           Int
+  category_id         Int
   current_bidder_id   Int?
   winner_id           Int?
-  auto_extend_enabled Boolean             @default(true)
-  status              product_status_enum @default(active)
 
-  @@map("Product")
+  // Relationships
+  seller              User            @relation("SellerProducts", fields: [seller_id], references: [user_id])
+  category            Category        @relation(fields: [category_id], references: [category_id])
+  current_bidder      User?           @relation("CurrentHighBidder", fields: [current_bidder_id], references: [user_id])
+  winner              User?           @relation("WonProducts", fields: [winner_id], references: [user_id])
+  
+  images              Product_Image[]
+  desc_history        Product_Description_History[]
+  bids                Bid_History[]
+  questions           Product_Question[]
+  watchlist_users     Watchlist[]
+  ratings             Rating[]
+  banned_bidders      Banned_Bidder[]
+  transaction         Transaction?
+
+  // Indexes for performance (Req 1.2 & 1.4)
+  @@index([end_time])
+  @@index([current_price])
+  @@index([bid_count])
+  // Full text index (Postgres specific)
+  @@index([name, description]) 
 }
 
-model Rating {
-  rating_id     Int      @id @default(autoincrement())
-  created_at    DateTime @default(now()) @db.Timestamp
-  product_id    Int
-  rated_user_id Int
-  rater_id      Int
-  rating_value  Int
-  comment       String?  @db.Text
+model Product_Image {
+  image_id   Int     @id @default(autoincrement())
+  product_id Int
+  image_url  String  @db.Text 
 
-  @@map("Rating")
+  product    Product @relation(fields: [product_id], references: [product_id])
+}
+
+model Product_Description_History {
+  desc_history_id   Int       @id @default(autoincrement())
+  product_id        Int
+  added_description String    @db.Text
+  added_at          DateTime? @default(now()) @db.Timestamp()
+
+  product           Product   @relation(fields: [product_id], references: [product_id])
+}
+
+model Bid_History {
+  bid_id         Int       @id @default(autoincrement())
+  product_id     Int
+  bidder_id      Int
+  max_bid_amount Decimal   @db.Decimal(12, 2)
+  bid_time       DateTime? @default(now()) @db.Timestamp()
+
+  product        Product   @relation(fields: [product_id], references: [product_id])
+  bidder         User      @relation(fields: [bidder_id], references: [user_id])
 }
 
 model Watchlist {
   user_id    Int
   product_id Int
 
-  @@id([user_id, product_id])
-  @@map("Watchlist")
+  user       User    @relation(fields: [user_id], references: [user_id])
+  product    Product @relation(fields: [product_id], references: [product_id])
+
+  @@id([user_id, product_id]) // Composite PK
 }
 
-model UpgradeRequest {
-  request_id Int      @id @default(autoincrement())
-  user_id    Int      @unique
-  created_at DateTime @default(now()) @db.Timestamp
+model Rating {
+  rating_id     Int       @id @default(autoincrement())
+  product_id    Int
+  rater_id      Int
+  rated_user_id Int
+  rating_value  Int       // +1 or -1
+  comment       String?   @db.Text
+  created_at    DateTime? @default(now()) @db.Timestamp()
 
-  @@map("UpgradeRequest")
+  product       Product   @relation(fields: [product_id], references: [product_id])
+  rater         User      @relation("Rater", fields: [rater_id], references: [user_id])
+  rated_user    User      @relation("RatedUser", fields: [rated_user_id], references: [user_id])
+}
+
+model Product_Question {
+  question_id   Int       @id @default(autoincrement())
+  product_id    Int
+  asker_id      Int
+  question_text String    @db.Text
+  question_time DateTime? @default(now()) @db.Timestamp()
+  answer_text   String?   @db.Text
+  answer_time   DateTime? @db.Timestamp()
+
+  product       Product   @relation(fields: [product_id], references: [product_id])
+  asker         User      @relation(fields: [asker_id], references: [user_id])
+}
+
+model Banned_Bidder {
+  product_id Int
+  bidder_id  Int
+
+  product    Product @relation(fields: [product_id], references: [product_id])
+  bidder     User    @relation(fields: [bidder_id], references: [user_id])
+
+  @@id([product_id, bidder_id])
+}
+
+model Transaction {
+  transaction_id   Int                     @id @default(autoincrement())
+  product_id       Int                     @unique
+  buyer_id         Int
+  seller_id        Int
+  status           transaction_status_enum
+  payment_proof    String?                 @db.Text
+  shipping_address String?                 @db.Text
+  shipping_proof   String?                 @db.Text 
+  created_at       DateTime?               @default(now()) @db.Timestamp()
+
+  product          Product                 @relation(fields: [product_id], references: [product_id])
+  buyer            User                    @relation("BuyerTrans", fields: [buyer_id], references: [user_id])
+  seller           User                    @relation("SellerTrans", fields: [seller_id], references: [user_id])
+  messages         Chat_Message[]
+}
+
+model Chat_Message {
+  message_id     Int         @id @default(autoincrement())
+  transaction_id Int
+  sender_id      Int
+  receiver_id    Int
+  message_text   String      @db.Text
+  sent_at        DateTime?   @default(now()) @db.Timestamp()
+
+  transaction    Transaction @relation(fields: [transaction_id], references: [transaction_id])
+  sender         User        @relation("Sender", fields: [sender_id], references: [user_id])
+  receiver       User        @relation("Receiver", fields: [receiver_id], references: [user_id])
+}
+
+model System_Config {
+  setting_key   String @id @db.VarChar(50)
+  setting_value String @db.VarChar(100)
 }

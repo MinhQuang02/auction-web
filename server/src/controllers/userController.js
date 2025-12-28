@@ -1,56 +1,45 @@
-import userService from '../services/userService.js';
+import userService from "../services/userService.js";
 
-const register = async (req, res) => {
-    try {
-        const result = await userService.registerUser(req.body);
-        res.status(201).json(result);
-    } catch (error) {
-        if (error.code === 'EMAIL_EXISTS') return res.status(409).json(error);
-        res.status(500).json({ message: 'Internal server error', error: error.message });
-    }
-};
-
-const verify = async (req, res) => {
-    try {
-        const { email, otp } = req.body;
-        const result = await userService.verifyOTP(email, otp);
-        res.status(200).json(result);
-    } catch (error) {
-        if (error.code === 'INVALID_OTP') return res.status(400).json(error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-};
-
-const login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const result = await userService.loginUser(email, password);
-        res.status(200).json(result);
-    } catch (error) {
-        if (error.code === 'AUTH_FAILED') return res.status(401).json(error);
-        if (error.code === 'NOT_VERIFIED') return res.status(403).json(error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-};
-
+// GET user profile
 const getProfile = async (req, res) => {
-    try {
-        const userId = req.user.user_id; 
-        const user = await userService.getUserProfile(userId);
-        res.status(200).json(user);
-    } catch (error) {
-        res.status(500).json({ message: 'Internal server error' });
+  try {
+    const userId = 15; // replace with req.user.id when using auth middleware
+    const user = await userService.getUserProfile(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
 
+// UPDATE user profile
 const updateProfile = async (req, res) => {
-    try {
-        const userId = req.user.user_id;
-        const updatedUser = await userService.updateUserProfile(userId, req.body);
-        res.status(200).json(updatedUser);
-    } catch (error) {
-        res.status(500).json({ message: 'Error updating profile' });
+  try {
+    const userId = 15; // replace with req.user.id when using auth middleware
+    const { full_name, address, email } = req.body;
+
+    const updatedUser = await userService.updateUserProfile(userId, {
+      full_name,
+      address,
+      email,
+    });
+
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error(error);
+    if (error.code === "P2002") {
+      return res.status(409).json({ message: "Email already exists" });
     }
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
 
-export default { register, verify, login, getProfile, updateProfile };
+export default {
+  getProfile,
+  updateProfile,
+};

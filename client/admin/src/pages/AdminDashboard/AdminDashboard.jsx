@@ -1,12 +1,12 @@
 import { useState } from "react";
 
-import VBox from "@shared/components/VBox";
-import HBox from "@shared/components/HBox";
-import AdminSidebar from "@shared/components/Sidebar/AdminSidebar";
-import StatsCell from "@admin/components/Hero/StatsCell";
-import Panel from "@shared/components/Panel";
-import FilterButton from "@shared/components/IconButton/FilterButton";
-import TablePanel from "@shared/components/TablePanel";
+import VBox from "@/components/VBox";
+import HBox from "@/components/HBox";
+import AdminSidebar from "@/components/Sidebar/AdminSidebar";
+import StatsCell from "@/components/Hero/StatsCell";
+import Panel from "@/components/Panel";
+import FilterButton from "@/components/IconButton/FilterButton";
+import TablePanel from "@/components/TablePanel";
 
 const activityTabs = [
   "System Activity",

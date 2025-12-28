@@ -9,31 +9,9 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: "@",
-        replacement: fileURLToPath(new URL("./src", import.meta.url)),
-      },
-      {
         find: "@admin",
         replacement: fileURLToPath(
           new URL("./src/apps/admin", import.meta.url)
-        ),
-      },
-      {
-        find: "@seller",
-        replacement: fileURLToPath(
-          new URL("./src/apps/seller", import.meta.url)
-        ),
-      },
-      {
-        find: "@bidder",
-        replacement: fileURLToPath(
-          new URL("./src/apps/bidder", import.meta.url)
-        ),
-      },
-      {
-        find: "@guest",
-        replacement: fileURLToPath(
-          new URL("./src/apps/guest", import.meta.url)
         ),
       },
       {
@@ -48,8 +26,8 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
+      "/api": {
+        target: "http://localhost:8000",
         changeOrigin: true,
       },
     },
