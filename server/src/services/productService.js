@@ -26,12 +26,7 @@ const searchProducts = async ({ keyword, categoryId, sortBy, limit = 10, offset 
     // Sorting (Req 1.4)
     let orderBy = {};
     if (sortBy === 'time_desc') {
-        orderBy = { end_time: 'desc' }; // Ending soonest? Actually usually 'asc' for "ending soon", 'desc' for "ended last"
-        // Requirement says "Time ending decreasing" (Thời gian kết thúc giảm dần) -> usually means furthest away first? 
-        // Or "Ending Soonest" (time remaining increasing). 
-        // Let's assume standard auction sort:
-        // 'time_asc' = Ending Soonest (Closest date first)
-        // 'time_desc' = Ending Latest
+        orderBy = { end_time: 'desc' };
     } else if (sortBy === 'price_asc') {
         orderBy = { current_price: 'asc' };
     } else {

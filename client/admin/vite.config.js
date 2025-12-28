@@ -9,6 +9,10 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: "@",  
+        replacement: fileURLToPath(new URL("./src", import.meta.url)),
+      },
+      {
         find: "@admin",
         replacement: fileURLToPath(
           new URL("./src/apps/admin", import.meta.url)
