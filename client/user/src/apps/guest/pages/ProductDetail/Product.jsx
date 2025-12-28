@@ -1,8 +1,13 @@
 import React, { useState } from "react";
+import { useAuth } from "@context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 import mainProductImg from "@assets/images/_gamepadImg.png";
 
 const Product = () => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
   const [bidAmount, setBidAmount] = useState(150);
 
   const renderStars = (filledCount = 4) => {
@@ -131,82 +136,128 @@ const Product = () => {
 
           {/* Action Buttons Container */}
           <div className="w-full">
-            {/* Bidding Control Row */}
-            <div className="flex items-center gap-2 mb-4 w-full">
-              {/* Quantity/Price Adjuster */}
-              <div className="flex items-center border border-gray-400 rounded h-[44px] flex-none">
-                <button
-                  onClick={() => setBidAmount((prev) => Math.max(0, prev - 10))}
-                  className="px-3 py-1 text-xl text-gray-600 hover:bg-gray-100 h-full border-r border-gray-400 flex items-center"
-                >
-                  -
-                </button>
-                <input
-                  type="text"
-                  value={`${bidAmount}$`}
-                  readOnly
-                  className="w-[60px] text-center font-bold focus:outline-none h-full text-lg bg-transparent"
-                />
-                <button
-                  onClick={() => setBidAmount((prev) => prev + 10)}
-                  className="px-3 py-1 text-xl text-gray-600 hover:bg-gray-100 h-full border-l border-gray-400 flex items-center"
-                >
-                  +
-                </button>
-              </div>
-
-              {/* Bid Now Button */}
-              <button className="bg-[#AE9B84] hover:bg-[#9c8a74] text-white px-4 h-[44px] rounded font-medium transition flex-1 whitespace-nowrap text-sm">
-                Bid Now
+            {!isAuthenticated ? (
+              /* ================= GUEST VIEW ================= */
+              <button
+                onClick={() => navigate("/login")}
+                className="
+                  w-full
+                  bg-[#AE9B84] hover:bg-[#9c8a74]
+                  text-white
+                  h-[44px]
+                  rounded
+                  font-medium
+                  transition
+                  text-sm
+                "
+              >
+                Log in to bid
               </button>
+            ) : (
+              /* ================= AUTHENTICATED VIEW ================= */
+              <>
+                {/* Bidding Control Row */}
+                <div className="flex items-center gap-2 mb-4 w-full">
+                  {/* Price Adjuster */}
+                  <div className="flex items-center border border-gray-400 rounded h-[44px] flex-none">
+                    <button
+                      onClick={() =>
+                        setBidAmount((prev) => Math.max(0, prev - 10))
+                      }
+                      className="px-3 text-xl text-gray-600 hover:bg-gray-100 h-full border-r border-gray-400"
+                    >
+                      -
+                    </button>
 
-              {/* Wishlist Button */}
-              <button className="border border-gray-400 rounded h-[44px] w-[44px] flex-none flex items-center justify-center hover:bg-gray-50 transition">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth="1.5"
-                  stroke="currentColor"
-                  className="w-6 h-6"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
-                  />
-                </svg>
-              </button>
-            </div>
+                    <input
+                      type="text"
+                      value={`${bidAmount}$`}
+                      readOnly
+                      className="w-[60px] text-center font-bold h-full text-lg bg-transparent"
+                    />
 
-            {/* Proxy Bidding Info Box */}
-            <div className="border border-gray-400 rounded p-4 flex items-center gap-4 w-full">
-              <div className="flex-none">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth="1.5"
-                  stroke="currentColor"
-                  className="w-8 h-8"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-                  />
-                </svg>
-              </div>
-              <div className="flex-grow">
-                <h4 className="font-medium text-base">Proxy Bidding</h4>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Auto bid at fair price.{" "}
-                  <a href="#" className="underline font-semibold text-black">
-                    Details
-                  </a>
-                </p>
-              </div>
-            </div>
+                    <button
+                      onClick={() => setBidAmount((prev) => prev + 10)}
+                      className="px-3 text-xl text-gray-600 hover:bg-gray-100 h-full border-l border-gray-400"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  {/* Bid Now */}
+                  <button
+                    onClick={() => {
+                      console.log("Placing bid:", bidAmount);
+                    }}
+                    className="
+                      bg-[#AE9B84] hover:bg-[#9c8a74]
+                      text-white
+                      px-4
+                      h-[44px]
+                      rounded
+                      font-medium
+                      transition
+                      flex-1
+                      whitespace-nowrap
+                      text-sm
+                    "
+                  >
+                    Bid Now
+                  </button>
+
+                  {/* Wishlist */}
+                  <button
+                    className="
+                      border border-gray-400 rounded
+                      h-[44px] w-[44px]
+                      flex items-center justify-center
+                      hover:bg-gray-50 transition
+                    "
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth="1.5"
+                      stroke="currentColor"
+                      className="w-6 h-6"
+                    >
+                      {" "}
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
+                      />{" "}
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Proxy Bidding */}
+                <div className="border border-gray-400 rounded p-4 flex items-center gap-4 w-full">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-8 h-8"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth="1.5"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M16.023 9.348h4.992M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7"
+                    />
+                  </svg>
+
+                  <div>
+                    <h4 className="font-medium">Proxy Bidding</h4>
+                    <p className="text-xs text-gray-500">
+                      Auto bid at fair price.
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

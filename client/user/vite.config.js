@@ -9,16 +9,6 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: "@",
-        replacement: fileURLToPath(new URL("./src", import.meta.url)),
-      },
-      {
-        find: "@admin",
-        replacement: fileURLToPath(
-          new URL("./src/apps/admin", import.meta.url)
-        ),
-      },
-      {
         find: "@seller",
         replacement: fileURLToPath(
           new URL("./src/apps/seller", import.meta.url)
@@ -44,12 +34,20 @@ export default defineConfig({
         find: "@assets",
         replacement: fileURLToPath(new URL("./src/assets", import.meta.url)),
       },
+      {
+        find: "@context",
+        replacement: fileURLToPath(new URL("./src/context", import.meta.url)),
+      },
+      {
+        find: "@routes",
+        replacement: fileURLToPath(new URL("./src/routes", import.meta.url)),
+      },
     ],
   },
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
+      "/api": {
+        target: "http://localhost:8000",
         changeOrigin: true,
       },
     },

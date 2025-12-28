@@ -31,6 +31,10 @@ import Signup from "@shared/pages/auth/Signup";
 import ForgotPassword from "@shared/pages/auth/ForgotPassword";
 import VerifyEmail from "./shared/pages/auth/VerifyEmail";
 
+import PublicOnlyRoute from "./routes/PublicOnlyRoute";
+import ProtectedRoute from "./routes/ProtectedRoute";
+import RoleRoute from "./routes/RoleRoute";
+
 const MainLayout = () => {
   return (
     <>
@@ -62,35 +66,69 @@ function App() {
     <BrowserRouter>
       <div className="font-sans text-textDark antialiased relative">
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route
+            path="/login"
+            element={
+              <PublicOnlyRoute>
+                <Login />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/signup"
+            element={
+              <PublicOnlyRoute>
+                <Signup />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/verify-email"
+            element={
+              <PublicOnlyRoute>
+                <VerifyEmail />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              <PublicOnlyRoute>
+                <ForgotPassword />
+              </PublicOnlyRoute>
+            }
+          />
 
           <Route element={<MainLayout />}>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<HomePage />} />
             <Route path="/category" element={<CategoryPage />} />
             <Route path="/product" element={<ProductDetail />} />
-
-            <Route path="/profile" element={<Profiles />} />
-            <Route path="/reviews" element={<Review />} />
-            <Route path="/wishlist" element={<Wishlists />} />
-            <Route path="/auctions" element={<AuctionProducts />} />
-            <Route path="/my-purchases" element={<MyPurchases />} />
-            <Route path="/billing" element={<BillingDetails />} />
-            <Route path="*" element={<NotFound />} />
           </Route>
 
-          <Route element={<SellerLayout />}>
-            <Route
-              path="/seller"
-              element={<Navigate to="/seller/products" replace />}
-            />
-            <Route path="/seller/products" element={<MyProducts />} />
-            <Route path="/seller/edit-product" element={<EditProduct />} />
-            <Route path="*" element={<NotFound />} />
+          <Route element={<RoleRoute allowedRoles={["bidder"]} />}>
+            <Route element={<MainLayout />}>
+              <Route path="/profile" element={<Profiles />} />
+              <Route path="/reviews" element={<Review />} />
+              <Route path="/wishlist" element={<Wishlists />} />
+              <Route path="/auctions" element={<AuctionProducts />} />
+              <Route path="/my-purchases" element={<MyPurchases />} />
+              <Route path="/billing" element={<BillingDetails />} />
+            </Route>
           </Route>
+
+          <Route element={<RoleRoute allowedRoles={["seller"]} />}>
+            <Route element={<SellerLayout />}>
+              <Route
+                path="/seller"
+                element={<Navigate to="/seller/products" replace />}
+              />
+              <Route path="/seller/products" element={<MyProducts />} />
+              <Route path="/seller/edit-product" element={<EditProduct />} />
+            </Route>
+          </Route>
+
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
     </BrowserRouter>
