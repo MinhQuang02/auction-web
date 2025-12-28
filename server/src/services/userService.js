@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key_123';
 
 const getUserProfile = async (userId) => {
   const user = await prisma.user.findUnique({

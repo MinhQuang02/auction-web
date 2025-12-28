@@ -2,7 +2,11 @@ import watchlistService from '../services/watchlistService.js';
 
 const getWatchlist = async (req, res) => {
     try {
-        const userId = 20;
+        const userId = req.user?.user_id || parseInt(req.headers['user-id']);
+
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized: User ID required' });
+        }
 
         const watchlist = await watchlistService.getWatchlistByUserId(userId);
         res.status(200).json(watchlist);
@@ -14,8 +18,12 @@ const getWatchlist = async (req, res) => {
 
 const removeWatchlist = async (req, res) => {
     try {
-        const userId = 20;
+        const userId = req.user?.user_id || parseInt(req.headers['user-id']);
         const { id } = req.params;
+
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized: User ID required' });
+        }
 
         await watchlistService.removeWatchlist(userId, id);
         res.status(200).json({ message: 'Removed from watchlist' });
