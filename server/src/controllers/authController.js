@@ -89,6 +89,22 @@ class AuthController {
     }
   }
 
+  async google(req, res) {
+    try {
+      const { token } = req.body;
+      if (!token) return res.status(400).json({ message: "Token is required" });
+
+      const { user, token: jwtToken } = await authService.googleSignIn({
+        token,
+      });
+
+      return res.json({ user, token: jwtToken });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Google sign-in failed" });
+    }
+  }
+
   async me(req, res) {
     try {
       if (!req.auth?.authenticated) {

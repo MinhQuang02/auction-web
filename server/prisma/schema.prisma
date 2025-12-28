@@ -19,7 +19,7 @@ enum user_role_enum {
 model User {
   user_id              Int            @id @default(autoincrement())
   email                String         @unique @db.VarChar
-  password             String         @db.VarChar
+  password             String?        @db.VarChar
   full_name            String         @db.VarChar
   address              String?        @db.VarChar
   otp                  String?        @db.VarChar

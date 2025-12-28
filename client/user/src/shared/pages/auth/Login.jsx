@@ -45,6 +45,31 @@ const Login = () => {
     }
   };
 
+  const handleGoogleSignIn = () => {
+    google.accounts.id.initialize({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      callback: async (response) => {
+        try {
+          const res = await fetch(`${API_URL}/api/auth/google`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: response.credential }),
+          });
+          const data = await res.json();
+
+          if (!res.ok) throw new Error(data.message || "Google sign-in failed");
+
+          localStorage.setItem("token", data.token);
+          navigate("/home");
+        } catch (err) {
+          setErrorMessage(err.message);
+        }
+      },
+    });
+
+    google.accounts.id.prompt(); // shows the popup
+  };
+
   return (
     <div className="bg-[#F4F4F4] min-h-screen w-full flex items-center justify-center p-4 lg:p-6 text-[#1F1F1F] font-sans">
       <div className="w-full h-full max-w-[1600px] flex gap-10 lg:gap-20 bg-white lg:bg-transparent rounded-[32px] lg:rounded-none shadow-xl lg:shadow-none overflow-hidden min-h-[600px]">
@@ -184,6 +209,7 @@ const Login = () => {
 
               <button
                 type="button"
+                onClick={handleGoogleSignIn}
                 className="w-full h-[50px] bg-[#E6E4E1] hover:bg-[#dcdad7] text-black font-medium rounded text-sm transition flex items-center justify-center gap-2"
               >
                 <span>Sign in with Google</span>
