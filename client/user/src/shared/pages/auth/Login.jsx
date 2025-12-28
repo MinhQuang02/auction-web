@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 const Login = () => {
   const navigate = useNavigate();
+  const { refetchUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -39,6 +41,7 @@ const Login = () => {
       }
 
       localStorage.setItem("token", data.token);
+      await refetchUser();
       navigate("/home");
     } catch (err) {
       setErrorMessage(err.message);
@@ -60,6 +63,7 @@ const Login = () => {
           if (!res.ok) throw new Error(data.message || "Google sign-in failed");
 
           localStorage.setItem("token", data.token);
+          await refetchUser();
           navigate("/home");
         } catch (err) {
           setErrorMessage(err.message);
