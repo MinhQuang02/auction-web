@@ -39,3 +39,5 @@ export default {
     }
   },
 };
+
+export default { register, verify, login, getProfile, updateProfile };
