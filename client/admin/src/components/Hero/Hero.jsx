@@ -1,4 +1,4 @@
-import AdminSidebar from "@shared/components/Sidebar/AdminSidebar";
+import AdminSidebar from "@/components/Sidebar/AdminSidebar";
 
 const Hero = () => {
   return (

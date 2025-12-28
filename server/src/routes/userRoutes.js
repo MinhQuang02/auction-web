@@ -1,14 +1,9 @@
-import express from 'express';
-import userController from '../controllers/userController.js';
-import authenticateToken from '../middlewares/authMiddleware.js';
-
+import express from "express";
 const router = express.Router();
+import userController from "../controllers/userController.js";
+import requireRole from "../middleware/requireRole.js";
 
-router.post('/register', userController.register);
-router.post('/verify', userController.verify);
-router.post('/login', userController.login);
-
-router.get('/profile', authenticateToken, userController.getProfile);
-router.put('/profile', authenticateToken, userController.updateProfile);
+router.get("/profile", requireRole("bidder"), userController.getProfile);
+router.put("/profile", requireRole("bidder"), userController.updateProfile);
 
 export default router;
