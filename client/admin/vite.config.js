@@ -9,22 +9,26 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: "@",  
-        replacement: fileURLToPath(new URL("./src", import.meta.url)),
-      },
-      {
-        find: "@admin",
+        find: "@components",
         replacement: fileURLToPath(
-          new URL("./src/apps/admin", import.meta.url)
+          new URL("./src/components", import.meta.url)
         ),
       },
       {
-        find: "@shared",
-        replacement: fileURLToPath(new URL("./src/shared", import.meta.url)),
+        find: "@pages",
+        replacement: fileURLToPath(new URL("./src/pages", import.meta.url)),
       },
       {
         find: "@assets",
         replacement: fileURLToPath(new URL("./src/assets", import.meta.url)),
+      },
+      {
+        find: "@context",
+        replacement: fileURLToPath(new URL("./src/context", import.meta.url)),
+      },
+      {
+        find: "@routes",
+        replacement: fileURLToPath(new URL("./src/routes", import.meta.url)),
       },
     ],
   },

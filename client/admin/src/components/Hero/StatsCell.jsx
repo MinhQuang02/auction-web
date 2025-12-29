@@ -1,5 +1,5 @@
-import Panel from "@/components/Panel";
-import HBox from "@/components/HBox";
+import Panel from "@components/Panel";
+import HBox from "@components/HBox";
 import ArrowIcon from "@assets/images/_arrowIcon.svg";
 
 const StatsCell = ({ number = 1306, label = "items", className = "" }) => {

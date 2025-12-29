@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import HBox from "@/components/HBox";
+import HBox from "@components/HBox";
 
 const HierarchyPanel = ({
   data,
