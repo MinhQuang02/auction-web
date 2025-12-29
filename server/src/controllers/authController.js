@@ -135,6 +135,44 @@ class AuthController {
       return res.status(500).json({ message: "Internal server error" });
     }
   }
+
+  async forgotPassword(req, res) {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      await authService.requestPasswordReset(email);
+
+      return res.json({
+        message: "If the email exists, a reset link has been sent.",
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+
+  async resetPassword(req, res) {
+    try {
+      const { token, password } = req.body;
+
+      if (!token || !password) {
+        return res.status(400).json({ message: "Missing token or password" });
+      }
+
+      await authService.resetPassword({ token, password });
+
+      return res.json({ message: "Password reset successful" });
+    } catch (err) {
+      if (err.message === "Invalid or expired token") {
+        return res.status(400).json({ message: err.message });
+      }
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
 }
 
 const authController = new AuthController();

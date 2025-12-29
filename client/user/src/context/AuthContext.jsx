@@ -5,7 +5,7 @@ const AuthContext = createContext(null);
 const API_URL = import.meta.env.VITE_API_URL;
 
 export const AuthProvider = ({ children }) => {
-  const [auth, setAuth] = useState(null); // null = unknown, object = known
+  const [auth, setAuth] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const fetchMe = async () => {
@@ -31,7 +31,19 @@ export const AuthProvider = ({ children }) => {
       if (!res.ok) throw new Error("Invalid token");
 
       const data = await res.json();
-      setAuth(data); // { authenticated, role, user }
+
+      console.log(data);
+
+      if (data.authenticated && !data.user) {
+        localStorage.removeItem("token");
+        setAuth({
+          authenticated: false,
+          role: "guest",
+          user: null,
+        });
+      } else {
+        setAuth(data);
+      }
     } catch {
       localStorage.removeItem("token");
       setAuth({
@@ -63,7 +75,7 @@ export const AuthProvider = ({ children }) => {
         auth,
         user: auth?.user ?? null,
         role: auth?.role ?? "guest",
-        isAuthenticated: auth?.authenticated === true,
+        isAuthenticated: !!auth?.user,
         loading,
         logout,
         refetchUser: fetchMe,

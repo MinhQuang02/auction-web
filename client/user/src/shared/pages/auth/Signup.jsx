@@ -120,6 +120,7 @@ const Signup = () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ token: response.credential }),
           });
+          console.log(res);
           const data = await res.json();
 
           if (!res.ok) throw new Error(data.message || "Google sign-in failed");

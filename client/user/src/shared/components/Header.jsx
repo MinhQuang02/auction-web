@@ -121,7 +121,7 @@ const Header = () => {
             </Link>
 
             <Link
-              to={user.role === "bidder" ? "/upgrade" : "/seller"}
+              to={user?.role === "bidder" ? "/upgrade" : "/seller"}
               className="flex-1 lg:flex-none text-center px-4 lg:px-5 py-2.5 lg:py-3.5 border border-textDark rounded-lg font-mono text-xs bg-textDark text-white hover:bg-[#2b1b17] transition"
             >
               Seller Mode

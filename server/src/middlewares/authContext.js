@@ -10,14 +10,12 @@ const authContext = async (req, res, next) => {
     userId: null,
   };
 
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) return next();
+  const authHeader = req.headers["authorization"];
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return next();
 
   try {
-    const decoded = jwt.verify(
-      authHeader.split(" ")[1],
-      process.env.JWT_SECRET
-    );
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const user = await prisma.user.findUnique({
       where: { user_id: decoded.userId },
@@ -32,7 +30,7 @@ const authContext = async (req, res, next) => {
       userId: user.user_id,
     };
   } catch {
-    // intentionally downgrade to guest
+    // stay guest
   }
 
   next();
