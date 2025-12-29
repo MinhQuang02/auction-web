@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 
-import VBox from "@/components/VBox";
-import HBox from "@/components/HBox";
-import AdminSidebar from "@/components/Sidebar/AdminSidebar";
-import ActionBar from "@/components/ActionBar";
-import TablePanel from "@/components/TablePanel";
+import VBox from "@components/VBox";
+import HBox from "@components/HBox";
+import AdminSidebar from "@components/Sidebar/AdminSidebar";
+import ActionBar from "@components/ActionBar";
+import TablePanel from "@components/TablePanel";
 import AuctionDetail from "./AuctionDetail";
-import Modal from "@/components/Modal";
+import Modal from "@components/Modal";
 
 const headers = [
   "ID",

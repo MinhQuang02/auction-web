@@ -1,13 +1,12 @@
 {
   "compilerOptions": {
     "paths": {
-      "@/*": ["./src/*"],
-      "@admin/*": ["./src/apps/admin/*"],
-      "@seller/*": ["./src/apps/seller/*"],
-      "@bidder/*": ["./src/apps/bidder/*"],
-      "@guest/*": ["./src/apps/guest/*"],
+      "@components/*": ["./src/components/*"],
+      "@pages/*": ["./src/pages/*"],
       "@shared/*": ["./src/shared/*"],
-      "@assets/*": ["./src/assets/*"]
+      "@assets/*": ["./src/assets/*"],
+      "@context/*": ["./src/context/*"],
+      "@routes/*": ["./src/routes/*"]
     }
   },
   "include": ["src"]

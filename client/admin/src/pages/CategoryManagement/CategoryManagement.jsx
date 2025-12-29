@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 
-import VBox from "@/components/VBox";
-import HBox from "@/components/HBox";
-import AdminSidebar from "@/components/Sidebar/AdminSidebar";
-import ActionBar from "@/components/ActionBar";
+import VBox from "@components/VBox";
+import HBox from "@components/HBox";
+import AdminSidebar from "@components/Sidebar/AdminSidebar";
+import ActionBar from "@components/ActionBar";
 import HierarchyPanel from "./HierarchyPanel";
 import CategoryDetailsPanel from "./CategoryDetailsPanel";
 

@@ -1,11 +1,11 @@
 import { useState } from "react";
 
-import VBox from "@/components/VBox";
-import HBox from "@/components/HBox";
-import AdminSidebar from "@/components/Sidebar/AdminSidebar";
-import ActionBar from "@/components/ActionBar";
-import TablePanel from "@/components/TablePanel";
-import Modal from "@/components/Modal";
+import VBox from "@components/VBox";
+import HBox from "@components/HBox";
+import AdminSidebar from "@components/Sidebar/AdminSidebar";
+import ActionBar from "@components/ActionBar";
+import TablePanel from "@components/TablePanel";
+import Modal from "@components/Modal";
 import UserDetail from "./UserDetail";
 import UpgradeRequestReview from "./UpgradeRequestReview";
 
