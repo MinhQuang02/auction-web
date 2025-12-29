@@ -22,15 +22,22 @@ model User {
   password             String?        @db.VarChar
   full_name            String         @db.VarChar
   address              String?        @db.VarChar
+
   otp                  String?        @db.VarChar
+  otp_expires          DateTime?      @db.Timestamp
   is_email_verified    Boolean        @default(false)
+
+  reset_token_hash     String?        @db.VarChar
+  reset_token_expires  DateTime?      @db.Timestamp
+
   total_ratings        Int            @default(0)
   avg_rating           Decimal?       @db.Decimal
+
   dob                  DateTime?      @db.Date
-  created_at           DateTime       @default(now()) @db.Timestamp
   upgrade_request_time DateTime?      @db.Timestamp
-  otp_expires          DateTime?      @db.Timestamp
   role                 user_role_enum @default(bidder)
+  
+  created_at           DateTime       @default(now()) @db.Timestamp
 
   @@map("User")
 }

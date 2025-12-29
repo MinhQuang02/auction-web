@@ -24,8 +24,6 @@ const Login = () => {
         body: JSON.stringify({ email, password }),
       });
 
-      console.log(res);
-
       if (!res.ok) throw new Error("Invalid credentials");
 
       const data = await res.json();

@@ -22,6 +22,7 @@ import Wishlists from "@bidder/pages/Wishlists/Wishlists";
 import AuctionProducts from "@bidder/pages/AuctionProducts/AuctionProducts";
 import MyPurchases from "@bidder/pages/MyPurchases/MyPurchases";
 import BillingDetails from "@bidder/pages/BillingDetails/BillingDetails";
+import UpgradeRequest from "@bidder/pages/UpgradeRequest";
 
 import MyProducts from "@seller/pages/MyProducts/MyProducts";
 import EditProduct from "@seller/pages/EditProduct/EditProduct";
@@ -114,6 +115,7 @@ function App() {
               <Route path="/auctions" element={<AuctionProducts />} />
               <Route path="/my-purchases" element={<MyPurchases />} />
               <Route path="/billing" element={<BillingDetails />} />
+              <Route path="/upgrade" element={<UpgradeRequest />} />
             </Route>
           </Route>
 
