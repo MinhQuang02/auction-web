@@ -1,7 +1,9 @@
 import express from 'express';
-const router = express.Router();
 import productController from '../controllers/productController.js';
 
-router.get('/', productController.getProducts);
+const router = express.Router();
+
+router.get('/', productController.getProducts);       // Search & List
+router.get('/:id', productController.getProductDetail); // Detail View
 
 export default router;
