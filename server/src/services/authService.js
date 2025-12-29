@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import generateOtp from "../utils/generateOtp.js";
 import transporter from "../utils/mailer.js";
@@ -157,6 +158,73 @@ class AuthService {
         role: user.role,
       },
     };
+  }
+
+  async requestPasswordReset(email) {
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) return;
+
+    if (!user.password) return;
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = await hash(rawToken);
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
+
+    await prisma.user.update({
+      where: { user_id: user.user_id },
+      data: {
+        reset_token_hash: hashedToken,
+        reset_token_expires: expires,
+      },
+    });
+
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${rawToken}`;
+
+    await transporter.sendMail({
+      from: `"Your App" <${process.env.MAIL_USER}>`,
+      to: user.email,
+      subject: "Reset your password",
+      text: `Reset your password here:\n\n${resetLink}\n\nThis link expires in 15 minutes.`,
+    });
+  }
+
+  async resetPassword({ token, password }) {
+    if (password.length < 6) {
+      throw new Error("Password too short");
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        reset_token_hash: { not: null },
+        reset_token_expires: { gt: new Date() },
+      },
+    });
+
+    let matchedUser = null;
+
+    for (const user of users) {
+      const isMatch = await bcrypt.compare(token, user.reset_token_hash);
+      if (isMatch) {
+        matchedUser = user;
+        break;
+      }
+    }
+
+    if (!matchedUser) {
+      throw new Error("Invalid or expired token");
+    }
+
+    const newHashedPassword = await hash(password);
+
+    await prisma.user.update({
+      where: { user_id: matchedUser.user_id },
+      data: {
+        password: newHashedPassword,
+        reset_token_hash: null,
+        reset_token_expires: null,
+      },
+    });
   }
 }
 

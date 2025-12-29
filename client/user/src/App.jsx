@@ -35,6 +35,7 @@ import VerifyEmail from "./shared/pages/auth/VerifyEmail";
 import PublicOnlyRoute from "./routes/PublicOnlyRoute";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import RoleRoute from "./routes/RoleRoute";
+import ResetPassword from "@shared/pages/auth/ResetPassword";
 
 const MainLayout = () => {
   return (
@@ -96,6 +97,15 @@ function App() {
             element={
               <PublicOnlyRoute>
                 <ForgotPassword />
+              </PublicOnlyRoute>
+            }
+          />
+
+          <Route
+            path="/reset-password"
+            element={
+              <PublicOnlyRoute>
+                <ResetPassword />
               </PublicOnlyRoute>
             }
           />
