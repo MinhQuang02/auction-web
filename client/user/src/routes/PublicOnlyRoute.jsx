@@ -1,16 +1,16 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@context/AuthContext";
 
-const PublicOnlyRoute = ({ children }) => {
+const PublicOnlyRoute = () => { 
   const { isAuthenticated, loading } = useAuth();
 
-  if (loading) return children;
+  if (loading) return null; 
 
   if (isAuthenticated) {
     return <Navigate to="/home" replace />;
   }
 
-  return children;
+  return <Outlet />; 
 };
 
 export default PublicOnlyRoute;

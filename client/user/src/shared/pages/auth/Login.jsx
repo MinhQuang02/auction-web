@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_URL;
+const ADMIN_APP_URL = import.meta.env.VITE_ADMIN_APP_URL;
 
 const Login = () => {
   const navigate = useNavigate();
@@ -39,12 +40,25 @@ const Login = () => {
       if (!res.ok) {
         throw new Error(data.message || "Invalid email or password.");
       }
-
+      
       localStorage.setItem("token", data.token);
-      await refetchUser();
-      navigate("/home");
-    } catch (err) {
-      setErrorMessage(err.message);
+      await refetchUser(); 
+      const role = data.user?.role;
+
+      if (role === 'admin') {
+         if (ADMIN_APP_URL) {
+           window.location.href = ADMIN_APP_URL;
+         } else {
+           console.warn("VITE_ADMIN_APP_URL environment variable is not set");
+           navigate('/');
+         }
+      } else if (role === 'seller') {
+         navigate('/seller/my-products'); 
+      } else {
+         navigate('/'); 
+      }
+    } catch (error) {
+      setErrorMessage(error.message);
     }
   };
 
