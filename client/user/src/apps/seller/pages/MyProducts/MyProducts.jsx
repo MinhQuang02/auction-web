@@ -82,7 +82,11 @@ const MyProducts = () => {
           {/* Grid */}
           <div className="grid grid-cols-4 gap-4">
             {currentProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard
+                key={product.id}
+                product={product}
+                mode={product.id % 2 === 0 ? "owner" : "viewer"}
+              />
             ))}
           </div>
 

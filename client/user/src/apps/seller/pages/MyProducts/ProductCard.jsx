@@ -12,7 +12,7 @@ const IconButton = ({ children, onClick }) => (
   </button>
 );
 
-const ProductCard = ({ product, mode = "viewer" }) => (
+const ProductCard = ({ product, mode = "owner" }) => (
   <Panel>
     <VBox>
       {/* Image container */}
