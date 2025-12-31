@@ -19,20 +19,21 @@ const UserManagement = () => {
   const fetchPendingRequests = async () => {
     try {
       const token = localStorage.getItem("token");
+      
+      // MAKE SURE THIS URL IS CORRECT:
       const res = await fetch(`${API_URL}/api/upgrades/pending`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       
-      // Transform data to match Table format
+      const data = await res.json();
       const formattedUsers = data.map(u => ({
          id: u.user_id,
          username: u.full_name,
          email: u.email,
          role: u.role,
-         status: "Pending Upgrade", // Custom status
+         status: "Pending Upgrade",
          request_time: new Date(u.upgrade_request_time).toLocaleDateString(),
-         raw: u // Keep raw data for modal
+         raw: u 
       }));
 
       setUsers(formattedUsers);

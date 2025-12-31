@@ -36,7 +36,7 @@ const UpgradeRequest = () => {
       if (!res.ok) throw new Error(data.message || "Request failed");
 
       setMessage("Request sent! Please wait for admin approval.");
-      setTimeout(() => navigate("/profile"), 2000); 
+      setTimeout(() => navigate("/home"), 2000); 
     } catch (err) {
       setMessage(err.message);
     } finally {
