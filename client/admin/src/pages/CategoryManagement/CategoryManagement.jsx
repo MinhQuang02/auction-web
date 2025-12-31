@@ -2,10 +2,13 @@ import { useState, useEffect, useMemo } from "react";
 
 import VBox from "@components/VBox";
 import HBox from "@components/HBox";
+import Panel from "@components/Panel";
+import Modal from "@components/Modal";
 import AdminSidebar from "@components/Sidebar/AdminSidebar";
 import ActionBar from "@components/ActionBar";
 import HierarchyPanel from "./HierarchyPanel";
 import CategoryDetailsPanel from "./CategoryDetailsPanel";
+import CategoryModalContent from "./CategoryModalContent";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -19,7 +22,8 @@ const normalizeCategory = (cat, parentPath = "") => {
     id: cat.category_id,
     label: cat.name,
     path,
-    product_count: cat.product_count ?? 0,
+    product_count: cat._count?.products ?? 0,
+    parent_id: cat.parent_id ?? null,
     children:
       cat.children?.map((child) => normalizeCategory(child, path)) ?? [],
   };
@@ -68,27 +72,29 @@ const CategoryManagement = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showParentsOnly, setShowParentsOnly] = useState(false);
 
+  const [modalMode, setModalMode] = useState(null); // "add" / "edit" / "delete"
+
+  const fetchCategories = async () => {
+    const res = await fetch(`${API_URL}/api/categories`);
+    if (!res.ok) throw new Error("Failed to fetch categories");
+    const data = await res.json();
+    const normalized = data.map((cat) => normalizeCategory(cat));
+    setCategories(normalized);
+    if (!selectedId && normalized.length > 0) {
+      setSelectedId(normalized[0].id);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories()
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
   const filteredCategories = useMemo(
     () => filterTree(categories, searchQuery, showParentsOnly),
     [categories, searchQuery, showParentsOnly]
   );
-
-  useEffect(() => {
-    fetch(`${API_URL}/api/categories`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch categories");
-        return res.json();
-      })
-      .then((data) => {
-        const normalized = data.map(normalizeCategory);
-        setCategories(normalized);
-        if (normalized.length > 0) {
-          setSelectedId(normalized[0].id);
-        }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
 
   const allCategories = useMemo(
     () => flattenCategories(categories),
@@ -100,6 +106,47 @@ const CategoryManagement = () => {
     [allCategories, selectedId]
   );
 
+  const addCategory = async ({ name, parent_id }) => {
+    await fetch(`${API_URL}/api/categories`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, parent_id }),
+    });
+    await fetchCategories();
+  };
+
+  const editCategory = async (id, updates) => {
+    await fetch(`${API_URL}/api/categories/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    await fetchCategories();
+  };
+
+  const deleteCategory = async (id) => {
+    const res = await fetch(`${API_URL}/api/categories/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || "Failed to delete category");
+    }
+
+    await fetchCategories();
+    setSelectedId(null);
+  };
+
+  const canDeleteCategory = (category) => {
+    if (!category) return false;
+
+    const hasChildren = category.children?.length > 0;
+    const hasProducts = (category.product_count ?? 0) > 0;
+
+    return !hasChildren && !hasProducts;
+  };
+
   if (loading) {
     return <div className="p-10">Loading categories…</div>;
   }
@@ -108,18 +155,18 @@ const CategoryManagement = () => {
     <VBox className="p-10 gap-40">
       <HBox className="gap-10">
         <AdminSidebar />
-        <span className="text-6xl font-bold text-black self-center flex-grow">
+        <span className="text-6xl font-bold text-black flex-grow">
           CATEGORIES
         </span>
       </HBox>
 
-      <div className="grid grid-cols-[24rem_1fr] gap-4">
+      <div className="grid grid-cols-[32rem_1fr] gap-4">
         <ActionBar
           onFilter={() => setShowParentsOnly((v) => !v)}
           onSearch={(value) => setSearchQuery(value)}
-          onAdd={() => {}}
-          onRemove={() => {}}
-          onEdit={() => {}}
+          onAdd={() => setModalMode("add")}
+          onEdit={() => setModalMode("edit")}
+          onRemove={() => setModalMode("delete")}
         />
 
         <div />
@@ -134,6 +181,36 @@ const CategoryManagement = () => {
           <CategoryDetailsPanel category={selectedCategory} />
         )}
       </div>
+
+      <Modal isOpen={Boolean(modalMode)} onClose={() => setModalMode(null)}>
+        {modalMode && (
+          <CategoryModalContent
+            mode={modalMode}
+            category={
+              modalMode === "edit" || modalMode === "delete"
+                ? selectedCategory
+                : null
+            }
+            defaultParent={modalMode === "add" ? selectedCategory : null}
+            categories={allCategories}
+            canDeleteCategory={canDeleteCategory}
+            onCancel={() => setModalMode(null)}
+            onConfirm={async (payload) => {
+              try {
+                if (modalMode === "add") await addCategory(payload);
+                if (modalMode === "edit")
+                  await editCategory(selectedCategory.id, payload);
+                if (modalMode === "delete")
+                  await deleteCategory(selectedCategory.id);
+
+                setModalMode(null); // close ONLY on success
+              } catch (e) {
+                alert(e.message); // or toast
+              }
+            }}
+          />
+        )}
+      </Modal>
     </VBox>
   );
 };

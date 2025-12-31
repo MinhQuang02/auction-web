@@ -17,7 +17,6 @@ const ActionBar = ({
   const [query, setQuery] = useState("");
   const [filterActive, setFilterActive] = useState(false);
 
-  // Debounced search (basic, reliable)
   useEffect(() => {
     if (!onSearch) return;
     const t = setTimeout(() => onSearch(query), 250);
@@ -31,7 +30,6 @@ const ActionBar = ({
 
   return (
     <HBox className={`items-center gap-10 ${className}`}>
-      {/* Search + Filter */}
       <HBox className="items-center gap-10">
         {onSearch && (
           <HBox className="items-center gap-4">
@@ -39,7 +37,7 @@ const ActionBar = ({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search categories…"
+              placeholder="Search..."
               className="
                 h-14 px-4 rounded-md
                 bg-white text-black
@@ -47,18 +45,17 @@ const ActionBar = ({
                 focus:outline-none focus:ring-2 focus:ring-primary
               "
             />
-            <SearchButton />
+            {/* <SearchButton /> */}
           </HBox>
         )}
 
-        {onFilter && (
+        {/* {onFilter && (
           <FilterButton onClick={toggleFilter} active={filterActive} />
-        )}
+        )} */}
       </HBox>
 
       <div className="w-14 h-14" />
 
-      {/* CRUD */}
       <HBox className="items-center gap-10">
         {onAdd && <AddButton onClick={onAdd} />}
         {onEdit && <EditButton onClick={onEdit} />}
