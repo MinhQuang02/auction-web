@@ -1,23 +1,47 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@context/AuthContext"; // Import AuthContext
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const UpgradeRequest = () => {
   const [reason, setReason] = useState("");
   const [details, setDetails] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const { auth } = useAuth(); 
+  const navigate = useNavigate();
 
   const onlineImage =
     "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=2070&auto=format&fit=crop";
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setMessage("");
 
-    // TODO: wire this to API
-    const payload = {
-      reason,
-      details,
-    };
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/api/upgrades/request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reason, details }),
+      });
 
-    console.log("Upgrade request:", payload);
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || "Request failed");
+
+      setMessage("Request sent! Please wait for admin approval.");
+      setTimeout(() => navigate("/profile"), 2000); 
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -39,9 +63,14 @@ const UpgradeRequest = () => {
               Request Account Upgrade
             </h1>
             <p className="text-gray-400 text-sm mb-10">
-              Tell us why you want to upgrade your account. An admin will review
-              your request.
+              Tell us why you want to upgrade your account.
             </p>
+
+            {message && (
+                <div className={`p-3 rounded mb-4 text-sm ${message.includes("sent") ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                    {message}
+                </div>
+            )}
 
             <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
               {/* Reason */}
@@ -58,7 +87,6 @@ const UpgradeRequest = () => {
                 </label>
               </div>
 
-              {/* Additional Details */}
               <div className="relative">
                 <textarea
                   rows={3}
@@ -73,9 +101,10 @@ const UpgradeRequest = () => {
 
               <button
                 type="submit"
-                className="w-full h-[50px] bg-[#AD9C86] hover:bg-[#968672] text-white font-medium rounded text-sm transition shadow-sm mt-2"
+                disabled={loading}
+                className="w-full h-[50px] bg-[#AD9C86] hover:bg-[#968672] text-white font-medium rounded text-sm transition shadow-sm mt-2 disabled:opacity-50"
               >
-                Submit request
+                {loading ? "Sending..." : "Submit request"}
               </button>
 
               <div className="text-center text-sm text-gray-500 mt-4">

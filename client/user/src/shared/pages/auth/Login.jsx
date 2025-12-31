@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@context/AuthContext";
 
@@ -10,6 +10,7 @@ const Login = () => {
   const { refetchUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false); // Added local loading state
 
   const [form, setForm] = useState({
     email: "",
@@ -28,6 +29,8 @@ const Login = () => {
       return;
     }
 
+    setLoading(true);
+
     try {
       const res = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
@@ -41,10 +44,18 @@ const Login = () => {
         throw new Error(data.message || "Invalid email or password.");
       }
       
+      // 1. Save Token
       localStorage.setItem("token", data.token);
-      await refetchUser(); 
-      const role = data.user?.role;
 
+      // 2. Refresh Context (Critical Step)
+      await refetchUser(); 
+      
+      // 3. Determine Role from the response directly (safer than waiting for context)
+      // Use fallback if structure varies
+      const user = data.user || data;
+      const role = user.role;
+
+      // 4. Navigate based on role
       if (role === 'admin') {
          if (ADMIN_APP_URL) {
            window.location.href = ADMIN_APP_URL;
@@ -53,16 +64,28 @@ const Login = () => {
            navigate('/');
          }
       } else if (role === 'seller') {
-         navigate('/seller/my-products'); 
+         navigate('/seller/products'); 
       } else {
          navigate('/'); 
       }
+
     } catch (error) {
+      console.error("Login Error:", error);
       setErrorMessage(error.message);
+      // If login fails, remove any partial token
+      localStorage.removeItem("token");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogleSignIn = () => {
+    // Ensure google is defined (it loads from script tag in index.html)
+    if (typeof google === 'undefined') {
+        setErrorMessage("Google Sign-In is not loaded yet.");
+        return;
+    }
+
     google.accounts.id.initialize({
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
       callback: async (response) => {
@@ -85,7 +108,7 @@ const Login = () => {
       },
     });
 
-    google.accounts.id.prompt(); // shows the popup
+    google.accounts.id.prompt(); 
   };
 
   return (
@@ -214,9 +237,10 @@ const Login = () => {
 
               <button
                 type="submit"
-                className="w-full h-[50px] bg-[#AD9C86] hover:bg-[#968672] text-white font-medium rounded text-sm transition shadow-sm mt-2"
+                disabled={loading}
+                className="w-full h-[50px] bg-[#AD9C86] hover:bg-[#968672] text-white font-medium rounded text-sm transition shadow-sm mt-2 disabled:opacity-50"
               >
-                Sign in
+                {loading ? "Signing in..." : "Sign in"}
               </button>
 
               <div className="flex items-center gap-4 my-1">

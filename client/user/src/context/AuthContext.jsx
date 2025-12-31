@@ -1,56 +1,46 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
 const AuthContext = createContext(null);
-
 const API_URL = import.meta.env.VITE_API_URL;
 
 export const AuthProvider = ({ children }) => {
-  const [auth, setAuth] = useState(null);
+  const [auth, setAuth] = useState({ isAuthenticated: false, user: null });
   const [loading, setLoading] = useState(true);
 
   const fetchMe = async () => {
+    setLoading(true);
     const token = localStorage.getItem("token");
 
     if (!token) {
-      setAuth({
-        authenticated: false,
-        role: "guest",
-        user: null,
-      });
+      setAuth({ isAuthenticated: false, user: null });
       setLoading(false);
       return;
     }
 
     try {
       const res = await fetch(`${API_URL}/api/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!res.ok) throw new Error("Invalid token");
+      if (!res.ok) {
+        throw new Error("Token invalid");
+      }
 
       const data = await res.json();
+      
+      // FIX: Supports both { user: {...} } and { id: 1, ... } structures
+      const userData = data.user || data; 
 
-      console.log(data);
-
-      if (data.authenticated && !data.user) {
-        localStorage.removeItem("token");
-        setAuth({
-          authenticated: false,
-          role: "guest",
-          user: null,
-        });
-      } else {
-        setAuth(data);
-      }
-    } catch {
-      localStorage.removeItem("token");
-      setAuth({
-        authenticated: false,
-        role: "guest",
-        user: null,
+      setAuth({ 
+        isAuthenticated: true, 
+        user: userData,
+        role: userData.role 
       });
+
+    } catch (err) {
+      console.log("❌ Auth Failed:", err.message);
+      localStorage.removeItem("token");
+      setAuth({ isAuthenticated: false, user: null });
     } finally {
       setLoading(false);
     }
@@ -60,36 +50,22 @@ export const AuthProvider = ({ children }) => {
     fetchMe();
   }, []);
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    setAuth({
-      authenticated: false,
-      role: "guest",
-      user: null,
-    });
-  };
-
   return (
-    <AuthContext.Provider
-      value={{
-        auth,
-        user: auth?.user ?? null,
-        role: auth?.role ?? "guest",
-        isAuthenticated: !!auth?.user,
-        loading,
-        logout,
-        refetchUser: fetchMe,
-      }}
-    >
+    <AuthContext.Provider value={{ 
+        auth, 
+        user: auth?.user, 
+        isAuthenticated: auth?.isAuthenticated, 
+        loading, 
+        logout: () => {
+          localStorage.removeItem("token");
+          setAuth({ isAuthenticated: false, user: null });
+          window.location.href = "/"; 
+        }, 
+        refetchUser: fetchMe 
+    }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used inside AuthProvider");
-  }
-  return ctx;
-};
+export const useAuth = () => useContext(AuthContext);
