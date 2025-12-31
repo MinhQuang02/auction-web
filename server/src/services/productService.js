@@ -53,9 +53,17 @@ const searchProducts = async ({ keyword, categoryId, sortBy, limit = 10, offset 
 };
 
 // 2. PRODUCT DETAILS (Req 1.5)
+// 2. PRODUCT DETAILS (Req 1.5)
 const getProductById = async (productId) => {
+    const idInt = parseInt(productId);
+    
+    if (isNaN(idInt)) {
+        return null;
+    }
+    // --- DEBUG LOG END ---
+
     const product = await prisma.product.findUnique({
-        where: { product_id: parseInt(productId) },
+        where: { product_id: idInt }, // Ensure 'product_id' matches your Prisma Schema!
         include: {
             images: true,
             seller: {
@@ -76,15 +84,19 @@ const getProductById = async (productId) => {
     if (!product) return null;
 
     // Mask Bidder Names (Req 2.3)
-    // "Tran Minh Khoa" -> "****Khoa"
     const maskedBids = product.bids.map(bid => {
+        // Safety check if bidder is missing (e.g. deleted user)
+        if (!bid.bidder || !bid.bidder.full_name) {
+            return { ...bid, bidder: { full_name: "****User" } };
+        }
+        
         const parts = bid.bidder.full_name.trim().split(' ');
         const lastName = parts[parts.length - 1];
         return {
             ...bid,
             bidder: {
                 ...bid.bidder,
-                full_name: `****${lastName}` // Masking logic
+                full_name: `****${lastName}`
             }
         };
     });
@@ -106,8 +118,23 @@ const getRelatedProducts = async (productId, categoryId) => {
     });
 };
 
+const getProductsBySellerId = async (sellerId) => {
+    return await prisma.product.findMany({
+        where: { seller_id: parseInt(sellerId) },
+        orderBy: { start_time: 'desc' }, // Newest first
+        include: {
+            images: { take: 1 }, // Need image for the card
+            bids: { 
+                orderBy: { max_bid_amount: 'desc' },
+                take: 1
+            }
+        }
+    });
+};
+
 export default {
     searchProducts,
     getProductById,
-    getRelatedProducts
+    getRelatedProducts,
+    getProductsBySellerId
 };

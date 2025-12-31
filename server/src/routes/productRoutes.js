@@ -3,7 +3,13 @@ import productController from '../controllers/productController.js';
 
 const router = express.Router();
 
-router.get('/', productController.getProducts);       // Search & List
-router.get('/:id', productController.getProductDetail); // Detail View
+// Public Routes
+router.get('/', productController.getProducts);
+router.get('/:id', productController.getProductDetail);
+
+// Protected Routes (Order matters! Put specific paths BEFORE :id)
+router.get('/seller/me', productController.getSellerProducts); 
+router.post('/', productController.createProduct);
+router.patch('/:id', productController.updateProduct);
 
 export default router;

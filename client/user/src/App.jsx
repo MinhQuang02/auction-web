@@ -113,11 +113,13 @@ function App() {
           <Route element={<MainLayout />}>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<HomePage />} />
-            <Route path="/category" element={<CategoryPage />} />
-            <Route path="/product" element={<ProductDetail />} />
+            
+            <Route path="/category/:id" element={<CategoryPage />} />
+            
+            <Route path="/product/:id" element={<ProductDetail />} />
           </Route>
 
-          <Route element={<RoleRoute allowedRoles={["bidder", "seller"]} />}>
+          <Route element={<RoleRoute allowedRoles={["bidder", "seller", "admin"]} />}>
             <Route element={<MainLayout />}>
               <Route path="/profile" element={<Profiles />} />
               <Route path="/reviews" element={<Review />} />
@@ -129,7 +131,7 @@ function App() {
             </Route>
           </Route>
 
-          <Route element={<RoleRoute allowedRoles={["seller"]} />}>
+          <Route element={<RoleRoute allowedRoles={["seller", "admin"]} />}>
             <Route element={<SellerLayout />}>
               <Route
                 path="/seller"
@@ -140,7 +142,7 @@ function App() {
               {/* Route for CREATING a new product */}
               <Route path="/seller/products/new" element={<EditProduct />} />
               
-              {/* Route for EDITING an existing product (uses the same component) */}
+              {/* Route for EDITING an existing product */}
               <Route path="/seller/products/edit/:id" element={<EditProduct />} />
             </Route>
           </Route>

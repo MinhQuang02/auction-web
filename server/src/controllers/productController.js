@@ -40,27 +40,35 @@ const getProducts = async (req, res) => {
 };
 
 // 2. PRODUCT DETAIL (With Related Items)
+// 2. PRODUCT DETAIL (With Related Items)
 const getProductDetail = async (req, res) => {
     try {
         const { id } = req.params;
         
-        const product = await productService.getProductById(id);
+        // FIX: Convert String ID ("1") to Integer (1)
+        const productId = parseInt(id);
+
+        if (isNaN(productId)) {
+             return res.status(400).json({ message: "Invalid Product ID" });
+        }
+        
+        // Pass the Integer ID, not the String
+        const product = await productService.getProductById(productId);
 
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
 
         // Fetch related products
-        const related = await productService.getRelatedProducts(id, product.category_id);
+        const related = await productService.getRelatedProducts(productId, product.category_id);
 
-        // Combine response
         res.status(200).json({
             product,
             related_products: related
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Get Detail Error:", error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -129,8 +137,72 @@ const createProduct = async (req, res) => {
     }
 };
 
+const updateProduct = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { description } = req.body; // We only expect the NEW description here
+        const userId = req.auth.userId;
+
+        // 1. Find the product
+        const product = await prisma.product.findUnique({
+            where: { product_id: parseInt(id) }
+        });
+
+        if (!product) return res.status(404).json({ message: "Product not found" });
+
+        // 2. Check Ownership
+        if (product.seller_id !== userId) {
+            return res.status(403).json({ message: "You are not the seller of this product" });
+        }
+
+        // 3. Append Logic
+        // We add a timestamp header to distinguish the new info
+        const timestamp = new Date().toLocaleString();
+        const appendContent = `
+            <div class="append-section" style="margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 10px;">
+                <p><strong>📅 Update ${timestamp}:</strong></p>
+                ${description}
+            </div>
+        `;
+
+        const finalDescription = product.description + appendContent;
+
+        // 4. Update DB
+        const updated = await prisma.product.update({
+            where: { product_id: parseInt(id) },
+            data: {
+                description: finalDescription
+            }
+        });
+
+        res.status(200).json({ message: "Description updated successfully", product: updated });
+
+    } catch (error) {
+        console.error("Update Error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+const getSellerProducts = async (req, res) => {
+    try {
+        if (!req.auth || !req.auth.userId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const sellerId = req.auth.userId;
+        const products = await productService.getProductsBySellerId(sellerId);
+
+        return res.status(200).json(products);
+    } catch (error) {
+        console.error("Get Seller Products Error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 export default {
     getProducts,
     getProductDetail,
-    createProduct
+    createProduct,
+    updateProduct,
+    getSellerProducts
 };
