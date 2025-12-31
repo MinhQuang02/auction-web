@@ -5,7 +5,7 @@ import logo from "@assets/images/_logo.svg";
 import wishlistIcon from "@assets/images/_wishlist_icon.svg";
 
 const Header = () => {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, role, isAuthenticated, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
@@ -34,7 +34,7 @@ const Header = () => {
           {/* Logo */}
           <Link
             to="/"
-            className="order-1 lg:absolute lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:order-2"
+            className="order-1 lg:absolute lg:left-1/2 lg:top-[53%] lg:-translate-x-1/2 lg:-translate-y-1/2 lg:order-2"
           >
             <img src={logo} alt="Style Loom Logo" className="h-6 lg:h-8" />
           </Link>
@@ -44,14 +44,14 @@ const Header = () => {
               <>
                 <Link
                   to="/login"
-                  className="px-4 py-2.5 bg-textDark text-white rounded-lg text-xs font-mono hover:bg-[#2b1b17]"
+                  className="px-4 py-2.5 lg:py-3.5 bg-textDark text-white rounded-lg text-xs font-mono hover:bg-[#2b1b17]"
                 >
                   Login
                 </Link>
 
                 <Link
                   to="/signup"
-                  className="px-4 py-2.5 bg-primary text-white rounded-lg text-xs font-mono hover:bg-[#543b32]"
+                  className="px-4 py-2.5 lg:py-3.5 bg-primary text-white rounded-lg text-xs font-mono hover:bg-[#543b32]"
                 >
                   Sign Up
                 </Link>
@@ -67,10 +67,10 @@ const Header = () => {
           px-4 lg:px-6
           min-h-[40px] lg:min-h-[46px]
           flex items-center gap-2
-          bg-textDark text-white
+          bg-primary text-white
           rounded-lg
           font-mono text-xs
-          hover:bg-[#2b1b17]
+          hover:bg-[#543b32]
           shrink-0
         "
                 >
@@ -121,7 +121,7 @@ const Header = () => {
             </Link>
 
             <Link
-              to={user?.role === "bidder" ? "/upgrade" : "/seller"}
+              to={role === "bidder" ? "/upgrade" : "/seller"}
               className="flex-1 lg:flex-none text-center px-4 lg:px-5 py-2.5 lg:py-3.5 border border-textDark rounded-lg font-mono text-xs bg-textDark text-white hover:bg-[#2b1b17] transition"
             >
               Seller Mode

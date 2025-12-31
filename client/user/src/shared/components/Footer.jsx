@@ -120,8 +120,8 @@ const Footer = () => {
           <div className="flex items-center gap-2">
             <img src={qrCode} alt="QR" className="w-20 h-20" />
             <div className="flex flex-col gap-1">
-              <img src={playStore} alt="Play Store" className="h-10 w-auto" />
-              <img src={appStore} alt="App Store" className="h-10 w-auto" />
+              <img src={playStore} alt="Play Store" className="h-[38px] w-auto" />
+              <img src={appStore} alt="App Store" className="h-[38px] w-auto" />
             </div>
           </div>
           <div className="flex gap-6 mt-2 justify-center sm:justify-start">

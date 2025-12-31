@@ -3,8 +3,10 @@ import Product from "./Product";
 import AuctionHistory from "./AuctionHistory";
 import AskSeller from "./AskSeller";
 import RelatedItems from "./RelatedItems";
+import { useAuth } from "@context/AuthContext";
 
 function ProductDetail() {
+  const { isAuthenticated } = useAuth();
   return (
     <>
       <section
@@ -14,7 +16,7 @@ function ProductDetail() {
         <Sidebar />
         <Product />
       </section>
-      <AuctionHistory />
+      {isAuthenticated && <AuctionHistory />}
       <AskSeller />
       <RelatedItems />
     </>

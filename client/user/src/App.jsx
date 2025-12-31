@@ -117,7 +117,7 @@ function App() {
             <Route path="/product" element={<ProductDetail />} />
           </Route>
 
-          <Route element={<RoleRoute allowedRoles={["bidder"]} />}>
+          <Route element={<RoleRoute allowedRoles={["bidder", "seller"]} />}>
             <Route element={<MainLayout />}>
               <Route path="/profile" element={<Profiles />} />
               <Route path="/reviews" element={<Review />} />

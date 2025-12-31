@@ -2,7 +2,7 @@ import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@context/AuthContext";
 
 const RoleRoute = ({ allowedRoles }) => {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { role, isAuthenticated, loading } = useAuth();
 
   if (loading) return null; // or spinner
 
@@ -10,7 +10,7 @@ const RoleRoute = ({ allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  if (allowedRoles && !allowedRoles.includes(role)) {
     return <Navigate to="/home" replace />;
   }
 
