@@ -1,11 +1,12 @@
 import express from "express";
 import categoryController from "../controllers/categoryController.js";
+import requireRole from "../middlewares/requireRole.js";
 
 const router = express.Router();
 
 router.get("/", categoryController.getCategories);
-router.post("/", categoryController.createCategory);
-router.put("/:id", categoryController.updateCategory);
-router.delete("/:id", categoryController.deleteCategory);
+router.post("/", requireRole("admin"), categoryController.createCategory);
+router.put("/:id", requireRole("admin"), categoryController.updateCategory);
+router.delete("/:id", requireRole("admin"), categoryController.deleteCategory);
 
 export default router;

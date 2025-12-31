@@ -11,6 +11,7 @@ import CategoryDetailsPanel from "./CategoryDetailsPanel";
 import CategoryModalContent from "./CategoryModalContent";
 
 const API_URL = import.meta.env.VITE_API_URL;
+const token = localStorage.getItem("token");
 
 const slugify = (str) => str.toLowerCase().trim().replace(/\s+/g, "-");
 
@@ -107,9 +108,12 @@ const CategoryManagement = () => {
   );
 
   const addCategory = async ({ name, parent_id }) => {
-    await fetch(`${API_URL}/api/categories`, {
+    const res = await fetch(`${API_URL}/api/categories`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ name, parent_id }),
     });
     await fetchCategories();
@@ -118,7 +122,10 @@ const CategoryManagement = () => {
   const editCategory = async (id, updates) => {
     await fetch(`${API_URL}/api/categories/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(updates),
     });
     await fetchCategories();
@@ -127,6 +134,9 @@ const CategoryManagement = () => {
   const deleteCategory = async (id) => {
     const res = await fetch(`${API_URL}/api/categories/${id}`, {
       method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
 
     if (!res.ok) {
