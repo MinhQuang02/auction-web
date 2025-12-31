@@ -4,7 +4,6 @@ import categoryService from "../services/categoryService.js";
 const getCategories = async (req, res) => {
   try {
     const data = await categoryService.getCategoryTree();
-    console.log(data);
     res.json(data);
   } catch (e) {
     console.error(e);
