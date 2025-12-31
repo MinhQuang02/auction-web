@@ -136,7 +136,12 @@ function App() {
                 element={<Navigate to="/seller/products" replace />}
               />
               <Route path="/seller/products" element={<MyProducts />} />
-              <Route path="/seller/edit-product" element={<EditProduct />} />
+              
+              {/* Route for CREATING a new product */}
+              <Route path="/seller/products/new" element={<EditProduct />} />
+              
+              {/* Route for EDITING an existing product (uses the same component) */}
+              <Route path="/seller/products/edit/:id" element={<EditProduct />} />
             </Route>
           </Route>
 

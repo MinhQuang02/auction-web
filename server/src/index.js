@@ -20,6 +20,12 @@ const PORT = process.env.PORT || 8000;
 
 app.use(cors());
 app.use(express.json());
+
+// 1. ADD THIS LOGGER RIGHT HERE (Before AuthContext)
+app.use((req, res, next) => {
+  next();
+});
+
 app.use(authContext);
 
 // Register Routes

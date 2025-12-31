@@ -1,4 +1,7 @@
-import productService from "../services/productService.js";
+import productService from '../services/productService.js';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // 1. SEARCH LIST (With "New" Badge)
 const getProducts = async (req, res) => {
@@ -65,7 +68,72 @@ const getProductDetail = async (req, res) => {
   }
 };
 
+// 3. CREATE PRODUCT (Seller Feature)
+const createProduct = async (req, res) => {
+    try {
+        // Ensure user is authenticated (handled by authContext, but good to check)
+        if (!req.auth || !req.auth.userId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const sellerId = req.auth.userId;
+        const {
+            name,
+            description,
+            start_price,
+            step_price,
+            buy_now_price,
+            end_time,
+            category_id,
+            auto_extend_enabled,
+            images, // Expecting an array of URL strings
+        } = req.body;
+
+        // Validation
+        if (!name || !start_price || !step_price || !category_id || !end_time) {
+            return res.status(400).json({ message: "Missing required fields" });
+        }
+
+        if (!images || !Array.isArray(images) || images.length < 3) {
+            return res.status(400).json({ message: "You must provide at least 3 images." });
+        }
+
+        // Create Product in Database
+        const newProduct = await prisma.product.create({
+            data: {
+                name,
+                description,
+                start_price: parseFloat(start_price),
+                step_price: parseFloat(step_price),
+                current_price: parseFloat(start_price), // Current price starts equal to start price
+                buy_now_price: buy_now_price ? parseFloat(buy_now_price) : null,
+                end_time: new Date(end_time),
+                auto_extend_enabled: !!auto_extend_enabled,
+                seller_id: sellerId,
+                category_id: parseInt(category_id),
+                main_image_url: images[0], // Set the first image as main
+                status: 'active',
+                
+                // Create associated images in Product_Image table
+                images: {
+                    create: images.map(url => ({ image_url: url }))
+                }
+            },
+        });
+
+        return res.status(201).json({ 
+            message: "Product created successfully", 
+            product: newProduct 
+        });
+
+    } catch (error) {
+        console.error("Create Product Error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 export default {
-  getProducts,
-  getProductDetail,
+    getProducts,
+    getProductDetail,
+    createProduct
 };

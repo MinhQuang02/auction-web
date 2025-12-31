@@ -1,142 +1,111 @@
-import { useState } from "react";
-
+import { useState, useEffect } from "react";
 import VBox from "@components/VBox";
 import HBox from "@components/HBox";
 import AdminSidebar from "@components/Sidebar/AdminSidebar";
-import ActionBar from "@components/ActionBar";
 import TablePanel from "@components/TablePanel";
 import Modal from "@components/Modal";
 import UserDetail from "./UserDetail";
 import UpgradeRequestReview from "./UpgradeRequestReview";
 
-const headers = [
-  "ID",
-  "Username",
-  "Email",
-  "Role",
-  "Rating",
-  "Join Date",
-  "Status",
-  "Last Active",
-];
-
-// Example user list
-const users = [
-  {
-    id: 42,
-    username: "Alice123",
-    name: "Alice Johnson",
-    email: "alice.johnson@example.com",
-    address: "123 Maple Street, Springfield",
-    phone: "+1 555-123-4567",
-    role: "User",
-    status: "Active",
-    join_date: "2024-01-15",
-    total_bids: 27,
-    auctions_won: 5,
-    auctions_held: 2,
-    rating: 4.8,
-    ratings_received: 12,
-    ratings_given: 15,
-    activity_history: [
-      {
-        event_type: "Login",
-        date: "2025-11-29 10:15",
-        details: "User logged in from IP 192.168.0.12",
-      },
-      {
-        event_type: "Bid Placed",
-        date: "2025-11-29 11:00",
-        details: "Placed a bid of $250 on 'Vintage Watch'",
-      },
-      {
-        event_type: "Auction Created",
-        date: "2025-11-28 14:22",
-        details: "Created auction for 'Rare Comic Book'",
-      },
-      {
-        event_type: "Password Reset",
-        date: "2025-11-27 09:30",
-        details: "User reset password via email link",
-      },
-      {
-        event_type: "Logout",
-        date: "2025-11-29 12:45",
-        details: "User logged out",
-      },
-    ],
-    upgrade_request: {
-      reason: "Request to become a verified seller.",
-      status: "Pending",
-    },
-  },
-  {
-    id: 2,
-    username: "BobAdmin",
-    email: "bob@example.com",
-    role: "Admin",
-    rating: 5.0,
-    join_date: "2023-06-02",
-    status: "Active",
-    last_active: "2025-11-30 13:50",
-  },
-  // ... more users
-];
+const API_URL = import.meta.env.VITE_API_URL;
 
 const UserManagement = () => {
+  const [users, setUsers] = useState([]); // Real users
+  const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [upgradeRequestUser, setUpgradeRequestUser] = useState(null);
+
+  // Fetch Users who requested upgrade
+  const fetchPendingRequests = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      
+      // MAKE SURE THIS URL IS CORRECT:
+      const res = await fetch(`${API_URL}/api/upgrades/pending`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      const data = await res.json();
+      const formattedUsers = data.map(u => ({
+         id: u.user_id,
+         username: u.full_name,
+         email: u.email,
+         role: u.role,
+         status: "Pending Upgrade",
+         request_time: new Date(u.upgrade_request_time).toLocaleDateString(),
+         raw: u 
+      }));
+
+      setUsers(formattedUsers);
+    } catch (err) {
+      console.error("Failed to fetch requests", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingRequests();
+  }, []);
+
+  const handleApprove = async () => {
+      const token = localStorage.getItem("token");
+      await fetch(`${API_URL}/api/upgrades/approve`, {
+          method: "POST",
+          headers: { 
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}` 
+          },
+          body: JSON.stringify({ userId: upgradeRequestUser.raw.user_id })
+      });
+      setUpgradeRequestUser(null);
+      fetchPendingRequests(); // Refresh list
+  };
+
+  const handleReject = async () => {
+      const token = localStorage.getItem("token");
+      await fetch(`${API_URL}/api/upgrades/reject`, {
+          method: "POST",
+          headers: { 
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}` 
+          },
+          body: JSON.stringify({ userId: upgradeRequestUser.raw.user_id })
+      });
+      setUpgradeRequestUser(null);
+      fetchPendingRequests(); // Refresh list
+  };
 
   return (
     <VBox className="p-10 gap-40">
       <HBox className="gap-10">
         <AdminSidebar />
         <span className="text-6xl font-bold text-black self-center flex-grow">
-          USERS
+          UPGRADE REQUESTS
         </span>
       </HBox>
 
       <VBox>
-        <ActionBar
-          onFilter={() => {}}
-          onSearch={() => {}}
-          onAdd={() => {}}
-          onRemove={() => {}}
-          onEdit={() => {}}
-        />
-
-        <TablePanel
-          headers={headers}
-          rows={users}
-          onRowClick={(row) => setSelectedUser(row)}
-        />
-
-        {/* User Details Modal */}
-        <Modal isOpen={!!selectedUser} onClose={() => setSelectedUser(null)}>
-          {selectedUser && (
-            <UserDetail
-              user={selectedUser}
-              onUpgradeRequest={(reason) =>
-                setUpgradeRequestUser({ user: selectedUser, reason })
-              }
+        {loading ? <p>Loading...</p> : (
+            <TablePanel
+              headers={["ID", "Name", "Email", "Role", "Request Date"]}
+              rows={users}
+              onRowClick={(row) => setUpgradeRequestUser({ 
+                  user: { username: row.username, id: row.id, role: row.role }, 
+                  reason: "User requested upgrade via profile.", // Placeholder reason until DB updated
+                  raw: row.raw 
+              })}
             />
-          )}
-        </Modal>
+        )}
 
-        {/* Upgrade Request Modal */}
+        {/* Upgrade Review Modal */}
         <UpgradeRequestReview
           isOpen={!!upgradeRequestUser}
           onClose={() => setUpgradeRequestUser(null)}
           user={upgradeRequestUser?.user}
           requestReason={upgradeRequestUser?.reason}
-          onApprove={() => {
-            console.log("Approved:", upgradeRequestUser.user.username);
-            setUpgradeRequestUser(null);
-          }}
-          onReject={() => {
-            console.log("Rejected:", upgradeRequestUser.user.username);
-            setUpgradeRequestUser(null);
-          }}
+          onApprove={handleApprove}
+          onReject={handleReject}
         />
       </VBox>
     </VBox>
