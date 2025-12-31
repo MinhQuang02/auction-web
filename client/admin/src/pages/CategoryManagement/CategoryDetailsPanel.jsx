@@ -2,46 +2,32 @@ import Panel from "@components/Panel";
 import VBox from "@components/VBox";
 import HBox from "@components/HBox";
 
-const CategoryDetailsPanel = ({
-  id,
-  path,
-  product_count,
-  active,
-  description,
-}) => {
+const CategoryDetailsPanel = ({ category }) => {
+  if (!category) return null;
+
+  const { id, path, product_count } = category;
+
   return (
     <Panel className="p-4 rounded-md">
-      <VBox className="flex-1 w-full">
+      <VBox className="flex-1 w-full gap-4">
         <span className="text-3xl font-semibold text-primary">Category</span>
+
         <hr className="h-1 bg-primary border-none" />
-        <VBox className="flex-1 w-full">
-          <HBox>
-            <span className="text-lg font-semibold w-40">ID</span>
-            <span className="text-lg flex-1">{id}</span>
-          </HBox>
-          <HBox>
-            <span className="text-lg font-semibold w-40">Category Path</span>
-            <span className="text-lg flex-1">{path}</span>
-          </HBox>
-          <HBox>
-            <span className="text-lg font-semibold w-40">Product Count</span>
-            <span className="text-lg flex-1">{product_count}</span>
-          </HBox>
-          <HBox>
-            <span className="text-lg font-semibold w-40">Active</span>
-            <input
-              type="checkbox"
-              className="w-5 h-5 accent-primary cursor-pointer"
-              checked={active}
-              onChange={() => onSelect(item.id)}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </HBox>
-          <HBox>
-            <span className="text-lg font-semibold w-40">Description</span>
-            <span className="text-lg flex-1">{description}</span>
-          </HBox>
-        </VBox>
+
+        <HBox>
+          <span className="text-lg font-semibold w-40">ID</span>
+          <span className="text-lg flex-1">{id}</span>
+        </HBox>
+
+        <HBox>
+          <span className="text-lg font-semibold w-40">Category Path</span>
+          <span className="text-lg flex-1">{path}</span>
+        </HBox>
+
+        <HBox>
+          <span className="text-lg font-semibold w-40">Product Count</span>
+          <span className="text-lg flex-1">{product_count}</span>
+        </HBox>
       </VBox>
     </Panel>
   );

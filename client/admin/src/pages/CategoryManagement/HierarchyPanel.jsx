@@ -1,13 +1,19 @@
-import React, { useState } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import HBox from "@components/HBox";
 
-const HierarchyPanel = ({
-  data,
-  onSelect,
-  selectedIds = [],
-  onToggleActive,
-}) => {
+const childVariants = {
+  collapsed: {
+    height: 0,
+    opacity: 0,
+  },
+  expanded: {
+    height: "auto",
+    opacity: 1,
+  },
+};
+
+const HierarchyPanel = ({ data, onSelect, selectedIds = [] }) => {
   return (
     <div className="bg-lightGray rounded-md shadow-md flex flex-col overflow-y-auto py-4 w-full min-w-0">
       <div className="flex-1 flex flex-col">
@@ -18,7 +24,6 @@ const HierarchyPanel = ({
             level={0}
             onSelect={onSelect}
             selectedIds={selectedIds}
-            onToggleActive={onToggleActive}
           />
         ))}
       </div>
@@ -26,16 +31,16 @@ const HierarchyPanel = ({
   );
 };
 
-const CategoryRow = ({
-  item,
-  level,
-  onSelect,
-  selectedIds,
-  onToggleActive,
-}) => {
-  const [expanded, setExpanded] = useState(true);
-  const hasChildren = item.children && item.children.length > 0;
+const CategoryRow = ({ item, level, onSelect, selectedIds }) => {
+  const [expanded, setExpanded] = useState(item.__autoExpand ?? true);
+  const hasChildren = item.children?.length > 0;
   const isSelected = selectedIds.includes(item.id);
+
+  useEffect(() => {
+    if (item.__autoExpand) {
+      setExpanded(true);
+    }
+  }, [item.__autoExpand]);
 
   return (
     <>
@@ -55,12 +60,12 @@ const CategoryRow = ({
                 className="flex items-center justify-center cursor-pointer w-full h-full"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setExpanded(!expanded);
+                  setExpanded((v) => !v);
                 }}
               >
                 <motion.div
-                  className="transition-transform"
                   animate={{ rotate: expanded ? 90 : 0 }}
+                  transition={{ duration: 0.2 }}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -81,7 +86,7 @@ const CategoryRow = ({
             )}
           </div>
 
-          {/* Label (select category) */}
+          {/* Label */}
           <span
             className="flex-1 truncate flex items-center min-h-14 cursor-pointer"
             style={{ paddingLeft: level * 20 }}
@@ -89,39 +94,32 @@ const CategoryRow = ({
           >
             {item.label}
           </span>
-
-          {/* Checkbox (toggle active) */}
-          <div className="flex items-center justify-end pr-8">
-            <input
-              type="checkbox"
-              className="w-5 h-5 accent-primary cursor-pointer"
-              checked={item.active}
-              onChange={() => onToggleActive(item.id, !item.active)}
-              onClick={(e) => e.stopPropagation()} // prevent row selection
-            />
-          </div>
         </div>
       </HBox>
 
-      {hasChildren && expanded && (
-        <motion.div
-          layout
-          initial={false}
-          animate={{ height: expanded ? "auto" : 0 }}
-          className="overflow-hidden"
-        >
-          {item.children.map((child) => (
-            <CategoryRow
-              key={child.id}
-              item={child}
-              level={level + 1}
-              onSelect={onSelect}
-              selectedIds={selectedIds}
-              onToggleActive={onToggleActive}
-            />
-          ))}
-        </motion.div>
-      )}
+      <AnimatePresence initial={false}>
+        {hasChildren && expanded && (
+          <motion.div
+            key="children"
+            variants={childVariants}
+            initial="collapsed"
+            animate="expanded"
+            exit="collapsed"
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            {item.children.map((child) => (
+              <CategoryRow
+                key={child.id}
+                item={child}
+                level={level + 1}
+                onSelect={onSelect}
+                selectedIds={selectedIds}
+              />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };

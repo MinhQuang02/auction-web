@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import HBox from "./HBox";
 import FilterButton from "./IconButton/FilterButton";
 import SearchButton from "./IconButton/SearchButton";
@@ -5,23 +6,66 @@ import AddButton from "./IconButton/AddButton";
 import RemoveButton from "./IconButton/RemoveButton";
 import EditButton from "./IconButton/EditButton";
 
-const ActionBar = ({ onSearch, onFilter, onAdd, onEdit, onRemove, className="" }) => {
-    return (
+const ActionBar = ({
+  onSearch,
+  onFilter,
+  onAdd,
+  onEdit,
+  onRemove,
+  className = "",
+}) => {
+  const [query, setQuery] = useState("");
+  const [filterActive, setFilterActive] = useState(false);
+
+  // Debounced search (basic, reliable)
+  useEffect(() => {
+    if (!onSearch) return;
+    const t = setTimeout(() => onSearch(query), 250);
+    return () => clearTimeout(t);
+  }, [query, onSearch]);
+
+  const toggleFilter = () => {
+    setFilterActive((v) => !v);
+    onFilter?.();
+  };
+
+  return (
     <HBox className={`items-center gap-10 ${className}`}>
-        <HBox className="items-center gap-10">
-            { onSearch && <SearchButton onClick={onSearch} /> }
-            { onFilter && <FilterButton onClick={onFilter} /> }
-        </HBox>
+      {/* Search + Filter */}
+      <HBox className="items-center gap-10">
+        {onSearch && (
+          <HBox className="items-center gap-4">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search categories…"
+              className="
+                h-14 px-4 rounded-md
+                bg-white text-black
+                border border-gray-300
+                focus:outline-none focus:ring-2 focus:ring-primary
+              "
+            />
+            <SearchButton />
+          </HBox>
+        )}
 
-        <div className="w-14 h-14" />
+        {onFilter && (
+          <FilterButton onClick={toggleFilter} active={filterActive} />
+        )}
+      </HBox>
 
-        <HBox className="items-center gap-10">
-            { onAdd && <AddButton onClick={onAdd} /> }
-            { onEdit && <EditButton onClick={onEdit} /> }
-            { onRemove && <RemoveButton onClick={onRemove} /> }
-        </HBox>
+      <div className="w-14 h-14" />
+
+      {/* CRUD */}
+      <HBox className="items-center gap-10">
+        {onAdd && <AddButton onClick={onAdd} />}
+        {onEdit && <EditButton onClick={onEdit} />}
+        {onRemove && <RemoveButton onClick={onRemove} />}
+      </HBox>
     </HBox>
-    )
-}
+  );
+};
 
 export default ActionBar;
