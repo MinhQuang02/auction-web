@@ -32,11 +32,15 @@ export const AuthProvider = ({ children }) => {
 
       const data = await res.json();
 
-      // Support both { user: {...} } and direct user object
       const userData = data.user ?? data;
 
+      if (userData.user_id && !userData.id) {
+          userData.id = userData.user_id;
+      }
+
       if (!userData || !userData.id) {
-        throw new Error("Invalid user payload");
+        console.error("Invalid Payload Received:", userData); 
+        throw new Error("Invalid user payload: Missing ID");
       }
 
       setAuth({

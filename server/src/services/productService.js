@@ -27,25 +27,21 @@ const searchProducts = async ({
     where.category_id = parseInt(categoryId);
   }
 
-  // Full-Text Search (Req 1.4)
+  // Full-Text Search
   if (keyword) {
-    // Using Prisma's fullTextSearch feature (Postgres)
     where.OR = [
       { name: { contains: keyword, mode: "insensitive" } },
       { description: { contains: keyword, mode: "insensitive" } },
     ];
-    // Note: If you enabled "fullTextSearch" in schema, you can also use:
-    // { name: { search: keyword } }
   }
 
-  // Sorting (Req 1.4)
+  // Sorting
   let orderBy = {};
   if (sortBy === "time_desc") {
     orderBy = { end_time: "desc" };
   } else if (sortBy === "price_asc") {
     orderBy = { current_price: "asc" };
   } else {
-    // Default: Newest products first? Or ending soonest?
     orderBy = { start_time: "desc" };
   }
 
@@ -76,44 +72,54 @@ const searchProducts = async ({
   return products;
 };
 
-// 2. PRODUCT DETAILS (Req 1.5)
+// 2. PRODUCT DETAILS
 const getProductById = async (productId) => {
-  const product = await prisma.product.findUnique({
-    where: { product_id: parseInt(productId) },
-    include: {
-      images: true,
-      seller: {
-        select: { full_name: true, avg_rating: true, total_ratings: true },
-      },
-      category: true,
-      bids: {
-        orderBy: { bid_time: "desc" },
+    const idInt = parseInt(productId);
+    
+    if (isNaN(idInt)) {
+        return null;
+    }
+
+    const product = await prisma.product.findUnique({
+        where: { product_id: idInt },
         include: {
-          bidder: {
-            select: { full_name: true, avg_rating: true },
-          },
+            images: true,
+            seller: {
+                select: { full_name: true, avg_rating: true, total_ratings: true },
+            },
+            category: true,
+            bids: {
+                orderBy: { bid_time: "desc" },
+                include: {
+                    bidder: {
+                        select: { full_name: true, avg_rating: true },
+                    },
+                },
+            },
         },
-      },
-    },
-  });
+    });
 
-  if (!product) return null;
+    if (!product) return null;
 
-  // Mask Bidder Names (Req 2.3)
-  // "Tran Minh Khoa" -> "****Khoa"
-  const maskedBids = product.bids.map((bid) => {
-    const parts = bid.bidder.full_name.trim().split(" ");
-    const lastName = parts[parts.length - 1];
-    return {
-      ...bid,
-      bidder: {
-        ...bid.bidder,
-        full_name: `****${lastName}`, // Masking logic
-      },
-    };
-  });
+    // Mask Bidder Names
+    const maskedBids = product.bids.map(bid => {
+        // Safety check if bidder is missing
+        if (!bid.bidder || !bid.bidder.full_name) {
+            return { ...bid, bidder: { full_name: "****User" } };
+        }
+        
+        const parts = bid.bidder.full_name.trim().split(' ');
+        const lastName = parts[parts.length - 1];
+        return {
+            ...bid,
+            bidder: {
+                ...bid.bidder,
+                full_name: `****${lastName}`
+            }
+        };
+    });
 
-  return { ...product, bids: maskedBids };
+    return { ...product, bids: maskedBids };
 };
 
 // 3. RELATED PRODUCTS
@@ -130,6 +136,22 @@ const getRelatedProducts = async (productId, categoryId) => {
   });
 };
 
+// 4. GET SELLER PRODUCTS (Your logic)
+const getProductsBySellerId = async (sellerId) => {
+    return await prisma.product.findMany({
+        where: { seller_id: parseInt(sellerId) },
+        orderBy: { start_time: 'desc' },
+        include: {
+            images: { take: 1 },
+            bids: { 
+                orderBy: { max_bid_amount: 'desc' },
+                take: 1
+            }
+        }
+    });
+};
+
+// --- TEAM'S NEW LOGIC (Preserved) ---
 const createProduct = async (data) => {
   const {
     name,
@@ -187,7 +209,7 @@ const deleteProduct = async (productId) => {
     throw new Error("Cannot delete product with existing bids");
   }
 
-  // Soft delete (recommended)
+  // Soft delete
   await prisma.product.update({
     where: { product_id: id },
     data: { status: "removed" },
@@ -195,10 +217,11 @@ const deleteProduct = async (productId) => {
 };
 
 export default {
-  searchProducts,
-  getProductById,
-  getRelatedProducts,
-  createProduct,
-  updateProduct,
-  deleteProduct,
+    searchProducts,
+    getProductById,
+    getRelatedProducts,
+    getProductsBySellerId,
+    createProduct,
+    updateProduct,
+    deleteProduct,
 };
