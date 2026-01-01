@@ -1,9 +1,7 @@
-import { useState } from "react";
-
+import { useState, useEffect } from "react";
 import VBox from "@components/VBox";
 import HBox from "@components/HBox";
 import AdminSidebar from "@components/Sidebar/AdminSidebar";
-import ActionBar from "@components/ActionBar";
 import TablePanel from "@components/TablePanel";
 import Modal from "@components/Modal";
 import UserDetail from "./UserDetail";
@@ -93,7 +91,7 @@ const UserManagement = () => {
       <HBox className="gap-10">
         <AdminSidebar />
         <span className="text-6xl font-bold text-black self-center flex-grow">
-          USERS
+          UPGRADE REQUESTS
         </span>
       </HBox>
 

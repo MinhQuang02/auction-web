@@ -4,17 +4,17 @@ import verifyRecaptcha from "../utils/recaptcha.js";
 class AuthController {
   async register(req, res) {
     try {
-      const { email, password, full_name, address, dob, captchaToken } =
-        req.body;
+      const { email, password, full_name, address, dob, captchaToken } = req.body;
 
       if (!email || !password || !full_name) {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
-      const captchaValid = await verifyRecaptcha(captchaToken);
-      if (!captchaValid) {
-        return res.status(400).json({ message: "Captcha failed" });
-      }
+      // Uncomment this when you are ready to enable Captcha
+      // const captchaValid = await verifyRecaptcha(captchaToken);
+      // if (!captchaValid) {
+      //   return res.status(400).json({ message: "Captcha failed" });
+      // }
 
       await authService.registerAndSendOtp({
         email,
@@ -31,7 +31,7 @@ class AuthController {
       if (err.code === "P2002") {
         return res.status(400).json({ message: "Email already exists" });
       }
-      console.error(err);
+      console.error("Register Error:", err);
       return res.status(500).json({ message: "Internal server error" });
     }
   }
@@ -63,14 +63,15 @@ class AuthController {
   async login(req, res) {
     try {
       const { email, password } = req.body;
+      console.log(`🔌 [LOGIN] Attempting login for: ${email}`);
 
       if (!email || !password) {
-        return res
-          .status(400)
-          .json({ message: "email and password are required" });
+        return res.status(400).json({ message: "email and password are required" });
       }
 
       const { token, user } = await authService.login({ email, password });
+
+      console.log(`✅ [LOGIN] Success for User: ${user.full_name} (${user.role})`);
 
       return res.status(200).json({
         message: "Login successful",
@@ -78,13 +79,13 @@ class AuthController {
         user,
       });
     } catch (error) {
+      console.error(`❌ [LOGIN] Failed: ${error.message}`);
       if (error.message === "Invalid credentials") {
         return res.status(401).json({ message: "Invalid credentials" });
       }
       if (error.message === "Email not verified") {
         return res.status(403).json({ message: "Email not verified" });
       }
-      console.error(error);
       return res.status(500).json({ message: "Internal server error" });
     }
   }
@@ -105,9 +106,16 @@ class AuthController {
     }
   }
 
+  // --- THIS IS THE FIXED FUNCTION WITH DEBUG LOGS ---
   async me(req, res) {
     try {
-      if (!req.auth?.authenticated) {
+      console.log("🔍 [ME] Checking Session...");
+      // console.log("   -> req.auth data:", req.auth); // Uncomment to see full token data
+
+      // FIX: Check if req.auth exists AND has a userId.
+      // Your AuthContext middleware sets req.auth = { userId: ... }, it DOES NOT set .authenticated
+      if (!req.auth || !req.auth.userId) {
+        console.log("   -> ❌ No valid Auth found. Returning Guest.");
         return res.status(200).json({
           authenticated: false,
           role: "guest",
@@ -118,6 +126,7 @@ class AuthController {
       const user = await authService.getCurrentUser(req.auth.userId);
 
       if (!user) {
+        console.log("   -> ⚠️ Token valid but User ID not found in DB.");
         return res.status(200).json({
           authenticated: false,
           role: "guest",
@@ -125,16 +134,19 @@ class AuthController {
         });
       }
 
+      console.log(`   -> ✅ Found User: ${user.full_name} | Role: ${user.role}`);
+
       return res.status(200).json({
         authenticated: true,
         role: user.role,
         user,
       });
     } catch (error) {
-      console.error(error);
+      console.error("🔥 [ME] Internal Error:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   }
+  // -----------------------------------------------
 
   async forgotPassword(req, res) {
     try {
