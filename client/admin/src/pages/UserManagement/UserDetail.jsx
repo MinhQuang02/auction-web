@@ -89,7 +89,7 @@ const UserDetail = ({ user, onUpgradeRequest }) => {
         </VBox>
       )}
       {/* Actions */}
-      <VBox className="gap-4">
+      {/* <VBox className="gap-4">
         <div className="flex flex-wrap gap-4">
           <button className="flex-1 px-4 py-2 bg-lightGray hover:bg-primary/30 active:bg-primary/60 rounded transition">
             Suspend
@@ -111,7 +111,7 @@ const UserDetail = ({ user, onUpgradeRequest }) => {
         >
           View / Handle Upgrade Request
         </button>
-      </VBox>
+      </VBox> */}
     </VBox>
   );
 };

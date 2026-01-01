@@ -172,7 +172,7 @@ const CategoryManagement = () => {
 
       <div className="grid grid-cols-[32rem_1fr] gap-4">
         <ActionBar
-          onFilter={() => setShowParentsOnly((v) => !v)}
+          // onFilter={() => setShowParentsOnly((v) => !v)}
           onSearch={(value) => setSearchQuery(value)}
           onAdd={() => setModalMode("add")}
           onEdit={() => setModalMode("edit")}

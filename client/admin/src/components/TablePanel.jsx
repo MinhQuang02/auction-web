@@ -1,19 +1,15 @@
 import { useState } from "react";
 
-const TablePanel = ({ headers, rows, onRowClick, onRowDoubleClick }) => {
+const TablePanel = ({
+  headers,
+  rows,
+  onRowClick,
+  onRowDoubleClick,
+  renderActions,
+}) => {
   const [selectedRowId, setSelectedRowId] = useState(null);
 
   const getRowId = (row) => row.id ?? row.timestamp;
-
-  const handleRowClick = (row) => {
-    const rowId = getRowId(row);
-    setSelectedRowId(rowId);
-    onRowClick?.(row);
-  };
-
-  const handleRowDoubleClick = (row) => {
-    onRowDoubleClick?.(row);
-  };
 
   return (
     <table className="w-full bg-[#f2f2f2] rounded-md shadow-md">
@@ -35,18 +31,29 @@ const TablePanel = ({ headers, rows, onRowClick, onRowDoubleClick }) => {
           return (
             <tr
               key={rowId}
-              className={`text-left border-b cursor-pointer transition-colors ${
+              className={`border-b cursor-pointer transition-colors ${
                 isSelected ? "bg-primary/60" : "hover:bg-primary/30"
               }`}
-              onClick={() => handleRowClick(row)}
-              onDoubleClick={() => handleRowDoubleClick(row)}
+              onClick={() => {
+                setSelectedRowId(rowId);
+                onRowClick?.(row);
+              }}
+              onDoubleClick={() => onRowDoubleClick?.(row)}
             >
               {headers.map((header) => {
+                if (header === "Actions") {
+                  return (
+                    <td key="actions" className="p-4 text-right">
+                      {renderActions?.(row)}
+                    </td>
+                  );
+                }
+
                 const key = header.toLowerCase().replace(/\s+/g, "_");
 
                 return (
                   <td key={key} className="p-4">
-                    {row[key]}
+                    {row[key] ?? "-"}
                   </td>
                 );
               })}

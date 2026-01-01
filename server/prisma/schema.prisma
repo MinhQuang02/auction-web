@@ -54,6 +54,7 @@ model User {
   avg_rating           Decimal        @default(0.0) @db.Decimal(3, 2)
   total_ratings        Int            @default(0)
   created_at           DateTime?      @default(now()) @db.Timestamp()
+  seller_expires       DateTime?      @db.Timestamp()
 
   // Relationships
   products_sold       Product[]      @relation("SellerProducts")
