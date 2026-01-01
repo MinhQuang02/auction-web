@@ -1,19 +1,22 @@
-import ratingService from '../services/ratingService.js';
+import ratingService from "../services/ratingService.js";
 
-const getRatings = async (req, res) => {
-    try {
-        const { product_id } = req.query;
-        if (!product_id) {
-            return res.status(400).json({ message: 'product_id is required' });
-        }
-        const ratings = await ratingService.getRatingsByProductId(product_id);
-        res.status(200).json(ratings);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
+const postRating = async (req, res) => {
+  try {
+    const { product_id, rated_user_id, rating_value, comment } = req.body;
+    const rater_id = req.auth.userId;
+
+    const rating = await ratingService.addRating({
+        rater_id,
+        rated_user_id,
+        product_id,
+        rating_value,
+        comment
+    });
+
+    res.status(201).json(rating);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
 };
 
-export default {
-    getRatings,
-};
+export default { postRating };

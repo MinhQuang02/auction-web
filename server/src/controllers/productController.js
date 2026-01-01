@@ -199,10 +199,78 @@ const getSellerProducts = async (req, res) => {
     }
 };
 
+const rejectBidder = async (req, res) => {
+    try {
+        const { id } = req.params; // Product ID
+        const { bidderId } = req.body;
+        const sellerId = req.auth.userId;
+
+        const result = await productService.rejectBidder(sellerId, id, bidderId);
+        res.status(200).json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const postQuestion = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { content } = req.body;
+        const userId = req.auth.userId;
+
+        const question = await productService.addQuestion(userId, id, content);
+        res.status(201).json(question);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const answerQuestion = async (req, res) => {
+    try {
+        const { questionId } = req.params;
+        const { answer } = req.body;
+        const sellerId = req.auth.userId;
+
+        const updated = await productService.answerQuestion(sellerId, questionId, answer);
+        res.status(200).json(updated);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const getQuestions = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const questions = await productService.getProductQuestions(id);
+        res.status(200).json(questions);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const cancelTransaction = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const sellerId = req.auth.userId;
+        
+        await productService.cancelTransaction(sellerId, id);
+        
+        res.status(200).json({ message: "Transaction cancelled and user rated -1." });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 export default {
     getProducts,
     getProductDetail,
     createProduct,
     updateProduct,
-    getSellerProducts
+    getSellerProducts,
+    rejectBidder,
+    postQuestion,
+    answerQuestion,
+    getQuestions,
+    cancelTransaction
 };

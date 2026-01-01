@@ -12,4 +12,14 @@ router.get('/seller/me', productController.getSellerProducts);
 router.post('/', productController.createProduct);
 router.patch('/:id', productController.updateProduct);
 
+// TASK 3.3: REJECT
+router.post('/:id/reject', productController.rejectBidder);
+
+// TASK 3.4: Q&A
+router.get('/:id/questions', productController.getQuestions);
+router.post('/:id/questions', productController.postQuestion); // Ask
+router.post('/questions/:questionId/reply', productController.answerQuestion); // Reply (Note: unique path)
+
+router.post('/:id/cancel', productController.cancelTransaction);
+
 export default router;
