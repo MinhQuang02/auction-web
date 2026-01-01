@@ -1,22 +1,19 @@
 import VBox from "@components/VBox";
 
-const UserDetail = ({ user, onUpgradeRequest }) => {
+const UserDetail = ({ user, isUpgradeView, onApprove, onReject, onClose }) => {
   return (
     <VBox className="space-y-10">
       {" "}
       {/* 2.5rem between sections */}
-      <h2 className="text-2xl font-bold">{user.username}</h2>
+      <h2 className="text-2xl font-bold">{user.full_name}</h2>
       {/* Basic Info */}
       <VBox className="gap-4">
         {" "}
         {/* 1rem between lines */}
-        <h3 className="text-lg font-semibold">Activity Summary</h3>
+        <h3 className="text-lg font-semibold">Account Information</h3>
         <div className="grid grid-cols-2 gap-4 text-gray-700">
           <p>
-            <strong>ID:</strong> {user.id}
-          </p>
-          <p>
-            <strong>Name:</strong> {user.name || "-"}
+            <strong>ID:</strong> {user.user_id}
           </p>
           <p>
             <strong>Email:</strong> {user.email}
@@ -25,13 +22,11 @@ const UserDetail = ({ user, onUpgradeRequest }) => {
             <strong>Address:</strong> {user.address || "-"}
           </p>
           <p>
-            <strong>Phone:</strong> {user.phone || "-"}
-          </p>
-          <p>
             <strong>Role:</strong> {user.role}
           </p>
           <p>
-            <strong>Status:</strong> {user.status}
+            <strong>Status:</strong>{" "}
+            {user.upgrade_request_time ? "Upgrade Requested" : "Normal"}
           </p>
           <p>
             <strong>Join Date:</strong> {user.join_date}
@@ -89,29 +84,27 @@ const UserDetail = ({ user, onUpgradeRequest }) => {
         </VBox>
       )}
       {/* Actions */}
-      <VBox className="gap-4">
-        <div className="flex flex-wrap gap-4">
-          <button className="flex-1 px-4 py-2 bg-lightGray hover:bg-primary/30 active:bg-primary/60 rounded transition">
-            Suspend
-          </button>
-          <button className="flex-1 px-4 py-2 bg-lightGray hover:bg-primary/30 active:bg-primary/60 rounded transition">
-            Ban
-          </button>
-          <button className="flex-1 px-4 py-2 bg-lightGray hover:bg-primary/30 active:bg-primary/60 rounded transition">
-            Reset Password
-          </button>
-          <button className="flex-1 px-4 py-2 bg-lightGray hover:bg-primary/30 active:bg-primary/60 rounded transition">
-            Force Logout
-          </button>
-        </div>
+      {isUpgradeView && user.upgrade_request_time && (
+        <VBox className="gap-4 pt-6 border-t">
+          <h3 className="text-lg font-semibold">Upgrade Request</h3>
 
-        <button
-          onClick={() => onUpgradeRequest("User requested upgrade to seller.")}
-          className="px-4 py-2 bg-lightGray rounded hover:bg-primary/30 active:bg-primary/60 transition"
-        >
-          View / Handle Upgrade Request
-        </button>
-      </VBox>
+          <div className="flex gap-4">
+            <button
+              onClick={() => onReject(user)}
+              className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Deny
+            </button>
+
+            <button
+              onClick={() => onApprove(user)}
+              className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            >
+              Approve
+            </button>
+          </div>
+        </VBox>
+      )}
     </VBox>
   );
 };

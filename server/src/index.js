@@ -13,6 +13,7 @@ import categoryRoutes from "./routes/categoryRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import authContext from "./middlewares/authContext.js";
 import adminProductRoutes from "./routes/adminProductRoutes.js";
+import adminUserRoutes from "./routes/adminUserRoutes.js";
 import requireRole from "./middlewares/requireRole.js";
 
 const app = express();
@@ -39,6 +40,7 @@ app.use("/api/upgrades", upgradeRoutes);
 app.use("/api/categories", categoryRoutes);
 
 app.use("/api/admin/products", requireRole("admin"), adminProductRoutes);
+app.use("/api/admin/users", requireRole("admin"), adminUserRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
