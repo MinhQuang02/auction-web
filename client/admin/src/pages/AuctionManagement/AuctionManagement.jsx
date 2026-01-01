@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
-
+import { useState, useEffect, useMemo } from "react";
 import VBox from "@components/VBox";
 import HBox from "@components/HBox";
 import AdminSidebar from "@components/Sidebar/AdminSidebar";
-import ActionBar from "@components/ActionBar";
+import AuctionActionBar from "./AuctionActionBar";
 import TablePanel from "@components/TablePanel";
-import AuctionDetail from "./AuctionDetail";
 import Modal from "@components/Modal";
+import AuctionDetail from "./AuctionDetail";
+
+const API_URL = import.meta.env.VITE_API_URL;
+const token = localStorage.getItem("token");
 
 const headers = [
   "ID",
@@ -15,127 +17,161 @@ const headers = [
   "Category",
   "Status",
   "Time Left",
-  "Current Highest Bid",
+  "Current Price",
 ];
 
-const auctions = [
-  {
-    id: 1,
-    product: "Apple iPhone 15 Pro Max",
-    seller_id: "TechGuru92",
-    seller: "Tech Guru",
-    category_id: "electronics",
-    category: "Electronics",
-    status: "Active",
-    start_date: "2025-11-30 10:00",
-    end_date: "2025-12-05 18:00",
-    images: ["https://example.com/img1.jpg", "https://example.com/img2.jpg"],
-    description: "Brand new iPhone 15 Pro Max...",
-    current_highest_bid: 1250,
-    buy_now_price: 1500,
-    number_of_bids: 5,
-    bid_history: [
-      { bidder_name: "Alice", amount: 1000, time: "2025-11-30 11:00" },
-      { bidder_name: "Bob", amount: 1100, time: "2025-11-30 11:30" },
-    ],
-  },
-  {
-    id: 2,
-    product: "Vintage Rolex Submariner",
-    seller: "LuxuryTimepieces",
-    category: "Watches",
-    status: "Active",
-    time_left: "1d 5h",
-    current_highest_bid: 12000,
-  },
-  {
-    id: 3,
-    product: "Signed First Edition Book",
-    seller: "BookCollector88",
-    category: "Books",
-    status: "Ended",
-    time_left: "0s",
-    current_highest_bid: 350,
-  },
-  {
-    id: 4,
-    product: "Mountain Bike Trek Marlin 8",
-    seller: "OutdoorAdventures",
-    category: "Sports",
-    status: "Active",
-    time_left: "5h 40m",
-    current_highest_bid: 620,
-  },
-  {
-    id: 5,
-    product: "Sony A7 IV Camera",
-    seller: "PhotoPro",
-    category: "Electronics",
-    status: "Active",
-    time_left: "12h 10m",
-    current_highest_bid: 2200,
-  },
-  {
-    id: 6,
-    product: "Handmade Persian Rug",
-    seller: "DecorMaster",
-    category: "Home & Living",
-    status: "Active",
-    time_left: "2d 3h",
-    current_highest_bid: 1450,
-  },
-  {
-    id: 7,
-    product: "Nintendo Switch OLED",
-    seller: "GamerWorld",
-    category: "Gaming",
-    status: "Active",
-    time_left: "8h 25m",
-    current_highest_bid: 380,
-  },
-  {
-    id: 8,
-    product: "Limited Edition Sneakers",
-    seller: "SneakerHeads",
-    category: "Fashion",
-    status: "Ended",
-    time_left: "0s",
-    current_highest_bid: 540,
-  },
-];
+const formatTimeLeft = (endTime) => {
+  const diff = new Date(endTime) - new Date();
+  if (diff <= 0) return "Ended";
+  const h = Math.floor(diff / 36e5);
+  const m = Math.floor((diff % 36e5) / 6e4);
+  return `${h}h ${m}m`;
+};
+
+const getCurrentPrice = (product) => {
+  if (!product.bids || product.bids.length === 0) {
+    return product.start_price;
+  }
+  return Math.max(...product.bids.map((b) => b.max_bid_amount));
+};
 
 const AuctionManagement = () => {
-  const [selectedAuction, setSelectedAuction] = useState(null);
+  const PAGE_SIZE = 10;
+
+  const [products, setProducts] = useState([]);
+  const [selectedRow, setSelectedRow] = useState(null);
+  const [selectedDetail, setSelectedDetail] = useState(null);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [sortBy, setSortBy] = useState("");
+
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  const fetchProducts = async () => {
+    const params = new URLSearchParams({
+      limit: PAGE_SIZE,
+      offset: page * PAGE_SIZE,
+    });
+
+    if (search) params.set("keyword", search);
+    if (status !== "all") params.set("status", status);
+    if (sortBy) params.set("sort_by", sortBy);
+
+    const res = await fetch(`${API_URL}/api/products?${params}`);
+    const data = await res.json();
+
+    setProducts(data);
+    setHasMore(data.length === PAGE_SIZE);
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, [page, search, status, sortBy]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [search, status, sortBy]);
+
+  const rows = useMemo(() => {
+    return products.map((p) => ({
+      id: p.product_id,
+      product: p.name,
+      seller: p.seller?.full_name ?? "-",
+      category: p.category?.name ?? "-",
+      status: p.status,
+      time_left: formatTimeLeft(p.end_time),
+      current_price: getCurrentPrice(p),
+      __raw: p,
+    }));
+  }, [products]);
+
+  const openDetail = async (productId) => {
+    const res = await fetch(`${API_URL}/api/products/${productId}`);
+    const data = await res.json();
+    setSelectedDetail(data.product);
+  };
+
+  const removeProduct = async (productId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/products/${productId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      console.log(res);
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.message);
+        return;
+      }
+
+      fetchProducts();
+      setSelectedRow(null);
+    } catch (e) {
+      alert("Failed to remove product");
+    }
+  };
 
   return (
     <VBox className="p-10 gap-40">
       <HBox className="gap-10">
         <AdminSidebar />
-        <span className="text-6xl font-bold text-black self-center flex-grow">
-          AUCTIONS
-        </span>
+        <span className="text-6xl font-bold flex-grow">AUCTIONS</span>
       </HBox>
 
       <VBox>
-        <ActionBar
-          onFilter={() => {}}
-          onSearch={() => {}}
-          onAdd={() => {}}
-          onRemove={() => {}}
-          onEdit={() => {}}
+        <AuctionActionBar
+          search={search}
+          status={status}
+          sortBy={sortBy}
+          onSearch={setSearch}
+          onStatusChange={setStatus}
+          onSortChange={setSortBy}
+          onRemove={() => selectedRow && removeProduct(selectedRow.id)}
         />
 
         <TablePanel
           headers={headers}
-          rows={auctions}
-          onRowClick={(row) => setSelectedAuction(row)}
+          rows={rows}
+          selectedRowId={selectedRow?.id}
+          onRowClick={(row) => {
+            setSelectedRow(row); // single click = select only
+          }}
+          onRowDoubleClick={(row) => {
+            openDetail(row.id); // double click = open modal
+          }}
         />
 
+        <HBox className="justify-center items-center mt-4">
+          <button
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            className="px-4 py-2 border rounded disabled:opacity-50"
+          >
+            Previous
+          </button>
+
+          <span className="text-sm text-gray-600">Page {page + 1}</span>
+
+          <button
+            disabled={!hasMore}
+            onClick={() => setPage((p) => p + 1)}
+            className="px-4 py-2 border rounded disabled:opacity-50"
+          >
+            Next
+          </button>
+        </HBox>
+
         <Modal
-          isOpen={!!selectedAuction}
-          onClose={() => setSelectedAuction(null)}
+          isOpen={!!selectedDetail}
+          onClose={() => setSelectedDetail(null)}
         >
-          {selectedAuction && <AuctionDetail auction={selectedAuction} />}
+          {selectedDetail && <AuctionDetail auction={selectedDetail} />}
         </Modal>
       </VBox>
     </VBox>

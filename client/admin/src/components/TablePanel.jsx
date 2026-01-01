@@ -1,12 +1,18 @@
 import { useState } from "react";
 
-const TablePanel = ({ headers, rows, onRowClick }) => {
+const TablePanel = ({ headers, rows, onRowClick, onRowDoubleClick }) => {
   const [selectedRowId, setSelectedRowId] = useState(null);
 
+  const getRowId = (row) => row.id ?? row.timestamp;
+
   const handleRowClick = (row) => {
-    const rowId = row.id || row.timestamp;
+    const rowId = getRowId(row);
     setSelectedRowId(rowId);
-    onRowClick && onRowClick(row);
+    onRowClick?.(row);
+  };
+
+  const handleRowDoubleClick = (row) => {
+    onRowDoubleClick?.(row);
   };
 
   return (
@@ -23,7 +29,7 @@ const TablePanel = ({ headers, rows, onRowClick }) => {
 
       <tbody>
         {rows.map((row) => {
-          const rowId = row.id || row.timestamp;
+          const rowId = getRowId(row);
           const isSelected = rowId === selectedRowId;
 
           return (
@@ -33,9 +39,11 @@ const TablePanel = ({ headers, rows, onRowClick }) => {
                 isSelected ? "bg-primary/60" : "hover:bg-primary/30"
               }`}
               onClick={() => handleRowClick(row)}
+              onDoubleClick={() => handleRowDoubleClick(row)}
             >
               {headers.map((header) => {
                 const key = header.toLowerCase().replace(/\s+/g, "_");
+
                 return (
                   <td key={key} className="p-4">
                     {row[key]}
