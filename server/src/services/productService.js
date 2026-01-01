@@ -236,33 +236,28 @@ const rejectBidder = async (sellerId, productId, bidderId) => {
     if (product.seller_id !== sellerId) throw new Error("Unauthorized");
 
     // 2. Ban the User (Using your Banned_Bidder model)
-    // We use upsert to prevent errors if they are already banned
     await prisma.banned_Bidder.upsert({
         where: {
-            product_id_bidder_id: { // Composite Key from your schema
+            product_id_bidder_id: { 
                 product_id: pId,
                 bidder_id: bId
             }
         },
         create: { product_id: pId, bidder_id: bId },
-        update: {} // Do nothing if exists
+        update: {} 
     });
 
     // 3. RECALCULATE WINNER
-    // Since we don't have a 'status' field in Bid_History, we verify bids against the ban list
-    
-    // Get all banned users for this product
     const bannedRecords = await prisma.banned_Bidder.findMany({
         where: { product_id: pId },
         select: { bidder_id: true }
     });
     const bannedIds = bannedRecords.map(b => b.bidder_id);
 
-    // Fetch Valid Bids (Exclude banned users)
     const validBids = await prisma.bid_History.findMany({
         where: {
             product_id: pId,
-            bidder_id: { notIn: bannedIds } // Filter out rejected bidders
+            bidder_id: { notIn: bannedIds } 
         },
         orderBy: { max_bid_amount: 'desc' }
     });
@@ -274,7 +269,7 @@ const rejectBidder = async (sellerId, productId, bidderId) => {
     if (validBids.length > 0) {
         // Highest valid bid
         newCurrentPrice = validBids[0].max_bid_amount;
-        newWinnerId = null; // Winner is determined at end time, usually
+        newWinnerId = null; 
         newBidderId = validBids[0].bidder_id;
     }
 
@@ -294,10 +289,9 @@ const rejectBidder = async (sellerId, productId, bidderId) => {
 const addQuestion = async (userId, productId, content) => {
     return await prisma.product_Question.create({
         data: {
-            asker_id: userId,          // Your schema: asker_id
+            asker_id: userId,          
             product_id: parseInt(productId),
-            question_text: content,    // Your schema: question_text
-            // question_time defaults to now()
+            question_text: content,    
         }
     });
 };
@@ -318,8 +312,8 @@ const answerQuestion = async (sellerId, questionId, answer) => {
     return await prisma.product_Question.update({
         where: { question_id: qId },
         data: { 
-            answer_text: answer,       // Your schema: answer_text
-            answer_time: new Date()    // Your schema: answer_time
+            answer_text: answer,       
+            answer_time: new Date()   
         }
     });
 };
@@ -329,14 +323,14 @@ const getProductQuestions = async (productId) => {
     return await prisma.product_Question.findMany({
         where: { product_id: parseInt(productId) },
         include: { 
-            asker: { select: { full_name: true } } // Your schema: asker
+            asker: { select: { full_name: true } } 
         },
-        orderBy: { question_time: 'desc' } // Your schema: question_time
+        orderBy: { question_time: 'desc' } 
     });
 };
 
 
-// ✅ NEW: Cancel Transaction (Task 3.5)
+// NEW: Cancel Transaction (Task 3.5)
 const cancelTransaction = async (sellerId, productId) => {
     const pId = parseInt(productId);
 
@@ -356,7 +350,7 @@ const cancelTransaction = async (sellerId, productId) => {
             rated_user_id: product.winner_id,
             product_id: pId,
             rating_value: -1,
-            comment: "Người thắng không thanh toán" // "Winner did not pay"
+            comment: "Winner did not pay" // 
         });
     } catch (e) {
         console.log("Auto-rating skipped:", e.message);
@@ -365,8 +359,7 @@ const cancelTransaction = async (sellerId, productId) => {
     return await prisma.product.update({
         where: { product_id: pId },
         data: {
-            status: 'ended_no_winner', // Or 'active' if you want to auto-relist
-            // winner_id: null // Keeping winner_id might be good for history, but status changed.
+            status: 'ended_no_winner', 
         }
     });
 };
