@@ -81,6 +81,7 @@ const CategoryManagement = () => {
     const res = await apiFetch(`${API_URL}/api/categories`);
     if (!res.ok) throw new Error("Failed to fetch categories");
     const data = await res.json();
+    console.log(data);
     const normalized = data.map((cat) => normalizeCategory(cat));
     setCategories(normalized);
     if (!selectedId && normalized.length > 0) {
@@ -108,6 +109,16 @@ const CategoryManagement = () => {
     () => allCategories.find((c) => c.id === selectedId),
     [allCategories, selectedId]
   );
+
+  const categoryStats = useMemo(() => {
+    const level1 = categories.length;
+
+    const level2 = categories.reduce((acc, cat) => {
+      return acc + (cat.children?.length ?? 0);
+    }, 0);
+
+    return { level1, level2 };
+  }, [categories]);
 
   const addCategory = async ({ name, parent_id }) => {
     const res = await apiFetch(`${API_URL}/api/categories`, {
@@ -163,12 +174,39 @@ const CategoryManagement = () => {
   );
 
   return (
-    <VBox className="p-10 gap-40">
+    <VBox className="px-6 py-8 lg:px-10 gap-8 font-sans text-gray-800">
       <HBox className="gap-10">
         <AdminSidebar />
-        <span className="text-6xl font-bold text-black flex-grow">
-          CATEGORIES
-        </span>
+
+        <div className="flex-grow flex items-center justify-center">
+          <Panel className="w-full max-w-sm rounded-2xl overflow-hidden p-0">
+            <VBox>
+              <div className="bg-primary/60 px-8 py-5 text-center">
+                <span className="text-3xl font-bold tracking-wide text-black">
+                  CATEGORIES
+                </span>
+              </div>
+
+              <div className="bg-gray-100 px-8 py-5">
+                <div className="grid grid-cols-2 text-center">
+                  <div className="pr-6">
+                    <div className="text-sm text-gray-600">Categories</div>
+                    <div className="text-3xl font-semibold text-black">
+                      {categoryStats.level1}
+                    </div>
+                  </div>
+
+                  <div className="pl-6 border-l border-gray-300">
+                    <div className="text-sm text-gray-600">Subcategories</div>
+                    <div className="text-3xl font-semibold text-black">
+                      {categoryStats.level2}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </VBox>
+          </Panel>
+        </div>
       </HBox>
 
       <div className="grid grid-cols-[32rem_1fr] gap-4">

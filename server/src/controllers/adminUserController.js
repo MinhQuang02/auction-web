@@ -9,8 +9,8 @@ const adminUserController = {
         limit = 10,
         keyword,
         role,
-        status,
         sort_by,
+        upgrade_requested,
       } = req.query;
 
       const take = Number(limit);
@@ -18,7 +18,6 @@ const adminUserController = {
 
       const where = {};
 
-      // SEARCH
       if (keyword) {
         where.OR = [
           { full_name: { contains: keyword, mode: "insensitive" } },
@@ -26,39 +25,40 @@ const adminUserController = {
         ];
       }
 
-      // ROLE FILTER
       if (role && role !== "all") {
         where.role = role;
       }
 
-      if (req.query.upgrade_requested === "true") {
+      if (upgrade_requested === "true") {
         where.upgrade_request_time = { not: null };
       }
 
-      // SORT
       let orderBy = { created_at: "desc" };
       if (sort_by === "created_at_asc") orderBy = { created_at: "asc" };
       if (sort_by === "rating_desc") orderBy = { avg_rating: "desc" };
       if (sort_by === "rating_asc") orderBy = { avg_rating: "asc" };
 
-      const users = await prisma.user.findMany({
-        where,
-        orderBy,
-        skip,
-        take,
-        select: {
-          user_id: true,
-          full_name: true,
-          email: true,
-          role: true,
-          avg_rating: true,
-          created_at: true,
-          upgrade_request_time: true,
-          seller_expires: true,
-        },
-      });
+      const [items, total] = await Promise.all([
+        prisma.user.findMany({
+          where,
+          orderBy,
+          skip,
+          take,
+          select: {
+            user_id: true,
+            full_name: true,
+            email: true,
+            role: true,
+            avg_rating: true,
+            created_at: true,
+            upgrade_request_time: true,
+            seller_expires: true,
+          },
+        }),
+        prisma.user.count({ where }),
+      ]);
 
-      res.status(200).json(users);
+      res.status(200).json({ items, total });
     } catch (e) {
       console.error(e);
       res.status(500).json({ message: "Internal server error" });
@@ -170,6 +170,28 @@ const adminUserController = {
       });
     } catch (error) {
       console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  getUserStats: async (req, res) => {
+    try {
+      const [totalUsers, pendingUpgrades] = await Promise.all([
+        prisma.user.count(),
+
+        prisma.user.count({
+          where: {
+            upgrade_request_time: { not: null },
+          },
+        }),
+      ]);
+
+      res.status(200).json({
+        totalUsers,
+        pendingUpgrades,
+      });
+    } catch (e) {
+      console.error(e);
       res.status(500).json({ message: "Internal server error" });
     }
   },

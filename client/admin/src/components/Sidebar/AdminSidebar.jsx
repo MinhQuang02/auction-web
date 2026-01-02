@@ -2,7 +2,7 @@ import React from "react";
 import Sidebar from "./Sidebar";
 
 const adminScreens = [
-  { name: "Dashboard", to: "/dashboard" },
+  // { name: "Dashboard", to: "/dashboard" },
   { name: "Categories", to: "/categories" },
   { name: "Auctions", to: "/auctions" },
   { name: "Users", to: "/users" },

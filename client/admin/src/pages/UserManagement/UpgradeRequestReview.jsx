@@ -14,7 +14,7 @@ const UpgradeRequestReview = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <div className="flex justify-center">
-        <VBox className="min-w-[50%] space-y-10">
+        <VBox className="gap-4 min-w-[50%] space-y-10">
           {/* Header */}
           <h2 className="text-2xl font-bold">Upgrade Request</h2>
 
