@@ -29,7 +29,8 @@ const UserDetail = ({ user, isUpgradeView, onApprove, onReject, onClose }) => {
             {user.upgrade_request_time ? "Upgrade Requested" : "Normal"}
           </p>
           <p>
-            <strong>Join Date:</strong> {user.join_date}
+            <strong>Join Date:</strong>{" "}
+            {new Date(user.join_date).toLocaleDateString()}
           </p>
         </div>
       </VBox>
@@ -74,7 +75,9 @@ const UserDetail = ({ user, isUpgradeView, onApprove, onReject, onClose }) => {
                 {user.activity_history.map((event, i) => (
                   <tr key={i} className="border-b hover:bg-gray-50">
                     <td className="p-2">{event.event_type}</td>
-                    <td className="p-2">{event.date}</td>
+                    <td className="p-2">
+                      {new Date(event.date).toLocaleString()}
+                    </td>
                     <td className="p-2">{event.details}</td>
                   </tr>
                 ))}

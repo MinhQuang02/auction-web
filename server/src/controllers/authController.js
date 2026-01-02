@@ -4,7 +4,8 @@ import verifyRecaptcha from "../utils/recaptcha.js";
 class AuthController {
   async register(req, res) {
     try {
-      const { email, password, full_name, address, dob, captchaToken } = req.body;
+      const { email, password, full_name, address, dob, captchaToken } =
+        req.body;
 
       if (!email || !password || !full_name) {
         return res.status(400).json({ message: "Missing required fields" });
@@ -65,7 +66,9 @@ class AuthController {
       const { email, password } = req.body;
 
       if (!email || !password) {
-        return res.status(400).json({ message: "email and password are required" });
+        return res
+          .status(400)
+          .json({ message: "email and password are required" });
       }
 
       const { token, user } = await authService.login({ email, password });

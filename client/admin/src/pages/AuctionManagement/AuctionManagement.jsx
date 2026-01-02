@@ -6,6 +6,9 @@ import AuctionActionBar from "./AuctionActionBar";
 import TablePanel from "@components/TablePanel";
 import Modal from "@components/Modal";
 import AuctionDetail from "./AuctionDetail";
+import AuctionEditForm from "./AuctionEditForm";
+
+import { apiFetch } from "@utils/ApiFetch.jsx";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const token = localStorage.getItem("token");
@@ -44,6 +47,7 @@ const AuctionManagement = () => {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [sortBy, setSortBy] = useState("");
+  const [editAuction, setEditAuction] = useState(null);
 
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -58,7 +62,7 @@ const AuctionManagement = () => {
     if (status !== "all") params.set("status", status);
     if (sortBy) params.set("sort_by", sortBy);
 
-    const res = await fetch(`${API_URL}/api/products?${params}`);
+    const res = await apiFetch(`${API_URL}/api/products?${params}`);
     const data = await res.json();
 
     setProducts(data);
@@ -87,18 +91,17 @@ const AuctionManagement = () => {
   }, [products]);
 
   const openDetail = async (productId) => {
-    const res = await fetch(`${API_URL}/api/products/${productId}`);
+    const res = await apiFetch(`${API_URL}/api/products/${productId}`);
     const data = await res.json();
     setSelectedDetail(data.product);
   };
 
   const removeProduct = async (productId) => {
     try {
-      const res = await fetch(`${API_URL}/api/admin/products/${productId}`, {
+      const res = await apiFetch(`${API_URL}/api/admin/products/${productId}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -117,6 +120,12 @@ const AuctionManagement = () => {
     }
   };
 
+  const openEdit = async (productId) => {
+    const res = await apiFetch(`${API_URL}/api/products/${productId}`);
+    const data = await res.json();
+    setEditAuction(data.product);
+  };
+
   return (
     <VBox className="p-10 gap-40">
       <HBox className="gap-10">
@@ -133,6 +142,7 @@ const AuctionManagement = () => {
           onStatusChange={setStatus}
           onSortChange={setSortBy}
           onRemove={() => selectedRow && removeProduct(selectedRow.id)}
+          onEdit={() => selectedRow && openEdit(selectedRow.id)}
         />
 
         <TablePanel
@@ -172,6 +182,17 @@ const AuctionManagement = () => {
           onClose={() => setSelectedDetail(null)}
         >
           {selectedDetail && <AuctionDetail auction={selectedDetail} />}
+        </Modal>
+        <Modal isOpen={!!editAuction} onClose={() => setEditAuction(null)}>
+          {editAuction && (
+            <AuctionEditForm
+              auction={editAuction}
+              onSaved={() => {
+                setEditAuction(null);
+                fetchProducts();
+              }}
+            />
+          )}
         </Modal>
       </VBox>
     </VBox>
