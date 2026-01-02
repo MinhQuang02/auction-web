@@ -49,6 +49,7 @@ const searchProducts = async ({
   }
 
   const [products, total] = await prisma.$transaction([
+  const [items, total] = await Promise.all([
     prisma.product.findMany({
       where,
       orderBy,
@@ -59,6 +60,16 @@ const searchProducts = async ({
         bids: { orderBy: { max_bid_amount: "desc" }, take: 1, include: { bidder: { select: { full_name: true } } } },
         seller: { select: { full_name: true } },
         category: { select: { name: true } },
+        bids: {
+          orderBy: { max_bid_amount: "desc" },
+          take: 1,
+        },
+        seller: {
+          select: { full_name: true },
+        },
+        category: {
+          select: { name: true },
+        },
       },
     }),
     prisma.product.count({ where }),
@@ -99,6 +110,10 @@ const searchProducts = async ({
   });
 
   return { products: productsWithMasking, total };
+  return {
+    items,
+    total,
+  };
 };
 
 // 2. PRODUCT DETAILS
@@ -140,12 +155,23 @@ const getProductById = async (productId) => {
     const fullName = bid.bidder.full_name.trim();
     const maskedName = `***${fullName.slice(-3)}`;
 
+  // Mask Bidder Names
+  const maskedBids = product.bids.map((bid) => {
+    // Safety check if bidder is missing
+    if (!bid.bidder || !bid.bidder.full_name) {
+      return { ...bid, bidder: { full_name: "****User" } };
+    }
+
+    const parts = bid.bidder.full_name.trim().split(" ");
+    const lastName = parts[parts.length - 1];
     return {
       ...bid,
       bidder: {
         ...bid.bidder,
         full_name: maskedName
       }
+        full_name: `****${lastName}`,
+      },
     };
   });
 
@@ -231,6 +257,19 @@ const getProductsBySellerId = async (sellerId) => {
         where: { rater_id: parseInt(sellerId) }
       }
     }
+    orderBy: { start_time: "desc" },
+    include: {
+      images: { take: 1 },
+      bids: { orderBy: { max_bid_amount: "desc" }, take: 1 },
+      // ✅ NEW: Fetch winner details to show in "Sold" tab
+      winner: {
+        select: { user_id: true, full_name: true },
+      },
+      // ✅ NEW: Fetch ratings to see if I already rated them
+      ratings: {
+        where: { rater_id: parseInt(sellerId) },
+      },
+    },
   });
 };
 
@@ -307,6 +346,7 @@ const rejectBidder = async (sellerId, productId, bidderId) => {
   // 1. Verify Ownership
   const product = await prisma.product.findUnique({
     where: { product_id: pId }
+    where: { product_id: pId },
   });
 
   if (!product) throw new Error("Product not found");
@@ -322,6 +362,11 @@ const rejectBidder = async (sellerId, productId, bidderId) => {
     },
     create: { product_id: pId, bidder_id: bId },
     update: {}
+        bidder_id: bId,
+      },
+    },
+    create: { product_id: pId, bidder_id: bId },
+    update: {},
   });
 
   // 3. RECALCULATE WINNER
@@ -330,6 +375,9 @@ const rejectBidder = async (sellerId, productId, bidderId) => {
     select: { bidder_id: true }
   });
   const bannedIds = bannedRecords.map(b => b.bidder_id);
+    select: { bidder_id: true },
+  });
+  const bannedIds = bannedRecords.map((b) => b.bidder_id);
 
   const validBids = await prisma.bid_History.findMany({
     where: {
@@ -337,6 +385,9 @@ const rejectBidder = async (sellerId, productId, bidderId) => {
       bidder_id: { notIn: bannedIds }
     },
     orderBy: { max_bid_amount: 'desc' }
+      bidder_id: { notIn: bannedIds },
+    },
+    orderBy: { max_bid_amount: "desc" },
   });
 
   let newCurrentPrice = product.start_price;
@@ -360,6 +411,14 @@ const rejectBidder = async (sellerId, productId, bidderId) => {
   });
 
   return { message: "Bidder rejected and price updated", newPrice: newCurrentPrice };
+      current_bidder_id: newBidderId,
+    },
+  });
+
+  return {
+    message: "Bidder rejected and price updated",
+    newPrice: newCurrentPrice,
+  };
 };
 
 // TASK 3.4: ADD QUESTION (Updated for Product_Question)
@@ -370,6 +429,7 @@ const addQuestion = async (userId, productId, content) => {
       product_id: parseInt(productId),
       question_text: content,
     }
+    },
   });
 };
 
@@ -381,6 +441,7 @@ const answerQuestion = async (sellerId, questionId, answer) => {
   const question = await prisma.product_Question.findUnique({
     where: { question_id: qId },
     include: { product: true }
+    include: { product: true },
   });
 
   if (!question) throw new Error("Question not found");
@@ -392,6 +453,8 @@ const answerQuestion = async (sellerId, questionId, answer) => {
       answer_text: answer,
       answer_time: new Date()
     }
+      answer_time: new Date(),
+    },
   });
 };
 
@@ -471,6 +534,12 @@ const getUserActiveBids = async (userId) => {
     my_bid: p.bids[0]?.max_bid_amount || 0,
     is_winning: p.current_bidder_id === parseInt(userId)
   }));
+};
+
+      asker: { select: { full_name: true } },
+    },
+    orderBy: { question_time: "desc" },
+  });
 };
 
 // NEW: Cancel Transaction (Task 3.5)
@@ -586,6 +655,60 @@ const createTransaction = async (userId, productId, shippingData) => {
   });
 
   return transaction;
+    where: { product_id: pId },
+  });
+
+  if (!product) throw new Error("Product not found");
+  if (product.seller_id !== sellerId) throw new Error("Unauthorized");
+  if (!product.winner_id) throw new Error("No winner to cancel");
+
+  // 2. Auto-Rate the Winner (-1)
+  try {
+    await ratingService.addRating({
+      rater_id: sellerId,
+      rated_user_id: product.winner_id,
+      product_id: pId,
+      rating_value: -1,
+      comment: "Winner did not pay", //
+    });
+  } catch (e) {
+    console.log("Auto-rating skipped:", e.message);
+  }
+
+  return await prisma.product.update({
+    where: { product_id: pId },
+    data: {
+      status: "ended_no_winner",
+    },
+  });
+};
+
+const getAuctionStats = async () => {
+  const now = new Date();
+  const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+  const [activeCount, endingSoonCount] = await Promise.all([
+    prisma.product.count({
+      where: {
+        status: "active",
+        end_time: { gt: now },
+      },
+    }),
+    prisma.product.count({
+      where: {
+        status: "active",
+        end_time: {
+          gt: now,
+          lte: next24h,
+        },
+      },
+    }),
+  ]);
+
+  return {
+    active: activeCount,
+    endingSoon24h: endingSoonCount,
+  };
 };
 
 export default {
@@ -608,4 +731,6 @@ export default {
   getUserPurchases,
   getUserActiveBids,
   createTransaction
+};
+  getAuctionStats,
 };

@@ -8,8 +8,8 @@ const adminUserController = {
         limit = 10,
         keyword,
         role,
-        status,
         sort_by,
+        upgrade_requested,
       } = req.query;
 
       const take = Number(limit);
@@ -17,7 +17,6 @@ const adminUserController = {
 
       const where = {};
 
-      // SEARCH
       if (keyword) {
         where.OR = [
           { full_name: { contains: keyword, mode: "insensitive" } },
@@ -25,49 +24,40 @@ const adminUserController = {
         ];
       }
 
-      // ROLE FILTER
-      if (role) {
+      if (role && role !== "all") {
         where.role = role;
       }
 
-      // STATUS FILTER
-      const now = new Date();
-      if (status === "upgrade") {
+      if (upgrade_requested === "true") {
         where.upgrade_request_time = { not: null };
       }
-      if (status === "seller_active") {
-        where.role = "seller";
-        where.seller_expires = { gt: now };
-      }
-      if (status === "seller_expired") {
-        where.role = "seller";
-        where.seller_expires = { lte: now };
-      }
 
-      // SORT
       let orderBy = { created_at: "desc" };
       if (sort_by === "created_at_asc") orderBy = { created_at: "asc" };
       if (sort_by === "rating_desc") orderBy = { avg_rating: "desc" };
       if (sort_by === "rating_asc") orderBy = { avg_rating: "asc" };
 
-      const users = await prisma.user.findMany({
-        where,
-        orderBy,
-        skip,
-        take,
-        select: {
-          user_id: true,
-          full_name: true,
-          email: true,
-          role: true,
-          avg_rating: true,
-          created_at: true,
-          upgrade_request_time: true,
-          seller_expires: true,
-        },
-      });
+      const [items, total] = await Promise.all([
+        prisma.user.findMany({
+          where,
+          orderBy,
+          skip,
+          take,
+          select: {
+            user_id: true,
+            full_name: true,
+            email: true,
+            role: true,
+            avg_rating: true,
+            created_at: true,
+            upgrade_request_time: true,
+            seller_expires: true,
+          },
+        }),
+        prisma.user.count({ where }),
+      ]);
 
-      res.status(200).json(users);
+      res.status(200).json({ items, total });
     } catch (e) {
       console.error(e);
       res.status(500).json({ message: "Internal server error" });
@@ -99,6 +89,29 @@ const adminUserController = {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
+
+      const bidHistory = await prisma.bid_History.findMany({
+        where: { bidder_id: userId },
+        orderBy: { bid_time: "desc" },
+        take: 20,
+        select: {
+          max_bid_amount: true,
+          bid_time: true,
+          product: {
+            select: {
+              product_id: true,
+              name: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      const activityHistory = bidHistory.map((b) => ({
+        event_type: "Bid",
+        date: b.bid_time,
+        details: `Bid $${b.max_bid_amount} on "${b.product.name}" (${b.product.status})`,
+      }));
 
       const [
         totalBids,
@@ -152,10 +165,32 @@ const adminUserController = {
         ratings_received: ratingsReceived,
         ratings_given: ratingsGiven,
 
-        activity_history: [],
+        activity_history: activityHistory,
       });
     } catch (error) {
       console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  getUserStats: async (req, res) => {
+    try {
+      const [totalUsers, pendingUpgrades] = await Promise.all([
+        prisma.user.count(),
+
+        prisma.user.count({
+          where: {
+            upgrade_request_time: { not: null },
+          },
+        }),
+      ]);
+
+      res.status(200).json({
+        totalUsers,
+        pendingUpgrades,
+      });
+    } catch (e) {
+      console.error(e);
       res.status(500).json({ message: "Internal server error" });
     }
   },

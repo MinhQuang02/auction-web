@@ -30,6 +30,10 @@ export default defineConfig({
         find: "@routes",
         replacement: fileURLToPath(new URL("./src/routes", import.meta.url)),
       },
+      {
+        find: "@utils",
+        replacement: fileURLToPath(new URL("./src/utils", import.meta.url)),
+      },
     ],
   },
   server: {

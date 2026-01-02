@@ -10,6 +10,8 @@ import HierarchyPanel from "./HierarchyPanel";
 import CategoryDetailsPanel from "./CategoryDetailsPanel";
 import CategoryModalContent from "./CategoryModalContent";
 
+import { apiFetch } from "@utils/ApiFetch.jsx";
+
 const API_URL = import.meta.env.VITE_API_URL;
 const token = localStorage.getItem("token");
 
@@ -76,9 +78,10 @@ const CategoryManagement = () => {
   const [modalMode, setModalMode] = useState(null); // "add" / "edit" / "delete"
 
   const fetchCategories = async () => {
-    const res = await fetch(`${API_URL}/api/categories`);
+    const res = await apiFetch(`${API_URL}/api/categories`);
     if (!res.ok) throw new Error("Failed to fetch categories");
     const data = await res.json();
+    console.log(data);
     const normalized = data.map((cat) => normalizeCategory(cat));
     setCategories(normalized);
     if (!selectedId && normalized.length > 0) {
@@ -107,12 +110,21 @@ const CategoryManagement = () => {
     [allCategories, selectedId]
   );
 
+  const categoryStats = useMemo(() => {
+    const level1 = categories.length;
+
+    const level2 = categories.reduce((acc, cat) => {
+      return acc + (cat.children?.length ?? 0);
+    }, 0);
+
+    return { level1, level2 };
+  }, [categories]);
+
   const addCategory = async ({ name, parent_id }) => {
-    const res = await fetch(`${API_URL}/api/categories`, {
+    const res = await apiFetch(`${API_URL}/api/categories`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ name, parent_id }),
     });
@@ -120,11 +132,10 @@ const CategoryManagement = () => {
   };
 
   const editCategory = async (id, updates) => {
-    await fetch(`${API_URL}/api/categories/${id}`, {
+    await apiFetch(`${API_URL}/api/categories/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(updates),
     });
@@ -132,11 +143,8 @@ const CategoryManagement = () => {
   };
 
   const deleteCategory = async (id) => {
-    const res = await fetch(`${API_URL}/api/categories/${id}`, {
+    const res = await apiFetch(`${API_URL}/api/categories/${id}`, {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     if (!res.ok) {
@@ -157,17 +165,48 @@ const CategoryManagement = () => {
     return !hasChildren && !hasProducts;
   };
 
-  if (loading) {
-    return <div className="p-10">Loading categories…</div>;
-  }
+  const SkeletonPanel = () => (
+    <div className="animate-pulse space-y-3 p-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="h-4 bg-gray-200 rounded w-3/4" />
+      ))}
+    </div>
+  );
 
   return (
-    <VBox className="p-10 gap-40">
+    <VBox className="px-6 py-8 lg:px-10 gap-8 font-sans text-gray-800">
       <HBox className="gap-10">
         <AdminSidebar />
-        <span className="text-6xl font-bold text-black flex-grow">
-          CATEGORIES
-        </span>
+
+        <div className="flex-grow flex items-center justify-center">
+          <Panel className="w-full max-w-sm rounded-2xl overflow-hidden p-0">
+            <VBox>
+              <div className="bg-primary/60 px-8 py-5 text-center">
+                <span className="text-3xl font-bold tracking-wide text-black">
+                  CATEGORIES
+                </span>
+              </div>
+
+              <div className="bg-gray-100 px-8 py-5">
+                <div className="grid grid-cols-2 text-center">
+                  <div className="pr-6">
+                    <div className="text-sm text-gray-600">Categories</div>
+                    <div className="text-3xl font-semibold text-black">
+                      {categoryStats.level1}
+                    </div>
+                  </div>
+
+                  <div className="pl-6 border-l border-gray-300">
+                    <div className="text-sm text-gray-600">Subcategories</div>
+                    <div className="text-3xl font-semibold text-black">
+                      {categoryStats.level2}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </VBox>
+          </Panel>
+        </div>
       </HBox>
 
       <div className="grid grid-cols-[32rem_1fr] gap-4">
@@ -181,14 +220,26 @@ const CategoryManagement = () => {
 
         <div />
 
-        <HierarchyPanel
-          data={filteredCategories}
-          selectedIds={selectedId ? [selectedId] : []}
-          onSelect={setSelectedId}
-        />
+        {loading ? (
+          <Panel>
+            <SkeletonPanel />
+          </Panel>
+        ) : (
+          <HierarchyPanel
+            data={filteredCategories}
+            selectedIds={selectedId ? [selectedId] : []}
+            onSelect={setSelectedId}
+          />
+        )}
 
-        {selectedCategory && (
-          <CategoryDetailsPanel category={selectedCategory} />
+        {loading ? (
+          <Panel className="p-6 text-gray-400">
+            Select a category to see details
+          </Panel>
+        ) : (
+          selectedCategory && (
+            <CategoryDetailsPanel category={selectedCategory} />
+          )
         )}
       </div>
 

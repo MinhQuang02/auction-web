@@ -6,6 +6,10 @@ import ActionBar from "@components/ActionBar";
 import TablePanel from "@components/TablePanel";
 import Modal from "@components/Modal";
 import UserDetail from "./UserDetail";
+import Panel from "@components/Panel";
+import Pagination from "@components/Pagination";
+
+import { apiFetch } from "@utils/ApiFetch.jsx";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -22,27 +26,33 @@ const headers = [
 const UserManagement = () => {
   const PAGE_SIZE = 10;
 
-  const [viewMode, setViewMode] = useState("all");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [page, setPage] = useState(0);
+  const [queryVersion, setQueryVersion] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("all");
   const [status, setStatus] = useState("all");
   const [sortBy, setSortBy] = useState("");
-  const [hasMore, setHasMore] = useState(true);
+  const [userStats, setUserStats] = useState({
+    totalUsers: 0,
+    pendingUpgrades: 0,
+  });
 
-  const token = localStorage.getItem("token");
-
-  useEffect(() => {
-    setPage(0);
-  }, [viewMode, search, role, status, sortBy]);
+  const fetchUserStats = async () => {
+    const res = await apiFetch(`${API_URL}/api/admin/users/stats`);
+    const data = await res.json();
+    setUserStats(data);
+    console.log(data);
+  };
 
   const refreshCurrentView = () => {
+    setIsDetailOpen(false);
     setSelectedUser(null);
-    viewMode === "upgrade" ? fetchUpgradeRequests() : fetchUsers();
+    fetchUsers();
   };
 
   const fetchUsers = async () => {
@@ -56,17 +66,16 @@ const UserManagement = () => {
 
       if (search) params.set("keyword", search);
       if (role !== "all") params.set("role", role);
+      if (status === "upgrade") {
+        params.set("upgrade_requested", "true");
+      }
       if (sortBy) params.set("sort_by", sortBy);
 
-      const res = await fetch(`${API_URL}/api/admin/users?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch(`${API_URL}/api/admin/users?${params}`);
+      const { items, total } = await res.json();
 
-      const data = await res.json();
-      setUsers(data);
-      setHasMore(data.length === PAGE_SIZE);
-    } catch (err) {
-      console.error("Failed to fetch users", err);
+      setUsers(items);
+      setTotalPages(Math.ceil(total / PAGE_SIZE));
     } finally {
       setLoading(false);
     }
@@ -77,9 +86,7 @@ const UserManagement = () => {
     setSelectedUser(null);
 
     try {
-      const res = await fetch(`${API_URL}/api/admin/users/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch(`${API_URL}/api/admin/users/${userId}`);
 
       if (!res.ok) throw new Error("Failed to fetch user detail");
 
@@ -90,31 +97,24 @@ const UserManagement = () => {
     }
   };
 
-  const fetchUpgradeRequests = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/api/upgrades/pending`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setUsers(data);
-    } catch (err) {
-      console.error("Failed to fetch upgrade requests", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    fetchUserStats();
+  }, []);
 
   useEffect(() => {
-    viewMode === "upgrade" ? fetchUpgradeRequests() : fetchUsers();
-  }, [viewMode, page, search, role, status, sortBy]);
+    fetchUsers();
+  }, [page, queryVersion]);
+
+  useEffect(() => {
+    setPage(0);
+    setQueryVersion((v) => v + 1);
+  }, [search, role, status, sortBy]);
 
   const approveUpgrade = async (user) => {
-    await fetch(`${API_URL}/api/upgrades/approve`, {
+    await apiFetch(`${API_URL}/api/upgrades/approve`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ userId: user.user_id }),
     });
@@ -123,11 +123,10 @@ const UserManagement = () => {
   };
 
   const denyUpgrade = async (user) => {
-    await fetch(`${API_URL}/api/upgrades/reject`, {
+    await apiFetch(`${API_URL}/api/upgrades/reject`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ userId: user.user_id }),
     });
@@ -156,38 +155,46 @@ const UserManagement = () => {
   }));
 
   return (
-    <VBox className="p-10 gap-40">
+    <VBox className="px-6 py-8 lg:px-10 gap-8 font-sans text-gray-800">
       <HBox className="gap-10">
         <AdminSidebar />
-        <span className="text-6xl font-bold flex-grow">USERS</span>
+
+        <div className="flex-grow flex items-center justify-center">
+          <Panel className="w-full max-w-sm rounded-2xl overflow-hidden p-0">
+            <VBox>
+              <div className="bg-primary/60 px-8 py-5 text-center">
+                <span className="text-3xl font-bold tracking-wide text-black">
+                  USERS
+                </span>
+              </div>
+
+              <div className="bg-gray-100 px-8 py-5">
+                <div className="grid grid-cols-2 text-center">
+                  <div className="pr-6">
+                    <div className="text-sm text-gray-600">Total Users</div>
+                    <div className="text-3xl font-semibold text-black">
+                      {userStats.totalUsers}
+                    </div>
+                  </div>
+
+                  <div className="pl-6 border-l border-gray-300">
+                    <div className="text-sm text-gray-600">
+                      Pending Upgrades
+                    </div>
+                    <div className="text-3xl font-semibold text-black">
+                      {userStats.pendingUpgrades}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </VBox>
+          </Panel>
+        </div>
       </HBox>
 
-      <VBox>
+      <VBox className="gap-4">
         <ActionBar
           leftExtras={
-            <>
-              <button
-                onClick={() => setViewMode("all")}
-                className={`px-4 py-2 rounded ${
-                  viewMode === "all" ? "bg-primary text-white" : "bg-lightGray"
-                }`}
-              >
-                All Users
-              </button>
-
-              <button
-                onClick={() => setViewMode("upgrade")}
-                className={`px-4 py-2 rounded ${
-                  viewMode === "upgrade"
-                    ? "bg-primary text-white"
-                    : "bg-lightGray"
-                }`}
-              >
-                Upgrade Requests
-              </button>
-            </>
-          }
-          rightExtras={
             <HBox className="gap-3 items-center">
               {/* Search */}
               <input
@@ -195,14 +202,14 @@ const UserManagement = () => {
                 placeholder="Search name or email"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="px-3 py-2 border rounded w-60"
+                className="px-3 py-2 border rounded w-60 shadow-lg"
               />
 
               {/* Role filter */}
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="px-3 py-2 border rounded"
+                className="px-3 py-2 border rounded shadow-lg"
               >
                 <option value="all">All Roles</option>
                 <option value="bidder">Bidder</option>
@@ -226,7 +233,7 @@ const UserManagement = () => {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 border rounded"
+                className="px-3 py-2 border rounded shadow-lg"
               >
                 <option value="">Newest First</option>
                 <option value="created_at_asc">Oldest First</option>
@@ -234,6 +241,29 @@ const UserManagement = () => {
                 <option value="rating_asc">Rating (Low → High)</option>
               </select>
             </HBox>
+          }
+          rightExtras={
+            <>
+              <button
+                onClick={() => setStatus("all")}
+                className={`px-4 py-2 rounded shadow-lg ${
+                  status === "all" ? "bg-primary text-white" : "bg-lightGray"
+                }`}
+              >
+                All Users
+              </button>
+
+              <button
+                onClick={() => setStatus("upgrade")}
+                className={`px-4 py-2 rounded shadow-lg ${
+                  status === "upgrade"
+                    ? "bg-primary text-white"
+                    : "bg-lightGray"
+                }`}
+              >
+                Upgrade Requests
+              </button>
+            </>
           }
         />
 
@@ -248,25 +278,13 @@ const UserManagement = () => {
             <p className="mt-2 text-sm text-gray-500 text-center">Updating…</p>
           )}
 
-          <HBox className="justify-center items-center mt-4 gap-4">
-            <button
-              disabled={page === 0 || loading}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              className="px-4 py-2 border rounded disabled:opacity-50"
-            >
-              Previous
-            </button>
-
-            <span className="text-sm text-gray-600">Page {page + 1}</span>
-
-            <button
-              disabled={!hasMore || loading}
-              onClick={() => setPage((p) => p + 1)}
-              className="px-4 py-2 border rounded disabled:opacity-50"
-            >
-              Next
-            </button>
-          </HBox>
+          <Pagination
+            currentPage={page + 1}
+            totalPages={totalPages}
+            onPrev={() => setPage((p) => Math.max(0, p - 1))}
+            onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            onSelect={(p) => setPage(p - 1)}
+          />
         </>
 
         {/* User detail */}
@@ -282,7 +300,7 @@ const UserManagement = () => {
           ) : (
             <UserDetail
               user={selectedUser}
-              isUpgradeView={viewMode === "upgrade"}
+              isUpgradeView={selectedUser.upgrade_request_time !== null}
               onApprove={approveUpgrade}
               onReject={denyUpgrade}
             />

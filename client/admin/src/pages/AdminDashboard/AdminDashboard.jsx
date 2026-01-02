@@ -39,10 +39,10 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState(activityTabs[0]);
 
   return (
-    <VBox className="p-10 gap-40">
+    <VBox className="px-6 py-8 lg:px-10 gap-8 font-sans text-gray-800">
       <HBox className="gap-10">
         <AdminSidebar />
-        {/* <span className="text-6xl font-bold text-black self-center flex-grow">
+        {/* <span className="text-3xl font-bold tracking-wide text-black self-center flex-grow">
           DASHBOARD
         </span> */}
         <HBox className="w-full">
@@ -69,14 +69,14 @@ const AdminDashboard = () => {
         </HBox>
       </HBox>
 
-      <VBox>
+      <VBox className="gap-4">
         <span className="text-4xl font-semibold text-black">
           Recent Activity
         </span>
         <span className="h-1" />
         <Panel className="rounded-lg !p-0">
           <HBox className="w-full !gap-0">
-            {activityTabs.map((text, i) => {
+            {activityTabs.map((text) => {
               const active = activeTab === text;
 
               return (
@@ -94,7 +94,7 @@ const AdminDashboard = () => {
                     hover:opacity-100 hover:bg-primary hover:bg-opacity-60
                     transition-colors transition-opacity
                   `}
-                  onClick={(i) => {
+                  onClick={() => {
                     setActiveTab(text);
                   }}
                 >

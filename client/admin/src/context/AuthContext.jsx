@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
+import { apiFetch } from "@utils/ApiFetch.jsx";
+
 const AuthContext = createContext(null);
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -22,11 +24,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await apiFetch(`${API_URL}/api/auth/me`);
 
       if (!res.ok) throw new Error("Invalid token");
 
