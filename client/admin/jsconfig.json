@@ -1,4 +1,5 @@
 {
+  "baseUrl": "./",
   "compilerOptions": {
     "paths": {
       "@components/*": ["./src/components/*"],
