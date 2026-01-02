@@ -76,7 +76,7 @@ const AdminDashboard = () => {
         <span className="h-1" />
         <Panel className="rounded-lg !p-0">
           <HBox className="w-full !gap-0">
-            {activityTabs.map((text, i) => {
+            {activityTabs.map((text) => {
               const active = activeTab === text;
 
               return (
@@ -94,7 +94,7 @@ const AdminDashboard = () => {
                     hover:opacity-100 hover:bg-primary hover:bg-opacity-60
                     transition-colors transition-opacity
                   `}
-                  onClick={(i) => {
+                  onClick={() => {
                     setActiveTab(text);
                   }}
                 >
