@@ -1,6 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from '../lib/prisma.js';
 import ratingService from "./ratingService.js";
-const prisma = new PrismaClient();
 
 const ALLOWED_STATUS = ["active", "sold", "ended_no_winner", "removed"];
 
@@ -30,9 +29,12 @@ const searchProducts = async ({
 
   // Full-Text Search
   if (keyword) {
+    // Format for Postgres tsquery (simple approach: AND all terms)
+    // Replace spaces with ' & '
+    const formattedQuery = keyword.trim().replace(/\s+/g, ' & ');
     where.OR = [
-      { name: { contains: keyword, mode: "insensitive" } },
-      { description: { contains: keyword, mode: "insensitive" } },
+      { name: { search: formattedQuery } },
+      { description: { search: formattedQuery } },
     ];
   }
 

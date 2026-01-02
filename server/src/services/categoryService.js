@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 /* ------------------ READ ------------------ */
 
@@ -36,6 +35,20 @@ const getCategoryTree = async () => {
         },
       },
     },
+  });
+};
+
+const getSubCategories = async () => {
+  return prisma.category.findMany({
+    where: {
+      parent_id: { not: null } // Identified by existence of parent
+    },
+    select: {
+      category_id: true,
+      name: true,
+      url_icon: true,
+      parent_id: true
+    }
   });
 };
 
@@ -143,6 +156,7 @@ const deleteCategory = async (id) => {
 
 export default {
   getCategoryTree,
+  getSubCategories,
   getCategoryById,
   createCategory,
   updateCategory,

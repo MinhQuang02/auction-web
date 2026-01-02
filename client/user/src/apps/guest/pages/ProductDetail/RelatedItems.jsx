@@ -99,8 +99,8 @@ const RelatedItems = ({ products: initialProducts = [] }) => {
       <div className="flex justify-between items-end mb-10">
         <div>
           <div className="flex items-center gap-4 mb-5">
-            <div className="w-5 h-10 bg-[#DB4444] rounded"></div>
-            <span className="text-[#DB4444] font-semibold">Our Products</span>
+            <div className="w-5 h-10 bg-[#AE9B84] rounded"></div>
+            <span className="text-[#AE9B84] font-semibold">Our Products</span>
           </div>
           <h2 className="text-3xl md:text-4xl font-semibold tracking-wide">
             Related Items

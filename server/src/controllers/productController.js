@@ -1,7 +1,5 @@
 import productService from '../services/productService.js';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 // 1. SEARCH LIST (With "New" Badge)
 // 1. SEARCH LIST (With "New" Badge)

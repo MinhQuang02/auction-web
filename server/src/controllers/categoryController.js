@@ -11,6 +11,16 @@ const getCategories = async (req, res) => {
   }
 };
 
+const getSubCategories = async (req, res) => {
+  try {
+    const data = await categoryService.getSubCategories();
+    res.json(data);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 const getCategory = async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -56,6 +66,7 @@ const deleteCategory = async (req, res) => {
 
 export default {
   getCategories,
+  getSubCategories,
   getCategory,
   createCategory,
   updateCategory,

@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from '../lib/prisma.js';
 import bcrypt from "bcryptjs";
-
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key_123';
 const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS) || 10;
 

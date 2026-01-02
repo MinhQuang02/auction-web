@@ -59,7 +59,7 @@ function ProductDetail() {
         <Product product={product} />
       </section>
 
-      <AuctionHistory bids={product.bids || []} />
+      {isAuthenticated && <AuctionHistory bids={product.bids || []} />}
 
       <AskSeller
         productId={product.product_id}

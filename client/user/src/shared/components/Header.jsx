@@ -107,7 +107,7 @@ const Header = () => {
               to={!isAuthenticated ? "/login" : (user?.role === "seller" ? "/seller/products" : "/upgrade")}
               className="flex-1 lg:flex-none text-center px-4 lg:px-5 py-2.5 lg:py-3.5 border border-textDark rounded-lg font-mono text-xs bg-textDark text-white hover:bg-[#2b1b17] transition"
             >
-              {user?.role === "seller" ? "Seller Mode" : "Become a Seller"}
+              {user?.role === "seller" ? "Seller Mode" : "Seller Mode"}
             </Link>
           </div>
         </div>

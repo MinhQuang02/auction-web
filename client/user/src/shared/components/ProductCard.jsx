@@ -1,5 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from "@context/AuthContext";
 
 import wishIcon from "@assets/images/_wishIcon.svg";
 import viewIcon from "@assets/images/_viewIcon.svg";
@@ -7,8 +8,10 @@ import removeIcon from "@assets/images/_removeIcon.svg"; // Assuming this exists
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-const ProductCard = ({ product, isWatchlisted, onToggleWatchlist, onHide, className = "" }) => {
+const ProductCard = ({ product, isWatchlisted, onToggleWatchlist, onHide, className = "", isHighlighted = false }) => {
     const [isHovered, setIsHovered] = React.useState(false);
+    const { isAuthenticated } = useAuth();
+    const navigate = useNavigate();
 
     // Fallbacks
     const imageUrl = product.main_image_url || product.images?.[0]?.image_url || "https://via.placeholder.com/270x250?text=No+Image";
@@ -21,6 +24,11 @@ const ProductCard = ({ product, isWatchlisted, onToggleWatchlist, onHide, classN
     const handleWishlistClick = async (e) => {
         e.preventDefault();
         e.stopPropagation();
+
+        if (!isAuthenticated) {
+            navigate("/login");
+            return;
+        }
 
         // Optimistic toggle handled by parent via callback, but we can do it here too?
         // Better to let parent handle state to sync with other lists if needed, 
@@ -43,7 +51,7 @@ const ProductCard = ({ product, isWatchlisted, onToggleWatchlist, onHide, classN
             onMouseLeave={() => setIsHovered(false)}
         >
             {/* Image Card */}
-            <div className="relative bg-[#F5F5F5] rounded-md shadow-sm h-[250px] flex justify-center items-center overflow-hidden mb-4 group transition-transform duration-300 hover:shadow-lg">
+            <div className={`relative bg-[#F5F5F5] rounded-md shadow-sm h-[250px] flex justify-center items-center overflow-hidden mb-4 group transition-transform duration-300 hover:shadow-lg ${isHighlighted ? 'border-2 border-[#AE9B84] bg-[#AE9B84]/5' : ''}`}>
                 <img
                     src={imageUrl}
                     alt={product.name}
@@ -62,7 +70,7 @@ const ProductCard = ({ product, isWatchlisted, onToggleWatchlist, onHide, classN
                     {/* Watchlist Heart */}
                     <button
                         onClick={handleWishlistClick}
-                        className={`w-[34px] h-[34px] rounded-full flex items-center justify-center shadow transition ${isWatchlisted ? 'bg-red-500 text-white' : 'bg-white hover:bg-gray-100'}`}
+                        className={`w-[34px] h-[34px] rounded-full flex items-center justify-center shadow transition ${isWatchlisted ? 'bg-[#AE9B84] text-white' : 'bg-white hover:bg-gray-100'}`}
                         title={isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" fill={isWatchlisted ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-5 h-5 ${isWatchlisted ? 'text-white' : 'text-black'}`}>

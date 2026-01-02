@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useAuth } from "@context/AuthContext";
 
 const AskSeller = ({ questions = [], productId }) => {
+    const { isAuthenticated } = useAuth();
     const [activeIndex, setActiveIndex] = useState(null);
 
     const toggleFaq = (index) => {
@@ -72,18 +74,20 @@ const AskSeller = ({ questions = [], productId }) => {
                 </div>
 
                 {/* Input Form Section */}
-                <div className="mt-8 bg-[#E2E0DC] rounded-xl p-2 px-6 py-4 flex justify-between items-center">
-                    <input
-                        type="text"
-                        placeholder="Enter your question?"
-                        className="bg-transparent border-none text-sm w-full focus:outline-none placeholder-gray-500 text-gray-700 h-full"
-                    />
-                    <button className="p-2 hover:translate-x-1 transition-transform">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5 text-black">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                        </svg>
-                    </button>
-                </div>
+                {isAuthenticated && (
+                    <div className="mt-8 bg-[#E2E0DC] rounded-xl p-2 px-6 py-4 flex justify-between items-center">
+                        <input
+                            type="text"
+                            placeholder="Enter your question?"
+                            className="bg-transparent border-none text-sm w-full focus:outline-none placeholder-gray-500 text-gray-700 h-full"
+                        />
+                        <button className="p-2 hover:translate-x-1 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5 text-black">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                            </svg>
+                        </button>
+                    </div>
+                )}
 
             </div>
         </section>

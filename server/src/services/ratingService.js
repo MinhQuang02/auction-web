@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma.js';
 
 const addRating = async ({ rater_id, rated_user_id, product_id, rating_value, comment }) => {
   // 1. Check if rating already exists

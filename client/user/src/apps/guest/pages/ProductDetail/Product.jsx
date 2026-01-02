@@ -106,12 +106,32 @@ const Product = ({ product }) => {
 
   // Helper: Time Remaining
   const getTimeRemaining = (endTime) => {
-    const total = Date.parse(endTime) - Date.parse(new Date());
+    const now = Date.now();
+    const end = Date.parse(endTime);
+    const total = end - now;
+
     if (total <= 0) return "Closed";
+
     const days = Math.floor(total / (1000 * 60 * 60 * 24));
     const hours = Math.floor((total / (1000 * 60 * 60)) % 24);
-    if (days > 3) return new Date(endTime).toLocaleDateString();
-    return `${days}d ${hours}h remaining`;
+    const minutes = Math.floor((total / (1000 * 60)) % 60);
+
+    if (days < 3) {
+      return `${days}d ${hours}h ${minutes}m`;
+    }
+    return new Date(endTime).toLocaleString();
+  };
+
+  // Helper: Mask Name
+  const maskName = (name) => {
+    if (!name) return "***";
+    if (name.length <= 3) return "***" + name;
+    return "***" + name.slice(-3);
+  };
+
+  // Helper: Format Date
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
   // Helper: Render Stars
@@ -156,7 +176,7 @@ const Product = ({ product }) => {
               <div className="text-gray-400">No Image</div>
             )}
             {/* Status Badge */}
-            <div className="absolute top-4 left-4 bg-red-500 text-white text-xs px-2 py-1 rounded shadow-md">
+            <div className="absolute top-4 left-4 bg-[#AE9B84] text-white text-xs px-2 py-1 rounded shadow-md">
               {product.status === 'active' ? 'Live Auction' : product.status}
             </div>
           </div>
@@ -210,78 +230,116 @@ const Product = ({ product }) => {
           </h1>
 
           {/* Rating & Views */}
-          <div className="flex items-center gap-2 mb-4">
-            {renderStars(4)}
-            <span className="text-sm text-gray-500">({product.view_count || 0} reviews)</span>
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {renderStars(product.seller?.rating || 4)}
+            <span className="text-sm text-gray-500">
+              ({product.seller?.reviews_count || product.view_count || 120} reviews)
+            </span>
             <span className="text-gray-300">|</span>
-            <span className="text-[#00FF66] text-sm font-medium">In Stock</span>
+            <span className="text-[#1f1f1f] text-sm font-medium">
+              Seller: {product.seller?.full_name || "StyleLoom Seller"}
+            </span>
           </div>
 
           {/* Price */}
-          <div className="text-3xl font-semibold mb-4">
-            ${product.current_price?.toLocaleString()}
+          <div className="mb-6 p-4 bg-[#F9F9F9] rounded-lg border border-gray-100">
+            {/* Current Price & Highest Bidder */}
+            <div className="flex items-end gap-3 mb-2 flex-wrap">
+              <span className="text-4xl font-bold text-[#1f1f1f]">
+                ${product.current_price?.toLocaleString()}
+              </span>
+              <div className="mb-2 text-sm text-gray-500 font-medium bg-gray-200 px-2 py-0.5 rounded">
+                Highest Bidder: {maskName(product.current_bidder?.full_name || product.bids?.[0]?.bidder?.full_name)}
+              </div>
+            </div>
+
+            {/* Buy Now Price */}
+            <div className="text-sm text-[#AE9B84] font-semibold mb-3">
+              {product.buy_now_price
+                ? `Buy Now Price: $${Number(product.buy_now_price).toLocaleString()}`
+                : "No Buy Now Price"
+              }
+            </div>
+
+            {/* Time Details */}
+            <div className="flex flex-col gap-1 text-xs text-gray-500 border-t border-gray-200 pt-2 mt-2">
+              <div className="flex justify-between">
+                <span>Posted:</span>
+                <span className="font-mono">{formatDate(product.created_at || product.start_time)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Ends:</span>
+                <span className="font-mono">{formatDate(product.end_time)}</span>
+              </div>
+              {/* Countdown for Guests (and everyone) */}
+              <div className="flex justify-between text-[#AE9B84] font-bold mt-1">
+                <span>Time Left:</span>
+                <span>{getTimeRemaining(product.end_time)}</span>
+              </div>
+            </div>
           </div>
 
           {/* Description: Scrollable area if too long */}
-          <div className="flex-1 overflow-y-auto pr-2 mb-4 text-sm text-gray-600 border-b border-gray-100">
-            <p className="mb-2"><strong>Seller:</strong> {product.seller?.full_name}</p>
+          <div className="flex-1 overflow-y-auto pr-2 mb-4 text-sm text-gray-600 border-b border-gray-100 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
+            <h3 className="font-bold text-black mb-1">Description</h3>
             <div dangerouslySetInnerHTML={{ __html: product.description }} />
           </div>
 
           {/* Bidding Section (Fixed at Bottom) */}
-          <div className="mt-auto pt-4">
+          <div className="mt-auto pt-2">
             {/* Bid Controls */}
             {!isAuthenticated ? (
               <button
                 onClick={() => navigate("/login")}
-                className="w-full bg-[#AE9B84] text-white h-[50px] rounded-lg font-medium hover:bg-[#9c8a74] transition"
+                className="w-full bg-[#AE9B84] text-white h-[48px] mt-2 rounded-lg font-medium hover:bg-[#9c8a74] transition"
               >
-                Log in to Bid
+                Login to Bid
               </button>
             ) : (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-gray-500">Your Bid Amount</span>
-                  <span className="text-sm font-medium text-red-500">Ends: {getTimeRemaining(product.end_time)}</span>
-                </div>
-
-                <div className="flex gap-3 h-[50px]">
-                  <div className="flex flex-1 border border-gray-300 rounded-lg overflow-hidden">
-                    <button
-                      onClick={() => setBidAmount(Math.max((product.current_price + product.step_price), bidAmount - product.step_price))}
-                      className="w-[50px] bg-gray-50 hover:bg-gray-100 text-xl text-gray-600 border-r"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="text"
-                      value={`$${bidAmount}`}
-                      readOnly
-                      className="flex-1 text-center font-bold text-[#1f1f1f] border-none outline-none"
-                    />
-                    <button
-                      onClick={() => setBidAmount(bidAmount + product.step_price)}
-                      className="w-[50px] bg-gray-50 hover:bg-gray-100 text-xl text-gray-600 border-l"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <button className="bg-[#AE9B84] text-white px-8 rounded-lg font-bold hover:bg-[#9c8a74] transition shadow-md">
-                    BID
-                  </button>
+              <div className="flex gap-3 h-[48px] mt-2">
+                <div className="flex flex-1 border border-gray-300 rounded-lg overflow-hidden">
                   <button
-                    onClick={handleToggleWatchlist}
-                    className={`
-                        w-[50px] h-[50px] rounded-lg flex items-center justify-center transition border
-                        ${isWatchlisted ? 'bg-red-500 border-red-500 text-white' : 'border-gray-300 hover:bg-gray-50 text-gray-400'}
-                    `}
-                    title={isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}
+                    onClick={() => setBidAmount(Math.max((product.current_price + product.step_price), bidAmount - product.step_price))}
+                    className="w-[48px] bg-gray-50 hover:bg-gray-100 text-xl text-gray-600 border-r"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill={isWatchlisted ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-                    </svg>
+                    -
+                  </button>
+                  <input
+                    type="text"
+                    value={`$${bidAmount}`}
+                    readOnly
+                    className="flex-1 text-center font-bold text-[#1f1f1f] border-none outline-none"
+                  />
+                  <button
+                    onClick={() => {
+                      const nextVal = bidAmount + product.step_price;
+                      // If adding step price exceeds buy now price, cap it at buy now price
+                      if (product.buy_now_price && nextVal > product.buy_now_price) {
+                        setBidAmount(product.buy_now_price);
+                      } else {
+                        setBidAmount(nextVal);
+                      }
+                    }}
+                    className="w-[48px] bg-gray-50 hover:bg-gray-100 text-xl text-gray-600 border-l"
+                  >
+                    +
                   </button>
                 </div>
+                <button className="bg-[#AE9B84] text-white px-8 rounded-lg font-bold hover:bg-[#9c8a74] transition shadow-md">
+                  BID
+                </button>
+                <button
+                  onClick={handleToggleWatchlist}
+                  className={`
+                        w-[48px] h-[48px] rounded-lg flex items-center justify-center transition border
+                        ${isWatchlisted ? 'bg-[#AE9B84] border-[#AE9B84] text-white' : 'border-gray-300 hover:bg-gray-50 text-gray-400'}
+                    `}
+                  title={isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill={isWatchlisted ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                  </svg>
+                </button>
               </div>
             )}
           </div>
@@ -290,38 +348,40 @@ const Product = ({ product }) => {
       </div>
 
       {/* === IMAGE MODAL === */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
-          <button
-            onClick={() => setIsModalOpen(false)}
-            className="absolute top-4 right-4 text-white hover:text-gray-300"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <div className="max-w-4xl w-full max-h-screen flex flex-col items-center">
-            <img
-              src={activeImage}
-              alt="Full View"
-              className="max-h-[80vh] object-contain mb-4"
-            />
-            <div className="flex gap-2 overflow-x-auto py-2 max-w-full">
-              {allImages.map((img, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => setActiveImage(img)}
-                  className={`w-16 h-16 flex-none rounded border-2 cursor-pointer bg-black ${activeImage === img ? "border-white" : "border-transparent opacity-60"}`}
-                >
-                  <img src={img} className="w-full h-full object-contain" />
-                </div>
-              ))}
+      {
+        isModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-4 right-4 text-white hover:text-gray-300"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="max-w-4xl w-full max-h-screen flex flex-col items-center">
+              <img
+                src={activeImage}
+                alt="Full View"
+                className="max-h-[80vh] object-contain mb-4"
+              />
+              <div className="flex gap-2 overflow-x-auto py-2 max-w-full">
+                {allImages.map((img, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setActiveImage(img)}
+                    className={`w-16 h-16 flex-none rounded border-2 cursor-pointer bg-black ${activeImage === img ? "border-white" : "border-transparent opacity-60"}`}
+                  >
+                    <img src={img} className="w-full h-full object-contain" />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-    </div>
+    </div >
   );
 };
 

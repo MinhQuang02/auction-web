@@ -27,6 +27,7 @@ const ProductGrid = ({ products = [], onToggleWatchlist, onHide, watchlistIds = 
               isWatchlisted={watchlistIds.has(product.product_id)}
               onToggleWatchlist={onToggleWatchlist}
               onHide={onHide}
+              isHighlighted={product.is_highlighted}
             />
           ))}
         </div>
