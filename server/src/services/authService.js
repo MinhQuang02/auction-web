@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from '../lib/prisma.js';
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
@@ -7,8 +7,6 @@ import transporter from "../utils/mailer.js";
 import { OAuth2Client } from "google-auth-library";
 
 const SALT_ROUNDS = Number(process.env.SALT_ROUNDS || 10);
-
-const prisma = new PrismaClient();
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const hash = (str) => bcrypt.hash(str, SALT_ROUNDS);

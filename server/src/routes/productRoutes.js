@@ -5,6 +5,20 @@ import requireRole from "../middlewares/requireRole.js";
 const router = express.Router();
 
 // Public Routes
+router.get('/featured', productController.getFeatured);
+router.get('/ongoing', productController.getOngoing);
+router.get('/competitive', productController.getCompetitive);
+router.get('/replacement', productController.getReplacement);
+router.get('/user/purchases', productController.getMyPurchases);
+router.get('/user/active-bids', productController.getMyActiveBids);
+router.post('/user/purchases/:id/pay', productController.payForProduct);
+router.get('/', productController.getProducts);
+router.get('/:id', productController.getProductDetail);
+
+// Protected Routes (Order matters! Put specific paths BEFORE :id)
+router.get('/seller/me', productController.getSellerProducts);
+router.post('/', productController.createProduct);
+router.patch('/:id', productController.updateProduct);
 router.get("/", productController.getProducts);
 router.get(
   "/admin/stats",

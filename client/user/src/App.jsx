@@ -14,6 +14,7 @@ import NotFound from "@shared/pages/NotFound";
 
 import HomePage from "@guest/pages/HomePage/HomePage";
 import CategoryPage from "@guest/pages/CategoryPage/CategoryPage";
+import SearchResults from "@guest/pages/SearchResults/SearchResults";
 import ProductDetail from "@guest/pages/ProductDetail/ProductDetail";
 
 import Profiles from "@bidder/pages/Profiles/Profiles";
@@ -113,9 +114,10 @@ function App() {
           <Route element={<MainLayout />}>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<HomePage />} />
-            
+
             <Route path="/category/:id" element={<CategoryPage />} />
-            
+            <Route path="/search" element={<SearchResults />} />
+
             <Route path="/product/:id" element={<ProductDetail />} />
           </Route>
 
@@ -138,10 +140,10 @@ function App() {
                 element={<Navigate to="/seller/products" replace />}
               />
               <Route path="/seller/products" element={<MyProducts />} />
-              
+
               {/* Route for CREATING a new product */}
               <Route path="/seller/products/new" element={<EditProduct />} />
-              
+
               {/* Route for EDITING an existing product */}
               <Route path="/seller/products/edit/:id" element={<EditProduct />} />
             </Route>

@@ -1,74 +1,60 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 
-// Import Icons (Navigation)
+// Import Navigation Icons (Using defaults or assets from previous code)
 import prevIcon from "@assets/images/_prevIcon.svg";
 import nextIcon from "@assets/images/_nextIcon.svg";
 
-// Import Category Icons (Files)
-import phoneIcon from "@assets/images/_phoneIcon.svg";
-import computerIcon from "@assets/images/_computerIcon.svg";
-import watchIcon from "@assets/images/_watchIcon.svg";
-import cameraIcon from "@assets/images/_cameraIcon.svg";
-import headphoneIcon from "@assets/images/_headphoneIcon.svg";
-import gamingIcon from "@assets/images/_gamingIcon.svg";
+// Fallback icon if url_icon is missing (using a generic SVG)
+const DefaultIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    className="w-10 h-10 group-hover:invert group-hover:brightness-0 transition-all"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
+    />
+  </svg>
+);
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const Categories = () => {
-  const categories = [
-    { id: 1, name: "Phones", type: "img", src: phoneIcon },
-    { id: 2, name: "Computers", type: "img", src: computerIcon },
-    { id: 3, name: "SmartWatch", type: "img", src: watchIcon },
-    { id: 4, name: "Camera", type: "img", src: cameraIcon },
-    { id: 5, name: "HeadPhones", type: "img", src: headphoneIcon },
-    { id: 6, name: "Gaming", type: "img", src: gamingIcon },
-    {
-      id: 7,
-      name: "Tablets",
-      type: "svg",
-      path: (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M10.5 19.5h3m-6.75 2.25h10.5a2.25 2.25 0 002.25-2.25v-15a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 4.5v15a2.25 2.25 0 002.25 2.25z"
-        />
-      ),
-    },
-    {
-      id: 8,
-      name: "Drones",
-      type: "svg",
-      path: (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"
-        />
-      ),
-    },
-    {
-      id: 9,
-      name: "Furniture",
-      type: "svg",
-      path: (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25"
-        />
-      ),
-    },
-    {
-      id: 10,
-      name: "Shoes",
-      type: "svg",
-      path: (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"
-        />
-      ),
-    },
-  ];
+  const [categories, setCategories] = useState([]);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    const fetchSubCategories = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/categories/subcategory`);
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch categories", err);
+      }
+    };
+
+    fetchSubCategories();
+  }, []);
+
+  const scroll = (direction) => {
+    if (scrollRef.current) {
+      const { clientWidth } = scrollRef.current;
+      const scrollAmount = direction === "left" ? -clientWidth / 2 : clientWidth / 2;
+      scrollRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    }
+  };
+
+  // Only render if we have categories
+  if (categories.length === 0) return null;
 
   return (
     <section id="categories" className="container mx-auto px-5 lg:px-12 py-10">
@@ -86,52 +72,50 @@ const Categories = () => {
 
         {/* Navigation Arrows */}
         <div className="flex gap-2">
-          <div className="bg-gray-100 p-3 rounded-full cursor-pointer hover:bg-gray-200 transition">
+          <div
+            onClick={() => scroll("left")}
+            className="bg-gray-100 p-3 rounded-full cursor-pointer hover:bg-gray-200 transition select-none"
+          >
             <img src={prevIcon} alt="Prev" />
           </div>
-          <div className="bg-gray-100 p-3 rounded-full cursor-pointer hover:bg-gray-200 transition">
+          <div
+            onClick={() => scroll("right")}
+            className="bg-gray-100 p-3 rounded-full cursor-pointer hover:bg-gray-200 transition select-none"
+          >
             <img src={nextIcon} alt="Next" />
           </div>
         </div>
       </div>
 
       {/* Categories List */}
-      <div className="flex gap-8 overflow-x-auto pb-6 scrollbar-hide snap-x">
+      <div
+        ref={scrollRef}
+        className="flex gap-8 overflow-x-auto pb-6 scrollbar-hide snap-x scroll-smooth"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
         {categories.map((item) => {
-          const activeClasses = "bg-primary text-white shadow-lg";
           const inactiveClasses =
             "border border-gray-300 hover:bg-primary hover:text-white hover:shadow-lg";
-          const containerClasses = item.isActive
-            ? activeClasses
-            : inactiveClasses;
-
-          const iconClasses = item.isActive
-            ? "invert brightness-0"
-            : "group-hover:invert group-hover:brightness-0 transition-all";
 
           return (
-            <div
-              key={item.id}
-              className={`flex-none w-[170px] snap-center rounded h-[145px] flex flex-col items-center justify-center gap-4 cursor-pointer group transition-all duration-300 ${containerClasses}`}
+            <Link
+              to={`/category/${item.category_id}`} // Link to product list filtered by this category
+              key={item.category_id}
+              className={`flex-none w-[170px] snap-center rounded h-[145px] flex flex-col items-center justify-center gap-4 cursor-pointer group transition-all duration-300 ${inactiveClasses}`}
             >
-              <div className={`w-14 h-14 flex items-center justify-center`}>
-                {item.type === "img" ? (
-                  <img src={item.src} alt={item.name} className={iconClasses} />
+              <div className="w-14 h-14 flex items-center justify-center">
+                {item.url_icon ? (
+                  <img
+                    src={item.url_icon}
+                    alt={item.name}
+                    className="w-10 h-10 object-contain group-hover:invert group-hover:brightness-0 transition-all"
+                  />
                 ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth="1.5"
-                    stroke="currentColor"
-                    className={`w-10 h-10 ${iconClasses}`}
-                  >
-                    {item.path}
-                  </svg>
+                  <DefaultIcon />
                 )}
               </div>
-              <span className="font-poppins">{item.name}</span>
-            </div>
+              <span className="font-poppins text-center px-2 truncate w-full">{item.name}</span>
+            </Link>
           );
         })}
       </div>

@@ -12,9 +12,10 @@ const API_URL = import.meta.env.VITE_API_URL;
 function ProductDetail() {
   const { id } = useParams();
   const { isAuthenticated } = useAuth();
-  
+
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
+  const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -31,6 +32,7 @@ function ProductDetail() {
 
         setProduct(data.product);
         setRelatedProducts(data.related_products || []);
+        setQuestions(data.questions || []);
 
       } catch (err) {
         setError(err.message);
@@ -38,6 +40,8 @@ function ProductDetail() {
         setLoading(false);
       }
     };
+
+    if (id) fetchProductData();
   }, [id]);
 
   if (loading) return <div className="p-20 text-center text-2xl font-bold text-blue-600">Loading Product ID: {id}...</div>;
@@ -46,22 +50,23 @@ function ProductDetail() {
 
   return (
     // DEBUG STYLE: Red Border to prove this file is running
-    <div style={{ border: "5px solid red" }}> 
+    <div>
       <section
         id="hero"
         className="container mx-auto px-5 lg:px-12 py-10 flex flex-col lg:flex-row gap-10"
       >
         <Sidebar />
-        <Product product={product} /> 
+        <Product product={product} />
       </section>
 
-      {isAuthenticated && <AuctionHistory productId={product.product_id} />}
-      
-      <AskSeller 
-        productId={product.product_id} 
-        sellerName={product.seller?.full_name} 
+      {isAuthenticated && <AuctionHistory bids={product.bids || []} />}
+
+      <AskSeller
+        productId={product.product_id}
+        sellerName={product.seller?.full_name}
+        questions={questions}
       />
-      
+
       <RelatedItems products={relatedProducts} />
     </div>
   );

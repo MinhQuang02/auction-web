@@ -11,6 +11,27 @@ const getCategories = async (req, res) => {
   }
 };
 
+const getSubCategories = async (req, res) => {
+  try {
+    const data = await categoryService.getSubCategories();
+    res.json(data);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const getCategory = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const category = await categoryService.getCategoryById(id);
+    if (!category) return res.status(404).json({ message: "Category not found" });
+    res.json(category);
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
 /* CREATE */
 const createCategory = async (req, res) => {
   try {
@@ -45,6 +66,8 @@ const deleteCategory = async (req, res) => {
 
 export default {
   getCategories,
+  getSubCategories,
+  getCategory,
   createCategory,
   updateCategory,
   deleteCategory,

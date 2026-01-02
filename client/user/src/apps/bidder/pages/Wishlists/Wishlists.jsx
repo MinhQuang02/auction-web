@@ -3,81 +3,92 @@ import { Link } from "react-router-dom";
 
 import keyboardImg from "@assets/images/_keyboardImg.png";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const Wishlists = () => {
-  const products = [
-    {
-      id: 1,
-      title: "AK-900 Wired Keyboard (75)",
-      image: keyboardImg,
-      priceTag: "2400$",
-      price: "$960",
-      author: "***yen",
-      date: "Apr 1, 2025 - Jun 5, 2025",
-    },
-    {
-      id: 2,
-      title: "AK-900 Wired Keyboard (75)",
-      image: keyboardImg,
-      priceTag: "2400$",
-      price: "$960",
-      author: "***yen",
-      date: "Apr 1, 2025 - Jun 5, 2025",
-    },
-    {
-      id: 3,
-      title: "AK-900 Wired Keyboard (75)",
-      image: keyboardImg,
-      priceTag: "2400$",
-      price: "$960",
-      author: "***yen",
-      date: "Apr 1, 2025 - Jun 5, 2025",
-    },
-    {
-      id: 4,
-      title: "AK-900 Wired Keyboard (75)",
-      image: keyboardImg,
-      priceTag: "2400$",
-      price: "$960",
-      author: "***yen",
-      date: "Apr 1, 2025 - Jun 5, 2025",
-    },
-    {
-      id: 5,
-      title: "AK-900 Wired Keyboard (75)",
-      image: keyboardImg,
-      priceTag: "2400$",
-      price: "$960",
-      author: "***yen",
-      date: "Apr 1, 2025 - Jun 5, 2025",
-    },
-    {
-      id: 6,
-      title: "AK-900 Wired Keyboard (75)",
-      image: keyboardImg,
-      priceTag: "2400$",
-      price: "$960",
-      author: "***yen",
-      date: "Apr 1, 2025 - Jun 5, 2025",
-    },
-    {
-      id: 7,
-      title: "AK-900 Wired Keyboard (75)",
-      image: keyboardImg,
-      priceTag: "2400$",
-      price: "$960",
-      author: "***yen",
-      date: "Apr 1, 2025 - Jun 5, 2025",
-    },
-    {
-      id: 8,
-      title: "AK-900 Wired Keyboard (75)",
-      image: keyboardImg,
-      priceTag: "2400$",
-      price: "$960",
-      author: "***yen",
-      date: "Apr 1, 2025 - Jun 5, 2025",
-    },
-  ];
+  const [products, setProducts] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 8;
+  const token = localStorage.getItem('token');
+
+  React.useEffect(() => {
+    const fetchWatchlist = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/watchlist`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          // Map backend data format to frontend format
+          const mapped = data.map(item => ({
+            id: item.product.product_id,
+            title: item.product.name,
+            image: item.product.images[0]?.image_url || '',
+            priceTag: `$${item.product.current_price}`, // or buy_now
+            price: `$${item.product.current_price}`,
+            author: "***", // item.product.seller?.full_name - masked
+            // Format date range nicely
+            date: `${new Date(item.product.start_time).toLocaleDateString()} - ${new Date(item.product.end_time).toLocaleDateString()}`
+          }));
+          setProducts(mapped);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (token) fetchWatchlist();
+  }, [token]);
+
+  const removeFromWatchlist = async (id) => {
+    // Optimistic update
+    setProducts(prev => prev.filter(p => p.id !== id));
+
+    try {
+      await fetch(`${API_URL}/api/watchlist/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+    } catch (err) {
+      console.error("Failed to remove", err);
+      // Only revert if we want to be strict, for now just log
+    }
+  };
+
+  const clearWatchlist = async () => {
+    // Implement if backend supports bulk delete, or loop
+    // For now just UI clear for demo if API not ready
+    // Or we can loop delete
+    if (confirm("Clear all items?")) {
+      for (const p of products) {
+        await removeFromWatchlist(p.id);
+      }
+    }
+  };
+
+  const totalPages = Math.ceil(products.length / itemsPerPage);
+  const displayedProducts = products.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) setCurrentPage(prev => prev - 1);
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(prev => prev + 1);
+  };
+
+  const handlePageClick = (page) => {
+    setCurrentPage(page);
+  };
+
+  if (loading) return <div>Loading...</div>;
 
   return (
     <section
@@ -85,21 +96,22 @@ const Wishlists = () => {
       className="container mx-auto px-4 md:px-10 lg:px-32 xl:px-40 py-16 font-poppins text-[#1f1f1f]"
     >
       {" "}
-         
+
       <div className="flex-grow w-full">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
           <h2 className="text-xl font-medium text-black">
             Wishlist ({products.length})
           </h2>
-          <button className="border border-gray-400 rounded px-8 py-3 bg-white text-sm font-medium hover:bg-gray-100 transition w-full md:w-auto">
+          <button onClick={clearWatchlist} className="border border-gray-400 rounded px-8 py-3 bg-white text-sm font-medium hover:bg-gray-100 transition w-full md:w-auto">
             Move All Out Wishlist
           </button>
         </div>
 
         {/* Product Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          {products.map((product) => (
+          {products.length === 0 && <p>Your watchlist is empty.</p>}
+          {displayedProducts.map((product) => (
             <div key={product.id} className="group flex flex-col gap-3">
               {/* Image Container */}
               <div className="relative bg-[#F5F5F5] rounded h-[250px] flex items-center justify-center overflow-hidden">
@@ -109,7 +121,10 @@ const Wishlists = () => {
                 </span>
 
                 {/* Trash Icon (Remove from Wishlist) */}
-                <button className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow hover:bg-gray-100 transition">
+                <button
+                  onClick={() => removeFromWatchlist(product.id)}
+                  className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow hover:bg-gray-100 transition"
+                >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -135,7 +150,7 @@ const Wishlists = () => {
 
                 {/* View Details Overlay Button */}
                 <button className="absolute bottom-0 w-full bg-black text-white py-2 text-sm font-medium hover:bg-gray-800 transition">
-                  <Link to={`/product`}>View Details</Link>
+                  <Link to={`/product/${product.id}`} className="block w-full h-full">View Details</Link>
                 </button>
               </div>
 
@@ -163,7 +178,7 @@ const Wishlists = () => {
 
         {/* Pagination */}
         <div className="flex justify-center gap-3 mt-12 text-sm text-gray-600 items-center">
-          <button className="flex items-center gap-1 hover:text-black transition">
+          <button onClick={handlePrevPage} disabled={currentPage === 1} className="flex items-center gap-1 hover:text-black transition disabled:opacity-50">
             <svg
               className="w-4 h-4"
               fill="none"
@@ -181,27 +196,18 @@ const Wishlists = () => {
           </button>
 
           <div className="flex items-center gap-2">
-            <button className="w-8 h-8 bg-[#AE9B84] text-white rounded flex items-center justify-center">
-              1
-            </button>
-            <button className="w-8 h-8 hover:bg-gray-200 rounded flex items-center justify-center">
-              2
-            </button>
-            <button className="w-8 h-8 hover:bg-gray-200 rounded flex items-center justify-center">
-              3
-            </button>
-            <span className="w-8 h-8 flex items-center justify-center">
-              ...
-            </span>
-            <button className="w-8 h-8 hover:bg-gray-200 rounded flex items-center justify-center">
-              67
-            </button>
-            <button className="w-8 h-8 hover:bg-gray-200 rounded flex items-center justify-center">
-              68
-            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button
+                key={page}
+                onClick={() => handlePageClick(page)}
+                className={`w-8 h-8 rounded flex items-center justify-center ${currentPage === page ? 'bg-[#AE9B84] text-white' : 'hover:bg-gray-200'}`}
+              >
+                {page}
+              </button>
+            ))}
           </div>
 
-          <button className="flex items-center gap-1 hover:text-black transition">
+          <button onClick={handleNextPage} disabled={currentPage === totalPages} className="flex items-center gap-1 hover:text-black transition disabled:opacity-50">
             Next
             <svg
               className="w-4 h-4"
