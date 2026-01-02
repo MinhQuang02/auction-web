@@ -7,6 +7,10 @@ const router = express.Router();
 router.get('/featured', productController.getFeatured);
 router.get('/ongoing', productController.getOngoing);
 router.get('/competitive', productController.getCompetitive);
+router.get('/replacement', productController.getReplacement);
+router.get('/user/purchases', productController.getMyPurchases);
+router.get('/user/active-bids', productController.getMyActiveBids);
+router.post('/user/purchases/:id/pay', productController.payForProduct);
 router.get('/', productController.getProducts);
 router.get('/:id', productController.getProductDetail);
 

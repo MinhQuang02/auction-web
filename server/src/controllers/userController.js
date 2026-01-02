@@ -3,7 +3,7 @@ import userService from "../services/userService.js";
 // GET user profile
 const getProfile = async (req, res) => {
   try {
-    const userId = 15; // replace with req.user.id when using auth middleware
+    const userId = req.auth.userId;
     const user = await userService.getUserProfile(userId);
 
     if (!user) {
@@ -20,13 +20,15 @@ const getProfile = async (req, res) => {
 // UPDATE user profile
 const updateProfile = async (req, res) => {
   try {
-    const userId = 15; // replace with req.user.id when using auth middleware
-    const { full_name, address, email } = req.body;
+    const userId = req.auth.userId;
+    const { full_name, address, email, currentPassword, newPassword } = req.body;
 
     const updatedUser = await userService.updateUserProfile(userId, {
       full_name,
       address,
       email,
+      currentPassword,
+      newPassword
     });
 
     res.status(200).json(updatedUser);
@@ -34,6 +36,9 @@ const updateProfile = async (req, res) => {
     console.error(error);
     if (error.code === "P2002") {
       return res.status(409).json({ message: "Email already exists" });
+    }
+    if (error.message === "Invalid current password") {
+      return res.status(400).json({ message: "Invalid current password" });
     }
     res.status(500).json({ message: "Internal server error" });
   }

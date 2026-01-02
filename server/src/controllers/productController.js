@@ -69,9 +69,13 @@ const getProductDetail = async (req, res) => {
         // Fetch related products
         const related = await productService.getRelatedProducts(productId, product.category_id);
 
+        // Fetch questions
+        const questions = await productService.getProductQuestions(productId);
+
         res.status(200).json({
             product,
-            related_products: related
+            related_products: related,
+            questions: questions
         });
 
     } catch (error) {
@@ -299,6 +303,63 @@ const getCompetitive = async (req, res) => {
     }
 };
 
+const getMyPurchases = async (req, res) => {
+    try {
+        if (!req.auth || !req.auth.userId) return res.status(401).json({ message: "Unauthorized" });
+        const products = await productService.getUserPurchases(req.auth.userId);
+        res.status(200).json(products);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: error.message });
+    }
+}
+
+const getMyActiveBids = async (req, res) => {
+    try {
+        if (!req.auth || !req.auth.userId) return res.status(401).json({ message: "Unauthorized" });
+        const products = await productService.getUserActiveBids(req.auth.userId);
+        res.status(200).json(products);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: error.message });
+    }
+}
+
+const payForProduct = async (req, res) => {
+    try {
+        if (!req.auth || !req.auth.userId) return res.status(401).json({ message: "Unauthorized" });
+        const { id } = req.params; // Product ID
+        const shippingData = req.body; // Full body as shipping data for now
+
+        const transaction = await productService.createTransaction(req.auth.userId, id, shippingData);
+        res.status(201).json({ message: "Payment successful", transaction });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: error.message });
+    }
+}
+
+const getReplacement = async (req, res) => {
+    try {
+        const { excludeIds, categoryId } = req.query; // Expecting comma separated string "1,2,3" and optional categoryId
+        let ids = [];
+        if (excludeIds) {
+            ids = excludeIds.split(',').map(s => s.trim());
+        }
+
+        const product = await productService.getReplacementProduct(ids, categoryId);
+
+        if (!product) {
+            // Handle case where no products available
+            return res.status(404).json({ message: "No replacement available" });
+        }
+
+        res.status(200).json(product);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
 export default {
     getProducts,
     getProductDetail,
@@ -310,8 +371,11 @@ export default {
     answerQuestion,
     getQuestions,
     cancelTransaction,
-    cancelTransaction,
     getFeatured,
     getOngoing,
-    getCompetitive
+    getCompetitive,
+    getReplacement,
+    getMyPurchases,
+    getMyActiveBids,
+    payForProduct
 };

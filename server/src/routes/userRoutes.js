@@ -3,7 +3,7 @@ const router = express.Router();
 import userController from "../controllers/userController.js";
 import requireRole from "../middlewares/requireRole.js";
 
-router.get("/profile", requireRole("bidder"), userController.getProfile);
-router.put("/profile", requireRole("bidder"), userController.updateProfile);
+router.get("/profile", requireRole("bidder", "seller", "admin"), userController.getProfile);
+router.put("/profile", requireRole("bidder", "seller", "admin"), userController.updateProfile);
 
 export default router;

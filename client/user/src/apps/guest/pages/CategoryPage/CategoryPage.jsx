@@ -9,8 +9,31 @@ function CategoryPage() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  // ... (previous states)
+  const [watchlistIds, setWatchlistIds] = useState(new Set());
+  const token = localStorage.getItem('token');
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+  // Fetch Watchlist
+  useEffect(() => {
+    if (!token) return;
+    const fetchWatchlist = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/watchlist`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const ids = new Set(data.map(item => item.product_id));
+          setWatchlistIds(ids);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchWatchlist();
+  }, [token]);
 
   useEffect(() => {
     // Reset page when category changes
@@ -67,6 +90,60 @@ function CategoryPage() {
     return pages;
   };
 
+  const handleHide = async (productId) => {
+    // Find current product category (we are in category page so we know it, or find in list)
+    const currentProduct = products.find(p => p.product_id === productId);
+    const categoryId = currentProduct ? currentProduct.category_id : id; // Use current or fallback to page id
+
+    try {
+      // Exclude current visible products
+      const currentIds = products.map(p => p.product_id);
+      const url = `${API_URL}/api/products/replacement?excludeIds=${currentIds.join(',')}${categoryId ? `&categoryId=${categoryId}` : ''}`;
+
+      const res = await fetch(url);
+
+      if (res.ok) {
+        const newProduct = await res.json();
+        setProducts(prev => prev.map(p => p.product_id === productId ? newProduct : p));
+      } else {
+        setProducts(prev => prev.filter(p => p.product_id !== productId));
+      }
+    } catch (err) {
+      console.error("Replacement failed", err);
+      setProducts(prev => prev.filter(p => p.product_id !== productId));
+    }
+  };
+
+  const handleToggleWatchlist = async (product) => {
+    if (!token) {
+      alert("Please login to use watchlist");
+      return;
+    }
+    const productId = product.product_id;
+    const isWatchlisted = watchlistIds.has(productId);
+
+    setWatchlistIds(prev => {
+      const next = new Set(prev);
+      if (isWatchlisted) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+
+    try {
+      if (isWatchlisted) {
+        await fetch(`${API_URL}/api/watchlist/${productId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      } else {
+        await fetch(`${API_URL}/api/watchlist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ product_id: productId })
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <>
       <section
@@ -80,7 +157,12 @@ function CategoryPage() {
             <div className="text-center py-20 text-gray-400">Loading...</div>
           ) : (
             <>
-              <ProductGrid products={products} />
+              <ProductGrid
+                products={products}
+                watchlistIds={watchlistIds}
+                onToggleWatchlist={handleToggleWatchlist}
+                onHide={handleHide}
+              />
 
               {/* Pagination Controls */}
               {totalPages > 1 && (
@@ -99,10 +181,10 @@ function CategoryPage() {
                       onClick={() => typeof page === 'number' && handlePageChange(page)}
                       disabled={typeof page !== 'number'}
                       className={`w-10 h-10 rounded border flex items-center justify-center transition-colors ${page === currentPage
-                          ? "bg-[#AE9B84] text-white border-[#AE9B84]"
-                          : typeof page === 'number'
-                            ? "bg-white text-gray-700 hover:bg-gray-50 cursor-pointer"
-                            : "bg-transparent border-none text-gray-500 cursor-default"
+                        ? "bg-[#AE9B84] text-white border-[#AE9B84]"
+                        : typeof page === 'number'
+                          ? "bg-white text-gray-700 hover:bg-gray-50 cursor-pointer"
+                          : "bg-transparent border-none text-gray-500 cursor-default"
                         }`}
                     >
                       {page}

@@ -6,11 +6,11 @@ const postRating = async (req, res) => {
     const rater_id = req.auth.userId;
 
     const rating = await ratingService.addRating({
-        rater_id,
-        rated_user_id,
-        product_id,
-        rating_value,
-        comment
+      rater_id,
+      rated_user_id,
+      product_id,
+      rating_value,
+      comment
     });
 
     res.status(201).json(rating);
@@ -19,4 +19,14 @@ const postRating = async (req, res) => {
   }
 };
 
-export default { postRating };
+const getReviews = async (req, res) => {
+  try {
+    const userId = req.auth.userId; // Get reviews for the logged-in user
+    const reviews = await ratingService.getReviewsByUserId(userId);
+    res.status(200).json(reviews);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+export default { postRating, getReviews };

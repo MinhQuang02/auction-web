@@ -41,15 +41,31 @@ const addRating = async ({ rater_id, rated_user_id, product_id, rating_value, co
 
   await prisma.user.update({
     where: { user_id: parseInt(rated_user_id) },
-    data: { 
-        avg_rating: newAvg,
-        total_ratings: totalCount
+    data: {
+      avg_rating: newAvg,
+      total_ratings: totalCount
     }
   });
 
   return rating;
 };
 
+const getReviewsByUserId = async (userId) => {
+  const reviews = await prisma.rating.findMany({
+    where: { rated_user_id: parseInt(userId) },
+    include: {
+      rater: {
+        select: {
+          full_name: true,
+          address: true
+        }
+      }
+    }
+  });
+  return reviews;
+};
+
 export default {
-  addRating
+  addRating,
+  getReviewsByUserId
 };

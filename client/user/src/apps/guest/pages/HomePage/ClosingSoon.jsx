@@ -4,13 +4,15 @@ import { Link } from "react-router-dom";
 import decorativeBg from "@assets/images/_decorativeBg2.svg";
 import arrowIcon from "@assets/images/_arrowIcon.svg";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const ClosingSoon = () => {
   const [products, setProducts] = useState([]);
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/products/ongoing?limit=5");
+        const res = await fetch(`${API_URL}/api/products/ongoing?limit=5`);
         if (res.ok) {
           const data = await res.json();
           setProducts(data);
