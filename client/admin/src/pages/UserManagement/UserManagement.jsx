@@ -7,6 +7,8 @@ import TablePanel from "@components/TablePanel";
 import Modal from "@components/Modal";
 import UserDetail from "./UserDetail";
 
+import { apiFetch } from "@utils/ApiFetch.jsx";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 const headers = [
@@ -22,7 +24,6 @@ const headers = [
 const UserManagement = () => {
   const PAGE_SIZE = 10;
 
-  const [viewMode, setViewMode] = useState("all");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -38,11 +39,12 @@ const UserManagement = () => {
 
   useEffect(() => {
     setPage(0);
-  }, [viewMode, search, role, status, sortBy]);
+  }, [search, role, status, sortBy]);
 
   const refreshCurrentView = () => {
+    setIsDetailOpen(false);
     setSelectedUser(null);
-    viewMode === "upgrade" ? fetchUpgradeRequests() : fetchUsers();
+    fetchUsers();
   };
 
   const fetchUsers = async () => {
@@ -56,17 +58,16 @@ const UserManagement = () => {
 
       if (search) params.set("keyword", search);
       if (role !== "all") params.set("role", role);
+      if (status === "upgrade") {
+        params.set("upgrade_requested", "true");
+      }
       if (sortBy) params.set("sort_by", sortBy);
 
-      const res = await fetch(`${API_URL}/api/admin/users?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
+      const res = await apiFetch(`${API_URL}/api/admin/users?${params}`);
       const data = await res.json();
+
       setUsers(data);
       setHasMore(data.length === PAGE_SIZE);
-    } catch (err) {
-      console.error("Failed to fetch users", err);
     } finally {
       setLoading(false);
     }
@@ -77,9 +78,7 @@ const UserManagement = () => {
     setSelectedUser(null);
 
     try {
-      const res = await fetch(`${API_URL}/api/admin/users/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch(`${API_URL}/api/admin/users/${userId}`);
 
       if (!res.ok) throw new Error("Failed to fetch user detail");
 
@@ -90,31 +89,15 @@ const UserManagement = () => {
     }
   };
 
-  const fetchUpgradeRequests = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/api/upgrades/pending`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setUsers(data);
-    } catch (err) {
-      console.error("Failed to fetch upgrade requests", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    viewMode === "upgrade" ? fetchUpgradeRequests() : fetchUsers();
-  }, [viewMode, page, search, role, status, sortBy]);
+    fetchUsers();
+  }, [page, search, role, status, sortBy]);
 
   const approveUpgrade = async (user) => {
-    await fetch(`${API_URL}/api/upgrades/approve`, {
+    await apiFetch(`${API_URL}/api/upgrades/approve`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ userId: user.user_id }),
     });
@@ -123,11 +106,10 @@ const UserManagement = () => {
   };
 
   const denyUpgrade = async (user) => {
-    await fetch(`${API_URL}/api/upgrades/reject`, {
+    await apiFetch(`${API_URL}/api/upgrades/reject`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ userId: user.user_id }),
     });
@@ -165,29 +147,6 @@ const UserManagement = () => {
       <VBox>
         <ActionBar
           leftExtras={
-            <>
-              <button
-                onClick={() => setViewMode("all")}
-                className={`px-4 py-2 rounded ${
-                  viewMode === "all" ? "bg-primary text-white" : "bg-lightGray"
-                }`}
-              >
-                All Users
-              </button>
-
-              <button
-                onClick={() => setViewMode("upgrade")}
-                className={`px-4 py-2 rounded ${
-                  viewMode === "upgrade"
-                    ? "bg-primary text-white"
-                    : "bg-lightGray"
-                }`}
-              >
-                Upgrade Requests
-              </button>
-            </>
-          }
-          rightExtras={
             <HBox className="gap-3 items-center">
               {/* Search */}
               <input
@@ -234,6 +193,29 @@ const UserManagement = () => {
                 <option value="rating_asc">Rating (Low → High)</option>
               </select>
             </HBox>
+          }
+          rightExtras={
+            <>
+              <button
+                onClick={() => setStatus("all")}
+                className={`px-4 py-2 rounded ${
+                  status === "all" ? "bg-primary text-white" : "bg-lightGray"
+                }`}
+              >
+                All Users
+              </button>
+
+              <button
+                onClick={() => setStatus("upgrade")}
+                className={`px-4 py-2 rounded ${
+                  status === "upgrade"
+                    ? "bg-primary text-white"
+                    : "bg-lightGray"
+                }`}
+              >
+                Upgrade Requests
+              </button>
+            </>
           }
         />
 
@@ -282,7 +264,7 @@ const UserManagement = () => {
           ) : (
             <UserDetail
               user={selectedUser}
-              isUpgradeView={viewMode === "upgrade"}
+              isUpgradeView={selectedUser.upgrade_request_time !== null}
               onApprove={approveUpgrade}
               onReject={denyUpgrade}
             />

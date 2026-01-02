@@ -10,6 +10,8 @@ import HierarchyPanel from "./HierarchyPanel";
 import CategoryDetailsPanel from "./CategoryDetailsPanel";
 import CategoryModalContent from "./CategoryModalContent";
 
+import { apiFetch } from "@utils/ApiFetch.jsx";
+
 const API_URL = import.meta.env.VITE_API_URL;
 const token = localStorage.getItem("token");
 
@@ -76,7 +78,7 @@ const CategoryManagement = () => {
   const [modalMode, setModalMode] = useState(null); // "add" / "edit" / "delete"
 
   const fetchCategories = async () => {
-    const res = await fetch(`${API_URL}/api/categories`);
+    const res = await apiFetch(`${API_URL}/api/categories`);
     if (!res.ok) throw new Error("Failed to fetch categories");
     const data = await res.json();
     const normalized = data.map((cat) => normalizeCategory(cat));
@@ -108,11 +110,10 @@ const CategoryManagement = () => {
   );
 
   const addCategory = async ({ name, parent_id }) => {
-    const res = await fetch(`${API_URL}/api/categories`, {
+    const res = await apiFetch(`${API_URL}/api/categories`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ name, parent_id }),
     });
@@ -120,11 +121,10 @@ const CategoryManagement = () => {
   };
 
   const editCategory = async (id, updates) => {
-    await fetch(`${API_URL}/api/categories/${id}`, {
+    await apiFetch(`${API_URL}/api/categories/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(updates),
     });
@@ -132,11 +132,8 @@ const CategoryManagement = () => {
   };
 
   const deleteCategory = async (id) => {
-    const res = await fetch(`${API_URL}/api/categories/${id}`, {
+    const res = await apiFetch(`${API_URL}/api/categories/${id}`, {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     if (!res.ok) {
@@ -157,9 +154,13 @@ const CategoryManagement = () => {
     return !hasChildren && !hasProducts;
   };
 
-  if (loading) {
-    return <div className="p-10">Loading categories…</div>;
-  }
+  const SkeletonPanel = () => (
+    <div className="animate-pulse space-y-3 p-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="h-4 bg-gray-200 rounded w-3/4" />
+      ))}
+    </div>
+  );
 
   return (
     <VBox className="p-10 gap-40">
@@ -181,14 +182,26 @@ const CategoryManagement = () => {
 
         <div />
 
-        <HierarchyPanel
-          data={filteredCategories}
-          selectedIds={selectedId ? [selectedId] : []}
-          onSelect={setSelectedId}
-        />
+        {loading ? (
+          <Panel>
+            <SkeletonPanel />
+          </Panel>
+        ) : (
+          <HierarchyPanel
+            data={filteredCategories}
+            selectedIds={selectedId ? [selectedId] : []}
+            onSelect={setSelectedId}
+          />
+        )}
 
-        {selectedCategory && (
-          <CategoryDetailsPanel category={selectedCategory} />
+        {loading ? (
+          <Panel className="p-6 text-gray-400">
+            Select a category to see details
+          </Panel>
+        ) : (
+          selectedCategory && (
+            <CategoryDetailsPanel category={selectedCategory} />
+          )
         )}
       </div>
 

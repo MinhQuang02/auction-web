@@ -6,7 +6,8 @@
       "@shared/*": ["./src/shared/*"],
       "@assets/*": ["./src/assets/*"],
       "@context/*": ["./src/context/*"],
-      "@routes/*": ["./src/routes/*"]
+      "@routes/*": ["./src/routes/*"],
+      "@utils/*": ["./src/utils/*"]
     }
   },
   "include": ["src"]

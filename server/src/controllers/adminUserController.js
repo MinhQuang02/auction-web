@@ -27,22 +27,12 @@ const adminUserController = {
       }
 
       // ROLE FILTER
-      if (role) {
+      if (role && role !== "all") {
         where.role = role;
       }
 
-      // STATUS FILTER
-      const now = new Date();
-      if (status === "upgrade") {
+      if (req.query.upgrade_requested === "true") {
         where.upgrade_request_time = { not: null };
-      }
-      if (status === "seller_active") {
-        where.role = "seller";
-        where.seller_expires = { gt: now };
-      }
-      if (status === "seller_expired") {
-        where.role = "seller";
-        where.seller_expires = { lte: now };
       }
 
       // SORT
@@ -101,6 +91,29 @@ const adminUserController = {
         return res.status(404).json({ message: "User not found" });
       }
 
+      const bidHistory = await prisma.bid_History.findMany({
+        where: { bidder_id: userId },
+        orderBy: { bid_time: "desc" },
+        take: 20,
+        select: {
+          max_bid_amount: true,
+          bid_time: true,
+          product: {
+            select: {
+              product_id: true,
+              name: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      const activityHistory = bidHistory.map((b) => ({
+        event_type: "Bid",
+        date: b.bid_time,
+        details: `Bid $${b.max_bid_amount} on "${b.product.name}" (${b.product.status})`,
+      }));
+
       const [
         totalBids,
         auctionsWon,
@@ -153,7 +166,7 @@ const adminUserController = {
         ratings_received: ratingsReceived,
         ratings_given: ratingsGiven,
 
-        activity_history: [],
+        activity_history: activityHistory,
       });
     } catch (error) {
       console.error(error);
