@@ -38,13 +38,13 @@ const AuctionActionBar = ({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search products..."
-        className="h-14 px-4 rounded-md border"
+        className="h-14 px-4 rounded-md border shadow-lg"
       />
 
       {/* Status Filter (backend-aligned) */}
       <select
         value={status}
-        className="h-14 px-4 rounded-md border"
+        className="h-14 px-4 rounded-md border shadow-lg"
         onChange={(e) => onStatusChange?.(e.target.value)}
       >
         <option value="all">All</option>
@@ -57,7 +57,7 @@ const AuctionActionBar = ({
       {/* Sort (backend-driven only) */}
       <select
         value={sortBy}
-        className="h-14 px-4 rounded-md border"
+        className="h-14 px-4 rounded-md border shadow-lg"
         onChange={(e) => onSortChange?.(e.target.value)}
       >
         <option value="time_desc">Ending soon</option>

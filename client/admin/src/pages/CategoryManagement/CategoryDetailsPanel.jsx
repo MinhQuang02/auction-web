@@ -5,12 +5,12 @@ import HBox from "@components/HBox";
 const CategoryDetailsPanel = ({ category }) => {
   if (!category) return null;
 
-  const { id, path, product_count } = category;
+  const { id, label, path, product_count } = category;
 
   return (
     <Panel className="p-4 rounded-md">
       <VBox className="flex-1 w-full gap-4">
-        <span className="text-3xl font-semibold text-primary">Category</span>
+        <span className="text-3xl font-semibold text-primary">{label}</span>
 
         <hr className="h-1 bg-primary border-none" />
 

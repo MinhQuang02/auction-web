@@ -46,31 +46,33 @@ const searchProducts = async ({
     orderBy = { start_time: "desc" };
   }
 
-  const products = await prisma.product.findMany({
-    where,
-    orderBy,
-    take: parseInt(limit),
-    skip: parseInt(offset),
-    include: {
-      images: { take: 1 },
-      bids: {
-        orderBy: { max_bid_amount: "desc" },
-        take: 1,
-      },
-      seller: {
-        select: {
-          full_name: true,
+  const [items, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      orderBy,
+      take: parseInt(limit),
+      skip: parseInt(offset),
+      include: {
+        images: { take: 1 },
+        bids: {
+          orderBy: { max_bid_amount: "desc" },
+          take: 1,
+        },
+        seller: {
+          select: { full_name: true },
+        },
+        category: {
+          select: { name: true },
         },
       },
-      category: {
-        select: {
-          name: true,
-        },
-      },
-    },
-  });
+    }),
+    prisma.product.count({ where }),
+  ]);
 
-  return products;
+  return {
+    items,
+    total,
+  };
 };
 
 // 2. PRODUCT DETAILS
@@ -366,6 +368,34 @@ const cancelTransaction = async (sellerId, productId) => {
   });
 };
 
+const getAuctionStats = async () => {
+  const now = new Date();
+  const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+  const [activeCount, endingSoonCount] = await Promise.all([
+    prisma.product.count({
+      where: {
+        status: "active",
+        end_time: { gt: now },
+      },
+    }),
+    prisma.product.count({
+      where: {
+        status: "active",
+        end_time: {
+          gt: now,
+          lte: next24h,
+        },
+      },
+    }),
+  ]);
+
+  return {
+    active: activeCount,
+    endingSoon24h: endingSoonCount,
+  };
+};
+
 export default {
   searchProducts,
   getProductById,
@@ -379,4 +409,5 @@ export default {
   answerQuestion,
   getProductQuestions,
   cancelTransaction,
+  getAuctionStats,
 };
