@@ -1,57 +1,28 @@
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 import decorativeBg from "@assets/images/_decorativeBg2.svg";
 import arrowIcon from "@assets/images/_arrowIcon.svg";
 
-import dress1 from "@assets/images/_dress1.png";
-import dress2 from "@assets/images/_dress2.png";
-import handbag from "@assets/images/_handbag.png";
-import sunHat from "@assets/images/_sunHat.png";
-import scarf from "@assets/images/_scarf.png";
-
 const ClosingSoon = () => {
-  const products = [
-    {
-      id: 1,
-      title: "Timeless A-line Evening Dress (16)",
-      image: dress1,
-      price: "$19.99",
-      author: "***minh",
-      dateRange: "Apr 1, 2025 -- Jun 5, 2025",
-    },
-    {
-      id: 2,
-      title: "Floral Bloom Maxi Dress (4)",
-      image: dress2,
-      price: "$19.99",
-      author: "***minh",
-      dateRange: "Apr 1, 2025 -- Jun 5, 2025",
-    },
-    {
-      id: 3,
-      title: "Urban Chic Handbag (23)",
-      image: handbag,
-      price: "$19.99",
-      author: "***minh",
-      dateRange: "Apr 1, 2025 -- Jun 5, 2025",
-    },
-    {
-      id: 4,
-      title: "Sophisticate Sun Hat (45)",
-      image: sunHat,
-      price: "$19.99",
-      author: "***minh",
-      dateRange: "Apr 1, 2025 -- Jun 5, 2025",
-    },
-    {
-      id: 5,
-      title: "Boho Chic Printed Scarf (16)",
-      image: scarf,
-      price: "$19.99",
-      author: "***minh",
-      dateRange: "Apr 1, 2025 -- Jun 5, 2025",
-    },
-  ];
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/api/products/ongoing?limit=5");
+        if (res.ok) {
+          const data = await res.json();
+          setProducts(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch closing soon products", err);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  if (products.length === 0) return null;
 
   return (
     <section
@@ -69,8 +40,8 @@ const ClosingSoon = () => {
         {/* Header Section */}
         <div className="mb-14 relative z-10">
           <div className="flex items-center gap-4 mb-5">
-            <div className="w-5 h-10 bg-primary rounded"></div>
-            <span className="text-primary font-semibold">Our Products</span>
+            <div className="w-5 h-10 bg-[#AE9B84] rounded"></div>
+            <span className="text-[#AE9B84] font-semibold">Our Products</span>
           </div>
           <h2 className="text-3xl md:text-4xl font-semibold tracking-wide">
             Top 5 Closing Soon
@@ -87,26 +58,37 @@ const ClosingSoon = () => {
             const imageHeightClass = isLargeItem ? "h-[350px]" : "h-[291px]";
             const titleSizeClass = isLargeItem ? "text-xl" : "text-lg";
 
+            const imageUrl = product.main_image_url || product.images?.[0]?.image_url || "https://via.placeholder.com/300";
+            const currentPrice = product.current_price || product.start_price;
+            const endDate = new Date(product.end_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            // For author, using 'current_bidder' if available (since it's closing soon logic often highlights recent activity) or just static/seller if needed. 
+            // The endpoint returns `current_bidder`.
+            const bidderName = product.current_bidder?.full_name
+              ? `***${product.current_bidder.full_name.split(' ').pop()}`
+              : "No Bids";
+
             return (
               <div
-                key={product.id}
-                className={`${colSpanClass} bg-secondary shadow-lg p-5 flex flex-col gap-4 rounded-b-lg group hover:shadow-xl transition-all`}
+                key={product.product_id}
+                className={`${colSpanClass} bg-[#F5F5F5] shadow-sm p-5 flex flex-col gap-4 rounded-b-lg group hover:shadow-lg transition-all duration-300`}
               >
-                {/* Product Image */}
-                <img
-                  src={product.image}
-                  alt={product.title}
-                  className={`w-full ${imageHeightClass} object-cover rounded-t-3xl`}
-                />
+                {/* Product Image - Centered and Contained with MORE Padding to make it smaller */}
+                <div className={`w-full ${imageHeightClass} flex items-center justify-center bg-white rounded-t-3xl overflow-hidden p-8 lg:p-10`}>
+                  <img
+                    src={imageUrl}
+                    alt={product.name}
+                    className="max-w-full max-h-full object-contain transition-transform duration-500 group-hover:scale-110"
+                  />
+                </div>
 
                 {/* Action Row */}
                 <div className="flex justify-between items-center">
                   <div className="bg-[#1a1a1a] text-[#b3b3b2] text-xs px-3 py-2 rounded-full">
-                    {product.dateRange}
+                    Ends: {endDate}
                   </div>
                   <Link
-                    to="/product"
-                    className="bg-[#1f1f1f] border border-[#404040] text-[#d1d1d6] text-sm px-5 py-3.5 rounded-lg flex items-center gap-1 hover:bg-black transition"
+                    to={`/product/${product.product_id}`}
+                    className="bg-[#1f1f1f] border border-[#404040] text-[#d1d1d6] text-sm px-5 py-3.5 rounded-lg flex items-center gap-1 hover:bg-black transition shadow-md"
                   >
                     <span>Bid Now</span>
                     <img src={arrowIcon} alt="arrow" />
@@ -114,22 +96,22 @@ const ClosingSoon = () => {
                 </div>
 
                 {/* Title */}
-                <h3 className={`font-medium ${titleSizeClass}`}>
-                  {product.title}
+                <h3 className={`font-medium ${titleSizeClass} truncate`} title={product.name}>
+                  {product.name}
                 </h3>
 
                 {/* Price & Author */}
                 <div className="flex items-center gap-4 text-sm">
-                  <span className="text-textGray">Price</span>
+                  <span className="text-gray-500">Price</span>
                   <span className="w-1 h-1 bg-[#ccc] rounded-full"></span>
-                  <span className="font-medium text-textDark">
-                    {product.price}
+                  <span className="font-medium text-black">
+                    ${Number(currentPrice).toFixed(2)}
                   </span>
 
-                  <span className="text-textGray">By</span>
+                  <span className="text-gray-500">Bidder</span>
                   <span className="w-1 h-1 bg-[#ccc] rounded-full"></span>
-                  <span className="font-medium text-textDark">
-                    {product.author}
+                  <span className="font-medium text-black">
+                    {bidderName}
                   </span>
                 </div>
               </div>

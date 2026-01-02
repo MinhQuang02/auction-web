@@ -1,78 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const Sidebar = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [expandedCategories, setExpandedCategories] = useState([]);
 
-    const categories = [
-        { 
-            name: 'Woman’s Fashion', 
-            items: [
-                { name: 'Dresses', to: '/category' },
-                { name: 'Shoes', to: '/category' },
-                { name: 'Accessories', to: '/category' }
-            ]
-        },
-        { 
-            name: 'Men’s Fashion', 
-            items: [
-                { name: 'Shirts', to: '/category' },
-                { name: 'Pants', to: '/category' },
-                { name: 'Footwear', to: '/category' }
-            ]
-        },
-        { 
-            name: 'Electronics', 
-            items: [
-                { name: 'Phones', to: '/category' },
-                { name: 'Laptops', to: '/category' },
-                { name: 'Cameras', to: '/category' } 
-            ]
-        },
-        { 
-            name: 'Home & Lifestyle', 
-            items: [
-                { name: 'Furniture', to: '/category' },
-                { name: 'Decor', to: '/category' }
-            ]
-        },
-        { 
-            name: 'Medicine', 
-            items: [
-                { name: 'Supplements', to: '/category' },
-                { name: 'First Aid', to: '/category' }
-            ]
-        },
-        { 
-            name: 'Sports & Outdoor', 
-            items: [
-                { name: 'Equipment', to: '/category' },
-                { name: 'Apparel', to: '/category' }
-            ]
-        },
-        { 
-            name: 'Baby’s & Toys', 
-            items: [
-                { name: 'Toys', to: '/category' },
-                { name: 'Clothing', to: '/category' }
-            ]
-        },
-        { 
-            name: 'Groceries & Pets', 
-            items: [
-                { name: 'Food', to: '/category' },
-                { name: 'Pet Supplies', to: '/category' }
-            ]
-        },
-        { 
-            name: 'Health & Beauty', 
-            items: [
-                { name: 'Makeup', to: '/category' },
-                { name: 'Skincare', to: '/category' }
-            ]
-        },
-    ];
+    const [categories, setCategories] = useState([]);
+
+    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const response = await fetch(`${API_URL}/api/categories`);
+                if (!response.ok) throw new Error('Failed to fetch categories');
+                const data = await response.json();
+
+                // Map API data to component structure
+                const formattedCategories = data.map(cat => ({
+                    name: cat.name,
+                    // Take only direct children for the sidebar dropdown
+                    items: cat.children ? cat.children.map(child => ({
+                        name: child.name,
+                        to: `/category/${child.category_id}`
+                    })) : []
+                }));
+
+                setCategories(formattedCategories);
+            } catch (error) {
+                console.error("Error fetching categories:", error);
+            }
+        };
+
+        fetchCategories();
+    }, []);
 
     const toggleCategory = (categoryName) => {
         setExpandedCategories(prev => {
@@ -87,12 +48,12 @@ const Sidebar = () => {
     const SidebarContent = ({ onItemClick }) => (
         <div className="flex flex-col h-full bg-[#f2f2f2] text-[#1f1f1f] font-sans">
             {/* Search Bar Section */}
-            <div className="bg-[#E4E4E4] p-5 shrink-0"> 
+            <div className="bg-[#E4E4E4] p-5 shrink-0">
                 <div className="bg-white rounded-lg px-4 py-2.5 flex items-center justify-between border border-transparent focus-within:border-[#AE9B84] transition shadow-sm">
-                    <input 
-                        type="text" 
-                        placeholder="What are you looking for?" 
-                        className="bg-transparent border-none text-[13px] text-black w-full focus:outline-none placeholder-gray-500 font-medium" 
+                    <input
+                        type="text"
+                        placeholder="What are you looking for?"
+                        className="bg-transparent border-none text-[13px] text-black w-full focus:outline-none placeholder-gray-500 font-medium"
                     />
                     <button className="flex-none text-[#AE9B84] hover:text-[#8e7d6a] transition">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-5 h-5">
@@ -108,21 +69,21 @@ const Sidebar = () => {
                     <ul className="flex flex-col gap-3 text-[15px] text-[#1f1f1f]">
                         {categories.map((category) => {
                             const isExpanded = expandedCategories.includes(category.name);
-                            
+
                             return (
                                 <li key={category.name} className="flex flex-col">
-                                    <button 
+                                    <button
                                         onClick={() => toggleCategory(category.name)}
                                         className={`flex justify-between items-center w-full group hover:text-[#AE9B84] transition-all cursor-pointer py-1 ${isExpanded ? 'text-[#AE9B84] font-medium' : ''}`}
                                     >
                                         <span className="text-left group-hover:translate-x-1 transition-transform">{category.name}</span>
-                                        
-                                        <svg 
-                                            xmlns="http://www.w3.org/2000/svg" 
-                                            fill="none" 
-                                            viewBox="0 0 24 24" 
-                                            strokeWidth="2.5" 
-                                            stroke="currentColor" 
+
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            strokeWidth="2.5"
+                                            stroke="currentColor"
                                             className={`w-3.5 h-3.5 transition-transform duration-300 ${isExpanded ? 'rotate-90 text-[#AE9B84]' : 'text-gray-400'}`}
                                         >
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -133,7 +94,7 @@ const Sidebar = () => {
                                         <ul className="flex flex-col gap-2 pl-4 border-l-2 border-[#E4E4E4] ml-1">
                                             {category.items.map((item, index) => (
                                                 <li key={index}>
-                                                    <Link 
+                                                    <Link
                                                         to={item.to}
                                                         onClick={onItemClick}
                                                         className="block text-[13px] text-gray-500 hover:text-[#AE9B84] transition-colors hover:translate-x-1 duration-200"
@@ -192,7 +153,7 @@ const Sidebar = () => {
 
             {/* --- MOBILE VIEW --- */}
             <div className="lg:hidden fixed top-32 left-0 z-40">
-                <button 
+                <button
                     onClick={() => setIsMobileMenuOpen(true)}
                     className="p-3 pr-4 bg-[#AE9B84] hover:bg-[#96836e] text-white rounded-r-full shadow-xl transition-transform transform hover:scale-105 active:scale-95 flex items-center justify-center border-y-2 border-r-2 border-white"
                     aria-label="Open Menu"
@@ -205,7 +166,7 @@ const Sidebar = () => {
 
             {isMobileMenuOpen && (
                 <div className="fixed inset-0 z-50 lg:hidden flex">
-                    <div 
+                    <div
                         className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in"
                         onClick={() => setIsMobileMenuOpen(false)}
                     ></div>

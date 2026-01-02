@@ -11,6 +11,17 @@ const getCategories = async (req, res) => {
   }
 };
 
+const getCategory = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const category = await categoryService.getCategoryById(id);
+    if (!category) return res.status(404).json({ message: "Category not found" });
+    res.json(category);
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
 /* CREATE */
 const createCategory = async (req, res) => {
   try {
@@ -45,6 +56,7 @@ const deleteCategory = async (req, res) => {
 
 export default {
   getCategories,
+  getCategory,
   createCategory,
   updateCategory,
   deleteCategory,

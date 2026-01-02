@@ -4,54 +4,61 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 // 1. SEARCH LIST (With "New" Badge)
+// 1. SEARCH LIST (With "New" Badge)
 const getProducts = async (req, res) => {
-  try {
-    const { keyword, category_id, sort_by, limit, offset, status } = req.query;
+    try {
+        const { keyword, category_id, sort_by, limit = 12, page = 1, status } = req.query;
+        const offset = (page - 1) * limit;
 
-    const products = await productService.searchProducts({
-      keyword,
-      categoryId: category_id,
-      sortBy: sort_by,
-      limit,
-      offset,
-      status,
-    });
+        const { products, total } = await productService.searchProducts({
+            keyword,
+            categoryId: category_id,
+            sortBy: sort_by,
+            limit,
+            offset,
+            status,
+        });
 
-    // "New" Badge Logic (Req 1.4)
-    // Mark as new if posted within the last 60 minutes (adjust as needed)
-    const NEW_THRESHOLD_MINUTES = 60;
-    const now = new Date();
+        // "New" Badge Logic (Req 1.4)
+        // Mark as new if posted within the last 60 minutes (adjust as needed)
+        const NEW_THRESHOLD_MINUTES = 60;
+        const now = new Date();
 
-    const productsWithBadge = products.map((p) => {
-      const postTime = new Date(p.start_time);
-      const diffMs = now - postTime;
-      const diffMins = Math.floor(diffMs / 60000);
+        const productsWithBadge = products.map((p) => {
+            const postTime = new Date(p.start_time);
+            const diffMs = now - postTime;
+            const diffMins = Math.floor(diffMs / 60000);
 
-      return {
-        ...p,
-        is_new: diffMins <= NEW_THRESHOLD_MINUTES,
-      };
-    });
+            return {
+                ...p,
+                is_new: diffMins <= NEW_THRESHOLD_MINUTES,
+            };
+        });
 
-    res.status(200).json(productsWithBadge);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Internal server error" });
-  }
+        res.status(200).json({
+            products: productsWithBadge,
+            total,
+            page: parseInt(page),
+            totalPages: Math.ceil(total / limit)
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
 };
 
 // 2. PRODUCT DETAIL (With Related Items)
 const getProductDetail = async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         // FIX: Convert String ID ("1") to Integer (1)
         const productId = parseInt(id);
 
         if (isNaN(productId)) {
-             return res.status(400).json({ message: "Invalid Product ID" });
+            return res.status(400).json({ message: "Invalid Product ID" });
         }
-        
+
         // Pass the Integer ID, not the String
         const product = await productService.getProductById(productId);
 
@@ -118,7 +125,7 @@ const createProduct = async (req, res) => {
                 category_id: parseInt(category_id),
                 main_image_url: images[0], // Set the first image as main
                 status: 'active',
-                
+
                 // Create associated images in Product_Image table
                 images: {
                     create: images.map(url => ({ image_url: url }))
@@ -126,9 +133,9 @@ const createProduct = async (req, res) => {
             },
         });
 
-        return res.status(201).json({ 
-            message: "Product created successfully", 
-            product: newProduct 
+        return res.status(201).json({
+            message: "Product created successfully",
+            product: newProduct
         });
 
     } catch (error) {
@@ -253,10 +260,40 @@ const cancelTransaction = async (req, res) => {
     try {
         const { id } = req.params;
         const sellerId = req.auth.userId;
-        
+
         await productService.cancelTransaction(sellerId, id);
-        
+
         res.status(200).json({ message: "Transaction cancelled and user rated -1." });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const getFeatured = async (req, res) => {
+    try {
+        const limit = req.query.limit || 10;
+        const products = await productService.getFeaturedProducts(limit);
+        res.status(200).json(products);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const getOngoing = async (req, res) => {
+    try {
+        const limit = req.query.limit || 10;
+        const products = await productService.getOngoingProducts(limit);
+        res.status(200).json(products);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const getCompetitive = async (req, res) => {
+    try {
+        const limit = req.query.limit || 10;
+        const products = await productService.getCompetitiveProducts(limit);
+        res.status(200).json(products);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -272,5 +309,9 @@ export default {
     postQuestion,
     answerQuestion,
     getQuestions,
-    cancelTransaction
+    cancelTransaction,
+    cancelTransaction,
+    getFeatured,
+    getOngoing,
+    getCompetitive
 };

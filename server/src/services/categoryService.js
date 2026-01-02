@@ -3,6 +3,8 @@ const prisma = new PrismaClient();
 
 /* ------------------ READ ------------------ */
 
+/* ------------------ READ ------------------ */
+
 const getCategoryTree = async () => {
   return prisma.category.findMany({
     where: { parent_id: null },
@@ -34,6 +36,16 @@ const getCategoryTree = async () => {
         },
       },
     },
+  });
+};
+
+const getCategoryById = async (id) => {
+  return prisma.category.findUnique({
+    where: { category_id: id },
+    include: {
+      children: true,
+      parent: true
+    }
   });
 };
 
@@ -131,6 +143,7 @@ const deleteCategory = async (id) => {
 
 export default {
   getCategoryTree,
+  getCategoryById,
   createCategory,
   updateCategory,
   deleteCategory,
