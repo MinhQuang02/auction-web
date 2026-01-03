@@ -176,8 +176,17 @@ const Product = ({ product }) => {
               <div className="text-gray-400">No Image</div>
             )}
             {/* Status Badge */}
-            <div className="absolute top-4 left-4 bg-[#AE9B84] text-white text-xs px-2 py-1 rounded shadow-md">
-              {product.status === 'active' ? 'Live Auction' : product.status}
+            <div className={`absolute top-4 left-4 text-white text-xs px-2 py-1 rounded shadow-md font-semibold
+              ${product.status === 'active' ? 'bg-[#AE9B84]' :
+                product.status === 'sold' ? 'bg-green-600' :
+                  product.status === 'ended_no_winner' ? 'bg-gray-500' : 'bg-red-500'
+              }`}>
+              {
+                product.status === 'active' ? 'Live Auction'
+                  : product.status === 'sold' ? 'Sold'
+                    : product.status === 'ended_no_winner' ? 'Ended / No Winner'
+                      : product.status
+              }
             </div>
           </div>
 
@@ -231,13 +240,13 @@ const Product = ({ product }) => {
 
           {/* Rating & Views */}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
-            {renderStars(product.seller?.rating || 4)}
-            <span className="text-sm text-gray-500">
-              ({product.seller?.reviews_count || product.view_count || 120} reviews)
+            {renderStars(Number(product.seller?.avg_rating || 0))}
+            <span className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer transition">
+              ({product.seller?.total_ratings || 0} reviews)
             </span>
             <span className="text-gray-300">|</span>
             <span className="text-[#1f1f1f] text-sm font-medium">
-              Seller: {product.seller?.full_name || "StyleLoom Seller"}
+              Seller: {product.seller?.full_name || "Unknown Seller"}
             </span>
           </div>
 

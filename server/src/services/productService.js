@@ -164,16 +164,47 @@ const getProductById = async (productId) => {
 
 // 3. RELATED PRODUCTS
 const getRelatedProducts = async (productId, categoryId) => {
-  return await prisma.product.findMany({
+  // Fetch a pool of candidate products from the same category
+  // We fetch up to 20 to shuffle and pick 5, ensuring variety
+  const candidates = await prisma.product.findMany({
     where: {
       category_id: categoryId,
-      product_id: { not: parseInt(productId) }, // Exclude current
+      product_id: { not: parseInt(productId) },
       status: "active",
     },
-    take: 5,
-    orderBy: { end_time: "asc" }, // Ending soonest related items
-    include: { images: { take: 1 } },
+    take: 20,
+    orderBy: { start_time: 'desc' }, // Get recent ones
+    include: {
+      images: { take: 1 },
+      bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } },
+      seller: { select: { full_name: true, avg_rating: true, total_ratings: true } }
+    },
   });
+
+  // Shuffle array using Fisher-Yates or simple sort
+  const shuffled = candidates.sort(() => 0.5 - Math.random());
+
+  // Masking Logic (Essential for public view)
+  const selected = shuffled.slice(0, 5).map(p => {
+    // Mask Seller
+    let maskedSeller = "***";
+    if (p.seller?.full_name) maskedSeller = "***" + p.seller.full_name.trim().slice(-3);
+
+    // Mask Bidder (Leader)
+    const maskedBids = p.bids.map(b => {
+      let bName = "***";
+      if (b.bidder?.full_name) bName = "***" + b.bidder.full_name.trim().slice(-3);
+      return { ...b, bidder: { ...b.bidder, full_name: bName } };
+    });
+
+    return {
+      ...p,
+      seller: { ...p.seller, full_name: maskedSeller },
+      bids: maskedBids
+    };
+  });
+
+  return selected;
 };
 
 const getReplacementProduct = async (excludeIds = [], categoryId = null) => {
@@ -421,7 +452,11 @@ const getUserPurchases = async (userId) => {
     include: {
       images: { take: 1 },
       seller: { select: { full_name: true } },
-      transaction: true // Get transaction status
+      transaction: true, // Get transaction status
+      ratings: {
+        where: { rater_id: parseInt(userId) },
+        take: 1
+      }
     },
     orderBy: { end_time: 'desc' }
   });
@@ -430,16 +465,20 @@ const getUserPurchases = async (userId) => {
     // Determine payment status
     let paymentStatus = 'Unpaid';
     if (p.transaction) {
-      if (p.transaction.status === 'completed') paymentStatus = 'Paid';
-      else if (p.transaction.status === 'pending_shipping') paymentStatus = 'Paid';
-      else if (p.transaction.status === 'shipped') paymentStatus = 'Paid';
-      else if (p.transaction.status === 'cancelled') paymentStatus = 'Cancelled';
+      // Logic for Paid/Unpaid mapping to Frontend
+      // 'pending_shipping', 'shipped', 'completed' => Paid
+      if (['completed', 'pending_shipping', 'shipped'].includes(p.transaction.status)) {
+        paymentStatus = 'Paid';
+      } else if (p.transaction.status === 'cancelled') {
+        paymentStatus = 'Cancelled';
+      }
     }
 
     return {
       ...p,
       paymentStatus, // 'Paid', 'Unpaid', 'Cancelled'
-      canPay: !p.transaction || p.transaction.status === 'pending_payment'
+      canPay: !p.transaction || p.transaction.status === 'pending_payment',
+      hasRated: p.ratings.length > 0 // Boolean to check if user already rated
     };
   });
 };
@@ -520,9 +559,109 @@ const cancelTransaction = async (sellerId, productId) => {
   });
 };
 
+// Helper: Mask Names
+const maskProducts = (products) => {
+  return products.map((p) => {
+    // Mask Seller
+    let maskedSeller = p.seller;
+    if (p.seller?.full_name) {
+      maskedSeller = {
+        ...p.seller,
+        full_name: "***" + p.seller.full_name.trim().slice(-3),
+      };
+    }
+
+    // Mask Bids
+    const maskedBids = (p.bids || []).map((bid) => {
+      let maskedBidder = bid.bidder;
+      if (bid.bidder?.full_name) {
+        maskedBidder = {
+          ...bid.bidder,
+          full_name: "***" + bid.bidder.full_name.trim().slice(-3),
+        };
+      } else if (bid.bidder) {
+        maskedBidder = { ...bid.bidder, full_name: "***" };
+      }
+      return { ...bid, bidder: maskedBidder };
+    });
+
+    // Mask Current Bidder
+    let maskedCurrentBidder = p.current_bidder;
+    if (p.current_bidder?.full_name) {
+      maskedCurrentBidder = {
+        ...p.current_bidder,
+        full_name: "***" + p.current_bidder.full_name.trim().slice(-3),
+      };
+    } else if (p.current_bidder) {
+      maskedCurrentBidder = { ...p.current_bidder, full_name: "***" };
+    }
+
+    return {
+      ...p,
+      seller: maskedSeller,
+      bids: maskedBids,
+      current_bidder: maskedCurrentBidder,
+    };
+  });
+};
+
+// NEW: Random Products for Hero
+const getRandomProducts = async (limit = 10) => {
+  const take = parseInt(limit);
+
+  // Get Random IDs
+  const rawIds = await prisma.$queryRaw`
+    SELECT product_id FROM "Product"
+    WHERE status = 'active' AND end_time > NOW()
+    ORDER BY RANDOM()
+    LIMIT ${take}
+  `;
+
+  if (!rawIds || rawIds.length === 0) return [];
+
+  const ids = rawIds.map((r) => r.product_id);
+
+  const products = await prisma.product.findMany({
+    where: { product_id: { in: ids } },
+    include: {
+      images: { take: 1 },
+      bids: {
+        take: 1,
+        orderBy: { max_bid_amount: "desc" },
+        include: { bidder: { select: { full_name: true } } },
+      },
+      seller: { select: { full_name: true, avg_rating: true } },
+      category: { include: { parent: true } },
+    },
+  });
+
+  // Manually mask ONLY bidders, leave Seller unmasked for Hero
+  return products.map((p) => {
+    // Mask Bids
+    const maskedBids = (p.bids || []).map((bid) => {
+      let maskedBidder = bid.bidder;
+      if (bid.bidder?.full_name) {
+        maskedBidder = {
+          ...bid.bidder,
+          full_name: "***" + bid.bidder.full_name.trim().slice(-3),
+        };
+      } else if (bid.bidder) {
+        maskedBidder = { ...bid.bidder, full_name: "***" };
+      }
+      return { ...bid, bidder: maskedBidder };
+    });
+
+    return {
+      ...p,
+      bids: maskedBids
+    };
+  });
+};
+
+
 // NEW: Featured Products (Top 10 by bid count) - Hottest
 const getFeaturedProducts = async (limit = 10) => {
-  return await prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: {
       status: 'active',
       end_time: { gt: new Date() }
@@ -532,15 +671,16 @@ const getFeaturedProducts = async (limit = 10) => {
     include: {
       images: { take: 1 },
       category: { include: { parent: true } },
-      bids: { take: 1, orderBy: { max_bid_amount: 'desc' } },
+      bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } },
       seller: { select: { full_name: true } }
     }
   });
+  return maskProducts(products);
 };
 
 // NEW: Ongoing Products (Top 10 ending soon) - Closing Soon
 const getOngoingProducts = async (limit = 10) => {
-  return await prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: {
       status: 'active',
       end_time: { gt: new Date() }
@@ -549,14 +689,16 @@ const getOngoingProducts = async (limit = 10) => {
     orderBy: { end_time: 'asc' }, // Ending soonest
     include: {
       images: { take: 1 },
-      current_bidder: { select: { full_name: true } }
+      current_bidder: { select: { full_name: true } },
+      bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } }, // Add bids to ensure we have bid info if needed
     }
   });
+  return maskProducts(products);
 };
 
 // NEW: Competitive Products (High Price/Value)
 const getCompetitiveProducts = async (limit = 10) => {
-  return await prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: {
       status: 'active',
       end_time: { gt: new Date() }
@@ -565,10 +707,11 @@ const getCompetitiveProducts = async (limit = 10) => {
     orderBy: { current_price: 'desc' }, // Highest Price
     include: {
       images: { take: 1 },
-      bids: { take: 1, orderBy: { max_bid_amount: 'desc' } },
+      bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } },
       seller: { select: { full_name: true } }
     }
   });
+  return maskProducts(products);
 };
 
 // NEW: Create Transaction (Pay Now)
@@ -650,4 +793,5 @@ export default {
   getUserActiveBids,
   createTransaction,
   getAuctionStats,
+  getRandomProducts,
 };

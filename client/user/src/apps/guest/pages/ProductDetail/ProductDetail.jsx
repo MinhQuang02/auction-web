@@ -19,29 +19,32 @@ function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const fetchProductData = async () => {
+    try {
+      // Don't set loading true here to avoid flashing on refresh
+      setError(null);
+
+      const res = await fetch(`${API_URL}/api/products/${id}`);
+      if (!res.ok) throw new Error("Product not found");
+
+      const data = await res.json();
+
+      setProduct(data.product);
+      setRelatedProducts(data.related_products || []);
+      setQuestions(data.questions || []);
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchProductData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const res = await fetch(`${API_URL}/api/products/${id}`);
-        if (!res.ok) throw new Error("Product not found");
-
-        const data = await res.json();
-
-        setProduct(data.product);
-        setRelatedProducts(data.related_products || []);
-        setQuestions(data.questions || []);
-
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (id) fetchProductData();
+    if (id) {
+      setLoading(true);
+      fetchProductData();
+    }
   }, [id]);
 
   if (loading) return <div className="p-20 text-center text-2xl font-bold text-blue-600">Loading Product ID: {id}...</div>;
@@ -64,7 +67,9 @@ function ProductDetail() {
       <AskSeller
         productId={product.product_id}
         sellerName={product.seller?.full_name}
+        sellerId={product.seller_id}
         questions={questions}
+        onRefresh={fetchProductData}
       />
 
       <RelatedItems products={relatedProducts} />

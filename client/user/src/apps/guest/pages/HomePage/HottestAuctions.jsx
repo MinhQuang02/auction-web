@@ -60,14 +60,15 @@ const HottestAuctions = () => {
             const imageHeightClass = isLargeItem ? "h-[350px]" : "h-[291px]";
             const titleSizeClass = isLargeItem ? "text-xl" : "text-lg";
 
-            const imageUrl = product.main_image_url || product.images?.[0]?.image_url || "https://via.placeholder.com/300";
+            const imageUrl = product.main_image_url || "https://via.placeholder.com/300";
             const currentPrice = product.current_price || product.start_price;
-            const endDate = new Date(product.end_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            // For Hottest, 'bids' is included in `getFeaturedProducts`
+            const buyNowPrice = product.buy_now_price;
+            const startDate = new Date(product.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const endDate = new Date(product.end_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+            // Server masks it now
             const topBid = product.bids?.[0];
-            const bidderName = topBid?.bidder?.full_name
-              ? `***${topBid.bidder.full_name.split(' ').pop()}`
-              : "No Bids";
+            const bidderName = topBid?.bidder?.full_name ? `by ${topBid.bidder.full_name}` : "No Bids";
             const bidCount = product.bid_count;
 
             return (
@@ -75,19 +76,24 @@ const HottestAuctions = () => {
                 key={product.product_id}
                 className={`${colSpanClass} bg-[#F5F5F5] shadow-sm p-5 flex flex-col gap-4 rounded-b-lg group hover:shadow-lg transition-all duration-300`}
               >
-                {/* Product Image - Centered and Contained with MORE Padding to make it smaller */}
-                <div className={`w-full ${imageHeightClass} flex items-center justify-center bg-white rounded-t-3xl overflow-hidden p-8 lg:p-10`}>
+                {/* Product Image */}
+                <div className={`w-full ${imageHeightClass} flex items-center justify-center bg-white rounded-t-3xl overflow-hidden p-8 lg:p-10 relative`}>
                   <img
                     src={imageUrl}
                     alt={product.name}
                     className="max-w-full max-h-full object-contain transition-transform duration-500 group-hover:scale-110"
                   />
+                  {buyNowPrice && (
+                    <div className="absolute top-2 left-2 bg-[#AE9B84] text-white text-xs px-2 py-1 rounded">
+                      Buy Now: ${Number(buyNowPrice).toFixed(0)}
+                    </div>
+                  )}
                 </div>
 
                 {/* Date & Action Button */}
                 <div className="flex justify-between items-center">
-                  <div className="bg-[#1a1a1a] text-[#b3b3b2] text-xs px-3 py-2 rounded-full">
-                    {bidCount} Bids
+                  <div className="bg-[#1f1f1f] text-[#d1d1d6] text-xs px-3 py-1.5 rounded-full whitespace-nowrap">
+                    {startDate} - {endDate}
                   </div>
                   <Link
                     to={`/product/${product.product_id}`}
@@ -104,7 +110,7 @@ const HottestAuctions = () => {
                 </h3>
 
                 {/* Price & Author */}
-                <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-4 text-sm w-full">
                   <span className="text-gray-500">Price</span>
                   <span className="w-1 h-1 bg-[#ccc] rounded-full"></span>
                   <span className="font-medium text-black">
@@ -115,6 +121,10 @@ const HottestAuctions = () => {
                   <span className="w-1 h-1 bg-[#ccc] rounded-full"></span>
                   <span className="font-medium text-black">
                     {bidderName}
+                  </span>
+
+                  <span className="ml-auto text-xs text-gray-800 font-bold whitespace-nowrap">
+                    {bidCount} bids
                   </span>
                 </div>
               </div>

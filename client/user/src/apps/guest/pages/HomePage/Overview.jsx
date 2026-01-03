@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
-const FiveStars = () => (
+const FiveStars = ({ rating = 0 }) => (
   <div className="flex gap-0.5">
     {[1, 2, 3, 4, 5].map((star) => (
       <svg
@@ -9,7 +9,7 @@ const FiveStars = () => (
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
         fill="currentColor"
-        className="w-3 h-3 text-[#FFB800]"
+        className={`w-3 h-3 ${star <= Math.round(rating) ? 'text-[#FFB800]' : 'text-gray-300'}`}
       >
         <path
           fillRule="evenodd"
@@ -28,7 +28,7 @@ const Overview = () => {
   useEffect(() => {
     const fetchFeatured = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/products/featured");
+        const res = await fetch("http://localhost:8000/api/products/hero");
         if (res.ok) {
           const data = await res.json();
           setProducts(data);
@@ -68,11 +68,15 @@ const Overview = () => {
   }
 
   const product = products[currentIndex];
-  const imageUrl = product.main_image_url || product.images?.[0]?.image_url || "https://via.placeholder.com/800x400?text=No+Image";
+  // Server-side getRandomProducts ensures seller is unmasked
+  const sellerName = product.seller?.full_name || "Unknown Seller";
+  const sellerRating = product.seller?.avg_rating || 0;
+
+  const imageUrl = product.main_image_url || "https://via.placeholder.com/800x400?text=No+Image";
   const leadingBid = product.bids?.[0];
   const leadingPrice = leadingBid?.max_bid_amount || product.current_price || product.start_price;
   const leadingBidder = leadingBid?.bidder?.full_name
-    ? `by ***${leadingBid?.bidder?.full_name.split(' ').pop()}`
+    ? `by ${leadingBid.bidder.full_name}`
     : "No bids yet";
 
   // Calculate Time Remaining
@@ -127,8 +131,11 @@ const Overview = () => {
               </h2>
 
               <div className="flex items-center justify-center gap-2 mb-4">
-                <FiveStars />
-                <span className="text-sm font-semibold opacity-50">({product.bid_count} Bids)</span>
+                <FiveStars rating={sellerRating} />
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xs text-gray-400 font-serif italic">by</span>
+                  <span className="text-sm font-semibold opacity-50">{sellerName}</span>
+                </div>
               </div>
             </div>
           </div>
