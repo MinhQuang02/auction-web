@@ -384,6 +384,21 @@ const getHero = async (req, res) => {
   }
 };
 
+const placeBid = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount } = req.body;
+    const userId = req.auth.userId;
+
+    if (!amount) return res.status(400).json({ message: "Bid amount is required" });
+
+    const result = await productService.placeBid(userId, id, amount);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 export default {
   getProducts,
   getProductDetail,
@@ -404,4 +419,5 @@ export default {
   getMyActiveBids,
   payForProduct,
   getHero,
+  placeBid,
 };

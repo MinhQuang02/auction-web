@@ -12,6 +12,7 @@ import upgradeRoutes from "./routes/upgradeRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import configRoutes from "./routes/configRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
 import authContext from "./middlewares/authContext.js";
 import adminProductRoutes from "./routes/adminProductRoutes.js";
 import adminUserRoutes from "./routes/adminUserRoutes.js";
@@ -40,6 +41,7 @@ app.use("/api/watchlist", watchlistRoutes);
 app.use("/api/upgrades", upgradeRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/config", configRoutes);
+app.use("/api/messages", messageRoutes);
 
 app.use("/api/admin/products", requireRole("admin"), adminProductRoutes);
 app.use("/api/admin/users", requireRole("admin"), adminUserRoutes);

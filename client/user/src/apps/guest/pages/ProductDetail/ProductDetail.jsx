@@ -59,7 +59,7 @@ function ProductDetail() {
         className="container mx-auto px-5 lg:px-12 py-10 flex flex-col lg:flex-row gap-10"
       >
         <Sidebar />
-        <Product product={product} />
+        <Product product={product} onRefresh={fetchProductData} />
       </section>
 
       {isAuthenticated && <AuctionHistory bids={product.bids || []} />}

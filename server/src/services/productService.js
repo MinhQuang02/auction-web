@@ -65,39 +65,7 @@ const searchProducts = async ({
   ]);
 
   // Masking Logic Applied to List
-  const productsWithMasking = products.map((p) => {
-    // Mask Seller
-    let maskedSellerName = "***";
-    if (p.seller?.full_name) {
-      maskedSellerName = "***" + p.seller.full_name.trim().slice(-3);
-    }
-
-    // Mask Leading Bidder (if exists)
-    let maskedBidder = null;
-    if (p.bids && p.bids.length > 0) {
-      // Deep copy first bid to avoid mutating reference issues
-      const firstBid = { ...p.bids[0] };
-      if (firstBid.bidder?.full_name) {
-        firstBid.bidder = {
-          ...firstBid.bidder,
-          full_name: "***" + firstBid.bidder.full_name.trim().slice(-3)
-        };
-      } else {
-        // Fallback if bidder name missing
-        if (firstBid.bidder) firstBid.bidder.full_name = "***";
-      }
-      maskedBidder = [firstBid];
-    } else {
-      maskedBidder = [];
-    }
-
-    return {
-      ...p,
-      seller: { ...p.seller, full_name: maskedSellerName },
-      bids: maskedBidder
-    };
-  });
-
+  const productsWithMasking = maskProducts(products);
   return { products: productsWithMasking, total };
 };
 
@@ -132,23 +100,7 @@ const getProductById = async (productId) => {
   if (!product) return null;
 
   // Mask Bidder Names: *** + last 3 characters
-  const maskedBids = product.bids.map(bid => {
-    // Safety check if bidder is missing
-    if (!bid.bidder || !bid.bidder.full_name) {
-      return { ...bid, bidder: { ...bid.bidder, full_name: "***" } };
-    }
-
-    const fullName = bid.bidder.full_name.trim();
-    const maskedName = `***${fullName.slice(-3)}`;
-
-    return {
-      ...bid,
-      bidder: {
-        ...bid.bidder,
-        full_name: maskedName
-      }
-    };
-  });
+  const maskedProduct = maskProducts([product])[0];
 
   // Calculate generic payment status if winner
   let paymentStatus = 'Unpaid';
@@ -159,7 +111,7 @@ const getProductById = async (productId) => {
     else if (product.transaction.status === 'cancelled') paymentStatus = 'Cancelled';
   }
 
-  return { ...product, bids: maskedBids, paymentStatus };
+  return { ...maskedProduct, paymentStatus };
 };
 
 // 3. RELATED PRODUCTS
@@ -185,26 +137,8 @@ const getRelatedProducts = async (productId, categoryId) => {
   const shuffled = candidates.sort(() => 0.5 - Math.random());
 
   // Masking Logic (Essential for public view)
-  const selected = shuffled.slice(0, 5).map(p => {
-    // Mask Seller
-    let maskedSeller = "***";
-    if (p.seller?.full_name) maskedSeller = "***" + p.seller.full_name.trim().slice(-3);
-
-    // Mask Bidder (Leader)
-    const maskedBids = p.bids.map(b => {
-      let bName = "***";
-      if (b.bidder?.full_name) bName = "***" + b.bidder.full_name.trim().slice(-3);
-      return { ...b, bidder: { ...b.bidder, full_name: bName } };
-    });
-
-    return {
-      ...p,
-      seller: { ...p.seller, full_name: maskedSeller },
-      bids: maskedBids
-    };
-  });
-
-  return selected;
+  const selected = shuffled.slice(0, 5);
+  return maskProducts(selected);
 };
 
 const getReplacementProduct = async (excludeIds = [], categoryId = null) => {
@@ -240,17 +174,8 @@ const getReplacementProduct = async (excludeIds = [], categoryId = null) => {
   if (products.length === 0) return null;
 
   // Masking Logic (Duplicated from searchProducts - simplified)
-  const p = products[0];
-  let maskedSellerName = "***";
-  if (p.seller?.full_name) {
-    maskedSellerName = "***" + p.seller.full_name.trim().slice(-3);
-  }
-
-  return {
-    ...p,
-    seller: { ...p.seller, full_name: maskedSellerName }
-  };
-}
+  return maskProducts(products)[0];
+};
 
 // 4. GET SELLER PRODUCTS
 const getProductsBySellerId = async (sellerId) => {
@@ -635,27 +560,7 @@ const getRandomProducts = async (limit = 10) => {
     },
   });
 
-  // Manually mask ONLY bidders, leave Seller unmasked for Hero
-  return products.map((p) => {
-    // Mask Bids
-    const maskedBids = (p.bids || []).map((bid) => {
-      let maskedBidder = bid.bidder;
-      if (bid.bidder?.full_name) {
-        maskedBidder = {
-          ...bid.bidder,
-          full_name: "***" + bid.bidder.full_name.trim().slice(-3),
-        };
-      } else if (bid.bidder) {
-        maskedBidder = { ...bid.bidder, full_name: "***" };
-      }
-      return { ...bid, bidder: maskedBidder };
-    });
-
-    return {
-      ...p,
-      bids: maskedBids
-    };
-  });
+  return maskProducts(products);
 };
 
 
@@ -715,6 +620,7 @@ const getCompetitiveProducts = async (limit = 10) => {
 };
 
 // NEW: Create Transaction (Pay Now)
+// NEW: Create Transaction (Pay Now)
 const createTransaction = async (userId, productId, shippingData) => {
   const pId = parseInt(productId);
   const uId = parseInt(userId);
@@ -727,21 +633,38 @@ const createTransaction = async (userId, productId, shippingData) => {
 
   if (!product) throw new Error("Product not found");
   if (product.winner_id !== uId) throw new Error("You are not the winner of this item");
-  if (product.transaction) throw new Error("Transaction already exists");
 
-  // 2. Create Transaction
-  const transaction = await prisma.transaction.create({
-    data: {
-      product_id: pId,
-      buyer_id: uId,
-      seller_id: product.seller_id,
-      status: 'pending_shipping', // Payment simulated -> waiting shipping
-      shipping_address: JSON.stringify(shippingData),
-      payment_proof: 'Online Payment (Simulated)',
+  // 2. Handle Existing vs New Transaction
+  if (product.transaction) {
+    // If already paid, block
+    if (['completed', 'shipped', 'pending_shipping'].includes(product.transaction.status)) {
+      throw new Error("Transaction already completed or processing");
     }
-  });
 
-  return transaction;
+    // Update existing (e.g. from Chat 'pending_payment')
+    return await prisma.transaction.update({
+      where: { transaction_id: product.transaction.transaction_id },
+      data: {
+        status: 'completed', // User requested 'completed' upon payment
+        shipping_address: JSON.stringify(shippingData),
+        payment_proof: 'Online Payment (Simulated)',
+        // created_at: new Date() // Keep original creation time (e.g. chat start)
+      }
+    });
+  } else {
+    // Create New
+    return await prisma.transaction.create({
+      data: {
+        product_id: pId,
+        buyer_id: uId,
+        seller_id: product.seller_id,
+        // User requested 'completed' upon payment
+        status: 'completed',
+        shipping_address: JSON.stringify(shippingData),
+        payment_proof: 'Online Payment (Simulated)',
+      }
+    });
+  }
 };
 
 const getAuctionStats = async () => {
@@ -772,6 +695,99 @@ const getAuctionStats = async () => {
   };
 };
 
+// TASK 4: PLACE BID
+const placeBid = async (userId, productId, bidAmount) => {
+  const pId = parseInt(productId);
+  const uId = parseInt(userId);
+  const amount = parseFloat(bidAmount);
+
+  return await prisma.$transaction(async (tx) => {
+    // 1. Fetch Product (Fresh)
+    const product = await tx.product.findUnique({
+      where: { product_id: pId }
+    });
+
+    if (!product) throw new Error("Product not found");
+    // Validate Status
+    if (product.status !== 'active') throw new Error("Auction is not active");
+    if (new Date() > product.end_time) throw new Error("Auction has ended");
+    if (product.seller_id === uId) throw new Error("You cannot bid on your own product");
+
+    // Validate Amount
+    // If no bids yet, bid must be >= start_price
+    // If bids exist, bid must be >= current_price + step_price
+    // HOWEVER: The requirement says: "Current Leading Bid < User Bid <= Buy Now Price"
+    // And usually: User Bid >= Current Leading Bid + Step.
+
+    // We'll use strict logic:
+    // If bid_count == 0, minBid = start_price
+    // If bid_count > 0, minBid = current_price + step_price
+    let minBid = parseFloat(product.start_price);
+    if (product.bid_count > 0) {
+      minBid = parseFloat(product.current_price) + parseFloat(product.step_price);
+    }
+
+    if (amount < minBid) {
+      throw new Error(`Bid amount must be at least $${minBid}`);
+    }
+
+    if (product.buy_now_price && amount > parseFloat(product.buy_now_price)) {
+      throw new Error(`Bid cannot exceed Buy Now price ($${product.buy_now_price})`);
+    }
+
+    // 2. Auto-Extension (Anti-Sniping)
+    let newEndTime = product.end_time;
+    if (product.auto_extend_enabled) {
+      // Fetch Config
+      const configs = await tx.system_Config.findMany({
+        where: { setting_key: { in: ['update_times', 'append_times'] } }
+      });
+
+      // Default values if config missing: Check last 5 mins, add 10 mins
+      let updateTimeMinutes = 5;
+      let appendTimeMinutes = 10;
+
+      const updateTimeConfig = configs.find(c => c.setting_key === 'update_times');
+      const appendTimeConfig = configs.find(c => c.setting_key === 'append_times');
+
+      if (updateTimeConfig) updateTimeMinutes = parseInt(updateTimeConfig.setting_value) || 5;
+      if (appendTimeConfig) appendTimeMinutes = parseInt(appendTimeConfig.setting_value) || 10;
+
+      const now = new Date();
+      const timeRemainingMs = new Date(product.end_time) - now;
+      const updateTimeMs = updateTimeMinutes * 60 * 1000;
+
+      if (timeRemainingMs <= updateTimeMs && timeRemainingMs > 0) {
+        // Extend
+        newEndTime = new Date(new Date(product.end_time).getTime() + (appendTimeMinutes * 60 * 1000));
+      }
+    }
+
+    // 3. Create Bid History
+    const newBid = await tx.bid_History.create({
+      data: {
+        product_id: pId,
+        bidder_id: uId,
+        max_bid_amount: amount,
+        bid_time: new Date()
+      }
+    });
+
+    // 4. Update Product
+    const updatedProduct = await tx.product.update({
+      where: { product_id: pId },
+      data: {
+        current_price: amount,
+        current_bidder_id: uId,
+        bid_count: { increment: 1 },
+        end_time: newEndTime
+      }
+    });
+
+    return { bid: newBid, product: updatedProduct };
+  });
+};
+
 export default {
   searchProducts,
   getProductById,
@@ -794,4 +810,5 @@ export default {
   createTransaction,
   getAuctionStats,
   getRandomProducts,
+  placeBid,
 };

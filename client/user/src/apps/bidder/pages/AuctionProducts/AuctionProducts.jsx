@@ -71,8 +71,8 @@ const AuctionProducts = () => {
                       {/* Image Container */}
                       <div className="relative bg-[#F5F5F5] rounded h-[250px] flex items-center justify-center overflow-hidden">
                         {/* Badge: Winning or Outbid */}
-                        <div className={`absolute top-2 left-2 px-2 py-1 text-[10px] rounded text-white ${product.is_winning ? 'bg-green-500' : 'bg-red-500'}`}>
-                          {product.is_winning ? 'Winning' : 'Outbid'}
+                        <div className={`absolute top-2 left-2 px-2 py-1 text-[10px] rounded shadow-sm font-bold uppercase ${product.is_winning ? 'bg-[#AE9B84] text-white' : 'bg-[#D6C8B7] text-gray-700'}`}>
+                          {product.is_winning ? 'Leading' : 'Not Leading'}
                         </div>
 
                         <img

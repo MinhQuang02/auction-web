@@ -34,4 +34,7 @@ router.post("/questions/:questionId/reply", productController.answerQuestion); /
 
 router.post("/:id/cancel", productController.cancelTransaction);
 
+// Bidding
+router.post("/:id/bid", requireRole("bidder", "seller"), productController.placeBid);
+
 export default router;
