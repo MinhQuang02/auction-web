@@ -393,6 +393,31 @@ const getReplacement = async (req, res) => {
   }
 };
 
+const getHero = async (req, res) => {
+  try {
+    const limit = req.query.limit || 10;
+    const products = await productService.getRandomProducts(limit);
+    res.status(200).json(products);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const placeBid = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount } = req.body;
+    const userId = req.auth.userId;
+
+    if (!amount) return res.status(400).json({ message: "Bid amount is required" });
+
+    const result = await productService.placeBid(userId, id, amount);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 export default {
   getProducts,
   getProductDetail,
@@ -412,4 +437,6 @@ export default {
   getMyPurchases,
   getMyActiveBids,
   payForProduct,
+  getHero,
+  placeBid,
 };

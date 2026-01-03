@@ -17,7 +17,7 @@ const AuctionHistory = ({ bids = [] }) => {
                 </div>
 
                 {/* Table Body */}
-                <div className="flex flex-col text-sm md:text-base text-gray-600">
+                <div className={`flex flex-col text-sm md:text-base text-gray-600 ${bids.length > 5 ? 'h-[320px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300' : ''}`}>
                     {!hasData ? (
                         <div className="p-6 text-center text-gray-500">No bids yet. Be the first!</div>
                     ) : (

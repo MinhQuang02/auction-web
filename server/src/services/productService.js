@@ -73,6 +73,7 @@ const searchProducts = async ({
   ]);
 
   // Masking Logic Applied to List
+  const productsWithMasking = maskProducts(products);
   const productsWithMasking = products.map((p) => {
     // Mask Seller
     let maskedSellerName = "***";
@@ -140,6 +141,7 @@ const getProductById = async (productId) => {
   if (!product) return null;
 
   // Mask Bidder Names: *** + last 3 characters
+  const maskedProduct = maskProducts([product])[0];
   const maskedBids = product.bids.map((bid) => {
     // Safety check if bidder is missing
     if (!bid.bidder || !bid.bidder.full_name) {
@@ -169,21 +171,34 @@ const getProductById = async (productId) => {
       paymentStatus = "Cancelled";
   }
 
-  return { ...product, bids: maskedBids, paymentStatus };
+  return { ...maskedProduct, paymentStatus };
 };
 
 // 3. RELATED PRODUCTS
 const getRelatedProducts = async (productId, categoryId) => {
-  return await prisma.product.findMany({
+  // Fetch a pool of candidate products from the same category
+  // We fetch up to 20 to shuffle and pick 5, ensuring variety
+  const candidates = await prisma.product.findMany({
     where: {
       category_id: categoryId,
-      product_id: { not: parseInt(productId) }, // Exclude current
+      product_id: { not: parseInt(productId) },
       status: "active",
     },
-    take: 5,
-    orderBy: { end_time: "asc" }, // Ending soonest related items
-    include: { images: { take: 1 } },
+    take: 20,
+    orderBy: { start_time: 'desc' }, // Get recent ones
+    include: {
+      images: { take: 1 },
+      bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } },
+      seller: { select: { full_name: true, avg_rating: true, total_ratings: true } }
+    },
   });
+
+  // Shuffle array using Fisher-Yates or simple sort
+  const shuffled = candidates.sort(() => 0.5 - Math.random());
+
+  // Masking Logic (Essential for public view)
+  const selected = shuffled.slice(0, 5);
+  return maskProducts(selected);
 };
 
 const getReplacementProduct = async (excludeIds = [], categoryId = null) => {
@@ -221,6 +236,7 @@ const getReplacementProduct = async (excludeIds = [], categoryId = null) => {
   if (products.length === 0) return null;
 
   // Masking Logic (Duplicated from searchProducts - simplified)
+  return maskProducts(products)[0];
   const p = products[0];
   let maskedSellerName = "***";
   if (p.seller?.full_name) {
@@ -437,6 +453,10 @@ const getUserPurchases = async (userId) => {
       images: { take: 1 },
       seller: { select: { full_name: true } },
       transaction: true, // Get transaction status
+      ratings: {
+        where: { rater_id: parseInt(userId) },
+        take: 1
+      }
     },
     orderBy: { end_time: "desc" },
   });
@@ -445,6 +465,13 @@ const getUserPurchases = async (userId) => {
     // Determine payment status
     let paymentStatus = "Unpaid";
     if (p.transaction) {
+      // Logic for Paid/Unpaid mapping to Frontend
+      // 'pending_shipping', 'shipped', 'completed' => Paid
+      if (['completed', 'pending_shipping', 'shipped'].includes(p.transaction.status)) {
+        paymentStatus = 'Paid';
+      } else if (p.transaction.status === 'cancelled') {
+        paymentStatus = 'Cancelled';
+      }
       if (p.transaction.status === "completed") paymentStatus = "Paid";
       else if (p.transaction.status === "pending_shipping")
         paymentStatus = "Paid";
@@ -456,6 +483,8 @@ const getUserPurchases = async (userId) => {
     return {
       ...p,
       paymentStatus, // 'Paid', 'Unpaid', 'Cancelled'
+      canPay: !p.transaction || p.transaction.status === 'pending_payment',
+      hasRated: p.ratings.length > 0 // Boolean to check if user already rated
       canPay: !p.transaction || p.transaction.status === "pending_payment",
     };
   });
@@ -537,9 +566,89 @@ const cancelTransaction = async (sellerId, productId) => {
   });
 };
 
+// Helper: Mask Names
+const maskProducts = (products) => {
+  return products.map((p) => {
+    // Mask Seller
+    let maskedSeller = p.seller;
+    if (p.seller?.full_name) {
+      maskedSeller = {
+        ...p.seller,
+        full_name: "***" + p.seller.full_name.trim().slice(-3),
+      };
+    }
+
+    // Mask Bids
+    const maskedBids = (p.bids || []).map((bid) => {
+      let maskedBidder = bid.bidder;
+      if (bid.bidder?.full_name) {
+        maskedBidder = {
+          ...bid.bidder,
+          full_name: "***" + bid.bidder.full_name.trim().slice(-3),
+        };
+      } else if (bid.bidder) {
+        maskedBidder = { ...bid.bidder, full_name: "***" };
+      }
+      return { ...bid, bidder: maskedBidder };
+    });
+
+    // Mask Current Bidder
+    let maskedCurrentBidder = p.current_bidder;
+    if (p.current_bidder?.full_name) {
+      maskedCurrentBidder = {
+        ...p.current_bidder,
+        full_name: "***" + p.current_bidder.full_name.trim().slice(-3),
+      };
+    } else if (p.current_bidder) {
+      maskedCurrentBidder = { ...p.current_bidder, full_name: "***" };
+    }
+
+    return {
+      ...p,
+      seller: maskedSeller,
+      bids: maskedBids,
+      current_bidder: maskedCurrentBidder,
+    };
+  });
+};
+
+// NEW: Random Products for Hero
+const getRandomProducts = async (limit = 10) => {
+  const take = parseInt(limit);
+
+  // Get Random IDs
+  const rawIds = await prisma.$queryRaw`
+    SELECT product_id FROM "Product"
+    WHERE status = 'active' AND end_time > NOW()
+    ORDER BY RANDOM()
+    LIMIT ${take}
+  `;
+
+  if (!rawIds || rawIds.length === 0) return [];
+
+  const ids = rawIds.map((r) => r.product_id);
+
+  const products = await prisma.product.findMany({
+    where: { product_id: { in: ids } },
+    include: {
+      images: { take: 1 },
+      bids: {
+        take: 1,
+        orderBy: { max_bid_amount: "desc" },
+        include: { bidder: { select: { full_name: true } } },
+      },
+      seller: { select: { full_name: true, avg_rating: true } },
+      category: { include: { parent: true } },
+    },
+  });
+
+  return maskProducts(products);
+};
+
+
 // NEW: Featured Products (Top 10 by bid count) - Hottest
 const getFeaturedProducts = async (limit = 10) => {
-  return await prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: {
       status: "active",
       end_time: { gt: new Date() },
@@ -549,15 +658,19 @@ const getFeaturedProducts = async (limit = 10) => {
     include: {
       images: { take: 1 },
       category: { include: { parent: true } },
+      bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } },
+      seller: { select: { full_name: true } }
+    }
       bids: { take: 1, orderBy: { max_bid_amount: "desc" } },
       seller: { select: { full_name: true } },
     },
   });
+  return maskProducts(products);
 };
 
 // NEW: Ongoing Products (Top 10 ending soon) - Closing Soon
 const getOngoingProducts = async (limit = 10) => {
-  return await prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: {
       status: "active",
       end_time: { gt: new Date() },
@@ -567,13 +680,16 @@ const getOngoingProducts = async (limit = 10) => {
     include: {
       images: { take: 1 },
       current_bidder: { select: { full_name: true } },
+      bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } }, // Add bids to ensure we have bid info if needed
+    }
     },
   });
+  return maskProducts(products);
 };
 
 // NEW: Competitive Products (High Price/Value)
 const getCompetitiveProducts = async (limit = 10) => {
-  return await prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: {
       status: "active",
       end_time: { gt: new Date() },
@@ -582,12 +698,17 @@ const getCompetitiveProducts = async (limit = 10) => {
     orderBy: { current_price: "desc" }, // Highest Price
     include: {
       images: { take: 1 },
+      bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } },
+      seller: { select: { full_name: true } }
+    }
       bids: { take: 1, orderBy: { max_bid_amount: "desc" } },
       seller: { select: { full_name: true } },
     },
   });
+  return maskProducts(products);
 };
 
+// NEW: Create Transaction (Pay Now)
 // NEW: Create Transaction (Pay Now)
 const createTransaction = async (userId, productId, shippingData) => {
   const pId = parseInt(productId);
@@ -600,6 +721,14 @@ const createTransaction = async (userId, productId, shippingData) => {
   });
 
   if (!product) throw new Error("Product not found");
+  if (product.winner_id !== uId) throw new Error("You are not the winner of this item");
+
+  // 2. Handle Existing vs New Transaction
+  if (product.transaction) {
+    // If already paid, block
+    if (['completed', 'shipped', 'pending_shipping'].includes(product.transaction.status)) {
+      throw new Error("Transaction already completed or processing");
+    }
   if (product.winner_id !== uId)
     throw new Error("You are not the winner of this item");
   if (product.transaction) throw new Error("Transaction already exists");
@@ -616,7 +745,30 @@ const createTransaction = async (userId, productId, shippingData) => {
     },
   });
 
-  return transaction;
+    // Update existing (e.g. from Chat 'pending_payment')
+    return await prisma.transaction.update({
+      where: { transaction_id: product.transaction.transaction_id },
+      data: {
+        status: 'completed', // User requested 'completed' upon payment
+        shipping_address: JSON.stringify(shippingData),
+        payment_proof: 'Online Payment (Simulated)',
+        // created_at: new Date() // Keep original creation time (e.g. chat start)
+      }
+    });
+  } else {
+    // Create New
+    return await prisma.transaction.create({
+      data: {
+        product_id: pId,
+        buyer_id: uId,
+        seller_id: product.seller_id,
+        // User requested 'completed' upon payment
+        status: 'completed',
+        shipping_address: JSON.stringify(shippingData),
+        payment_proof: 'Online Payment (Simulated)',
+      }
+    });
+  }
 };
 
 const getAuctionStats = async () => {
@@ -647,6 +799,99 @@ const getAuctionStats = async () => {
   };
 };
 
+// TASK 4: PLACE BID
+const placeBid = async (userId, productId, bidAmount) => {
+  const pId = parseInt(productId);
+  const uId = parseInt(userId);
+  const amount = parseFloat(bidAmount);
+
+  return await prisma.$transaction(async (tx) => {
+    // 1. Fetch Product (Fresh)
+    const product = await tx.product.findUnique({
+      where: { product_id: pId }
+    });
+
+    if (!product) throw new Error("Product not found");
+    // Validate Status
+    if (product.status !== 'active') throw new Error("Auction is not active");
+    if (new Date() > product.end_time) throw new Error("Auction has ended");
+    if (product.seller_id === uId) throw new Error("You cannot bid on your own product");
+
+    // Validate Amount
+    // If no bids yet, bid must be >= start_price
+    // If bids exist, bid must be >= current_price + step_price
+    // HOWEVER: The requirement says: "Current Leading Bid < User Bid <= Buy Now Price"
+    // And usually: User Bid >= Current Leading Bid + Step.
+
+    // We'll use strict logic:
+    // If bid_count == 0, minBid = start_price
+    // If bid_count > 0, minBid = current_price + step_price
+    let minBid = parseFloat(product.start_price);
+    if (product.bid_count > 0) {
+      minBid = parseFloat(product.current_price) + parseFloat(product.step_price);
+    }
+
+    if (amount < minBid) {
+      throw new Error(`Bid amount must be at least $${minBid}`);
+    }
+
+    if (product.buy_now_price && amount > parseFloat(product.buy_now_price)) {
+      throw new Error(`Bid cannot exceed Buy Now price ($${product.buy_now_price})`);
+    }
+
+    // 2. Auto-Extension (Anti-Sniping)
+    let newEndTime = product.end_time;
+    if (product.auto_extend_enabled) {
+      // Fetch Config
+      const configs = await tx.system_Config.findMany({
+        where: { setting_key: { in: ['update_times', 'append_times'] } }
+      });
+
+      // Default values if config missing: Check last 5 mins, add 10 mins
+      let updateTimeMinutes = 5;
+      let appendTimeMinutes = 10;
+
+      const updateTimeConfig = configs.find(c => c.setting_key === 'update_times');
+      const appendTimeConfig = configs.find(c => c.setting_key === 'append_times');
+
+      if (updateTimeConfig) updateTimeMinutes = parseInt(updateTimeConfig.setting_value) || 5;
+      if (appendTimeConfig) appendTimeMinutes = parseInt(appendTimeConfig.setting_value) || 10;
+
+      const now = new Date();
+      const timeRemainingMs = new Date(product.end_time) - now;
+      const updateTimeMs = updateTimeMinutes * 60 * 1000;
+
+      if (timeRemainingMs <= updateTimeMs && timeRemainingMs > 0) {
+        // Extend
+        newEndTime = new Date(new Date(product.end_time).getTime() + (appendTimeMinutes * 60 * 1000));
+      }
+    }
+
+    // 3. Create Bid History
+    const newBid = await tx.bid_History.create({
+      data: {
+        product_id: pId,
+        bidder_id: uId,
+        max_bid_amount: amount,
+        bid_time: new Date()
+      }
+    });
+
+    // 4. Update Product
+    const updatedProduct = await tx.product.update({
+      where: { product_id: pId },
+      data: {
+        current_price: amount,
+        current_bidder_id: uId,
+        bid_count: { increment: 1 },
+        end_time: newEndTime
+      }
+    });
+
+    return { bid: newBid, product: updatedProduct };
+  });
+};
+
 export default {
   searchProducts,
   getProductById,
@@ -668,4 +913,6 @@ export default {
   getUserActiveBids,
   createTransaction,
   getAuctionStats,
+  getRandomProducts,
+  placeBid,
 };

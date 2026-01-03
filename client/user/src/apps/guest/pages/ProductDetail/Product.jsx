@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "../../../../components/ui/Toast";
 
-// Remove the static import
-// import mainProductImg from "@assets/images/_gamepadImg.png"; 
-
-const Product = ({ product }) => {
+const Product = ({ product, onRefresh }) => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const { addToast } = useToast();
 
-  // State for image gallery
   const [activeImage, setActiveImage] = useState("");
   const [allImages, setAllImages] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [bidAmount, setBidAmount] = useState(0);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
+  const [placingBid, setPlacingBid] = useState(false);
+  const [isSimulatedAutoBid, setIsSimulatedAutoBid] = useState(false);
   const token = localStorage.getItem('token');
   const API_URL = import.meta.env.VITE_API_URL;
 
@@ -91,12 +91,28 @@ const Product = ({ product }) => {
       }
 
       // Set initial bid amount
-      const nextBid = (product.current_price || product.start_price) + (product.step_price || 10);
-      setBidAmount(nextBid);
+      const currentPrice = Number(product.current_price || 0);
+      // User Request: Initial display must be exactly the Highest Price (Current Price)
+      setBidAmount(currentPrice);
     }
   }, [product]);
 
   if (!product) return null;
+
+  // Constants to use in render
+  const currentPrice = Number(product.current_price || 0);
+  const stepPrice = Number(product.step_price || 0);
+  // const startPrice = Number(product.start_price || 0);
+  const buyNowPrice = product.buy_now_price ? Number(product.buy_now_price) : null;
+
+  // Logic: 
+  // - Input Floor: currentPrice (User wants to see leading price)
+  // - Submit Floor: 
+  //    If bid_count == 0, Submit >= currentPrice.
+  //    If bid_count > 0, Submit >= currentPrice + stepPrice.
+
+  const inputFloor = currentPrice;
+  const submitFloor = product.bid_count > 0 ? (currentPrice + stepPrice) : currentPrice;
 
   // Helper: Open Modal logic
   const openModal = (imgSrc) => {
@@ -149,6 +165,51 @@ const Product = ({ product }) => {
     </div>
   );
 
+  const handleBid = async () => {
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    // Final Client-Side Validation
+    if (product.status !== 'active') {
+      addToast("This auction is not active.", "error");
+      return;
+    }
+
+    if (isSimulatedAutoBid) {
+      addToast(`Auto Bidding set to maximum $${bidAmount} successfully!`, "success");
+      setIsSimulatedAutoBid(false);
+      setBidAmount(inputFloor);
+      return;
+    }
+
+    setPlacingBid(true);
+    try {
+      const res = await fetch(`${API_URL}/api/products/${product.product_id}/bid`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ amount: bidAmount })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        addToast("Success! You are the highest bidder.", "success");
+        if (onRefresh) onRefresh();
+      } else {
+        addToast(data.message || "Failed to place bid", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      addToast("Network error. Please try again.", "error");
+    } finally {
+      setPlacingBid(false);
+    }
+  };
+
   return (
     <div className="flex-grow bg-white p-0 font-sans text-[#1f1f1f]">
       {/* Breadcrumbs - Compact */}
@@ -176,8 +237,17 @@ const Product = ({ product }) => {
               <div className="text-gray-400">No Image</div>
             )}
             {/* Status Badge */}
-            <div className="absolute top-4 left-4 bg-[#AE9B84] text-white text-xs px-2 py-1 rounded shadow-md">
-              {product.status === 'active' ? 'Live Auction' : product.status}
+            <div className={`absolute top-4 left-4 text-white text-xs px-2 py-1 rounded shadow-md font-semibold
+              ${product.status === 'active' ? 'bg-[#AE9B84]' :
+                product.status === 'sold' ? 'bg-[#C1A27D]' :
+                  product.status === 'ended_no_winner' ? 'bg-gray-500' : 'bg-red-500'
+              }`}>
+              {
+                product.status === 'active' ? 'Live Auction'
+                  : product.status === 'sold' ? 'Sold'
+                    : product.status === 'ended_no_winner' ? 'Ended / No Winner'
+                      : product.status
+              }
             </div>
           </div>
 
@@ -231,13 +301,13 @@ const Product = ({ product }) => {
 
           {/* Rating & Views */}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
-            {renderStars(product.seller?.rating || 4)}
-            <span className="text-sm text-gray-500">
-              ({product.seller?.reviews_count || product.view_count || 120} reviews)
+            {renderStars(Number(product.seller?.avg_rating || 0))}
+            <span className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer transition">
+              ({product.seller?.total_ratings || 0} reviews)
             </span>
             <span className="text-gray-300">|</span>
             <span className="text-[#1f1f1f] text-sm font-medium">
-              Seller: {product.seller?.full_name || "StyleLoom Seller"}
+              Seller: {product.seller?.full_name || "Unknown Seller"}
             </span>
           </div>
 
@@ -299,34 +369,55 @@ const Product = ({ product }) => {
               <div className="flex gap-3 h-[48px] mt-2">
                 <div className="flex flex-1 border border-gray-300 rounded-lg overflow-hidden">
                   <button
-                    onClick={() => setBidAmount(Math.max((product.current_price + product.step_price), bidAmount - product.step_price))}
-                    className="w-[48px] bg-gray-50 hover:bg-gray-100 text-xl text-gray-600 border-r"
+                    onClick={() => {
+                      if (isSimulatedAutoBid && bidAmount <= inputFloor) {
+                        setIsSimulatedAutoBid(false);
+                        setBidAmount(buyNowPrice || inputFloor);
+                      } else {
+                        setBidAmount(Math.max(inputFloor, bidAmount - stepPrice));
+                      }
+                    }}
+                    className={`w-[48px] bg-gray-50 text-xl text-gray-600 border-r hover:bg-gray-100`}
                   >
                     -
                   </button>
                   <input
                     type="text"
-                    value={`$${bidAmount}`}
+                    value={isSimulatedAutoBid ? `Auto Bidding: $${bidAmount.toLocaleString()}` : `$${bidAmount.toLocaleString()}`}
                     readOnly
-                    className="flex-1 text-center font-bold text-[#1f1f1f] border-none outline-none"
+                    className={`flex-1 text-center font-bold border-none outline-none bg-white ${isSimulatedAutoBid ? 'text-[#AE9B84] text-xs' : 'text-[#1f1f1f] text-base'}`}
                   />
                   <button
                     onClick={() => {
-                      const nextVal = bidAmount + product.step_price;
-                      // If adding step price exceeds buy now price, cap it at buy now price
-                      if (product.buy_now_price && nextVal > product.buy_now_price) {
-                        setBidAmount(product.buy_now_price);
+                      const nextVal = bidAmount + stepPrice;
+                      if (!isSimulatedAutoBid) {
+                        // Manual Mode
+                        if (buyNowPrice && nextVal > buyNowPrice) {
+                          setIsSimulatedAutoBid(true);
+                          setBidAmount(inputFloor);
+                        } else {
+                          setBidAmount(nextVal);
+                        }
                       } else {
-                        setBidAmount(nextVal);
+                        // Auto Mode
+                        if (buyNowPrice && nextVal > buyNowPrice) {
+                          setBidAmount(buyNowPrice);
+                        } else {
+                          setBidAmount(nextVal);
+                        }
                       }
                     }}
-                    className="w-[48px] bg-gray-50 hover:bg-gray-100 text-xl text-gray-600 border-l"
+                    className={`w-[48px] bg-gray-50 text-xl text-gray-600 border-l ${(isSimulatedAutoBid && buyNowPrice && bidAmount >= buyNowPrice) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
                   >
                     +
                   </button>
                 </div>
-                <button className="bg-[#AE9B84] text-white px-8 rounded-lg font-bold hover:bg-[#9c8a74] transition shadow-md">
-                  BID
+                <button
+                  onClick={handleBid}
+                  disabled={placingBid || product.status !== 'active' || bidAmount < submitFloor}
+                  className={`px-8 rounded-lg font-bold shadow-md transition ${(product.status !== 'active' || bidAmount < submitFloor) ? 'bg-[#E5DFD5] text-gray-400 cursor-not-allowed' : 'bg-[#AE9B84] hover:bg-[#9c8a74] text-white'}`}
+                >
+                  {placingBid ? "..." : "BID"}
                 </button>
                 <button
                   onClick={handleToggleWatchlist}

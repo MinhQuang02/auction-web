@@ -9,6 +9,7 @@ const SearchResults = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [watchlistIds, setWatchlistIds] = useState(new Set());
+    const [sortBy, setSortBy] = useState("time_desc");
     const [config, setConfig] = useState({ time_limited: 60 });
 
     // Pagination State
@@ -65,8 +66,8 @@ const SearchResults = () => {
         const fetchProducts = async () => {
             setLoading(true);
             try {
-                // Fetch using pagination params
-                const res = await fetch(`${API_URL}/api/products?keyword=${encodeURIComponent(keyword)}&page=${currentPage}&limit=${itemsPerPage}`);
+                // Fetch using pagination params and sorting
+                const res = await fetch(`${API_URL}/api/products?keyword=${encodeURIComponent(keyword)}&page=${currentPage}&limit=${itemsPerPage}&sort_by=${sortBy}`);
                 if (res.ok) {
                     const data = await res.json();
 
@@ -80,18 +81,18 @@ const SearchResults = () => {
                         setTotalPages(data.totalPages || 1);
                     }
 
-                    // Apply Highlight Logic
+                    // Apply New Arrival Logic
                     const now = new Date();
-                    const limitMinutes = parseInt(config.time_limited) || 60;
+                    const limitMinutes = parseInt(config.time_limited) || 60; // Using config for "New" threshold
 
                     fetchedProducts = fetchedProducts.map(p => {
-                        const endTime = new Date(p.end_time);
-                        const diffMs = endTime - now;
+                        const createdTime = new Date(p.created_at);
+                        const diffMs = now - createdTime;
                         const diffMins = Math.floor(diffMs / 60000);
                         return {
                             ...p,
-                            // Highlight if remaining time < configured time AND it hasn't ended
-                            is_highlighted: diffMins > 0 && diffMins < limitMinutes
+                            // Highlight if created within N minutes
+                            is_highlighted: diffMins >= 0 && diffMins <= limitMinutes
                         };
                     });
 
@@ -109,7 +110,7 @@ const SearchResults = () => {
             setProducts([]);
             setLoading(false);
         }
-    }, [keyword, config, currentPage]); // Added currentPage dependency
+    }, [keyword, config, currentPage, sortBy]); // Added sortBy dependency
 
     const handleToggleWatchlist = async (product) => {
         if (!token) {
@@ -169,7 +170,18 @@ const SearchResults = () => {
         <section className="container mx-auto px-5 lg:px-12 py-10 flex flex-col lg:flex-row gap-10 min-h-[60vh]">
             <Sidebar />
             <div className="flex-1 flex flex-col">
-                <h2 className="text-xl font-bold mb-6">Search Results for "{keyword}"</h2>
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold">Search Results for "{keyword}"</h2>
+
+                    <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="px-4 py-2 border border-gray-300 rounded-md text-sm text-[#1f1f1f] bg-white focus:outline-none focus:border-[#AE9B84] transition shadow-sm"
+                    >
+                        <option value="time_desc">End Time: Descending</option>
+                        <option value="price_asc">Price: Low to High</option>
+                    </select>
+                </div>
                 {loading ? (
                     <div className="text-center py-20 text-gray-400">Loading...</div>
                 ) : (

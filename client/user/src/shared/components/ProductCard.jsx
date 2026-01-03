@@ -108,8 +108,14 @@ const ProductCard = ({ product, isWatchlisted, onToggleWatchlist, onHide, classN
                 className="font-medium text-base mb-2 truncate"
                 title={product.name}
             >
-                {product.name}
+                {product.name} {product.bid_count > 0 ? `(${product.bid_count} bids)` : ''}
             </h3>
+
+            {/* Date Range */}
+            <div className="text-xs text-gray-500 mb-2">
+                {new Date(product.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {new Date(product.end_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </div>
+
             <div className="flex gap-3 items-center mb-2">
                 <span className="text-[#AE9B84] font-medium">
                     ${Number(currentPrice).toFixed(2)}
