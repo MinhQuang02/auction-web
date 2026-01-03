@@ -1,9 +1,7 @@
 import { useState } from "react";
-
 import { apiFetch } from "@utils/ApiFetch.jsx";
 
 const API_URL = import.meta.env.VITE_API_URL;
-const token = localStorage.getItem("token");
 
 const toLocalDateTimeInput = (dateString) => {
   const date = new Date(dateString);
@@ -14,7 +12,6 @@ const toLocalDateTimeInput = (dateString) => {
 const AuctionEditForm = ({ auction, onSaved }) => {
   const [form, setForm] = useState({
     name: auction.name,
-    description: auction.description,
     end_time: toLocalDateTimeInput(auction.end_time),
     buy_now_price: auction.buy_now_price ?? "",
     status: auction.status,
@@ -37,7 +34,6 @@ const AuctionEditForm = ({ auction, onSaved }) => {
         },
         body: JSON.stringify({
           name: form.name,
-          description: form.description,
           end_time: utcEndTime,
           buy_now_price: form.buy_now_price || null,
           status: form.status,
@@ -55,59 +51,57 @@ const AuctionEditForm = ({ auction, onSaved }) => {
   };
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-5 p-4">
       <h2 className="text-xl font-bold">Edit Auction</h2>
 
-      <input
-        className="w-full border p-2 rounded"
-        name="name"
-        value={form.name}
-        onChange={handleChange}
-        placeholder="Product name"
-      />
+      {/* Product Name */}
+      <div className="space-y-1">
+        <label className="text-sm font-medium text-gray-700">
+          Product Name
+        </label>
+        <input
+          className="w-full border p-2 rounded"
+          name="name"
+          value={form.name}
+          onChange={handleChange}
+        />
+      </div>
 
-      <textarea
-        className="w-full border p-2 rounded"
-        name="description"
-        rows={4}
-        value={form.description}
-        onChange={handleChange}
-      />
+      {/* End Time */}
+      <div className="space-y-1">
+        <label className="text-sm font-medium text-gray-700">
+          Auction End Time
+        </label>
+        <input
+          type="datetime-local"
+          name="end_time"
+          value={form.end_time}
+          onChange={handleChange}
+          className="w-full border p-2 rounded"
+        />
+      </div>
 
-      <input
-        type="datetime-local"
-        name="end_time"
-        value={form.end_time}
-        onChange={handleChange}
-        className="w-full border p-2 rounded"
-      />
+      {/* Buy Now Price */}
+      <div className="space-y-1">
+        <label className="text-sm font-medium text-gray-700">
+          Buy Now Price
+        </label>
+        <input
+          type="number"
+          name="buy_now_price"
+          value={form.buy_now_price}
+          onChange={handleChange}
+          className="w-full border p-2 rounded"
+          placeholder="Leave empty to disable"
+        />
+      </div>
 
-      <input
-        type="number"
-        name="buy_now_price"
-        value={form.buy_now_price}
-        onChange={handleChange}
-        className="w-full border p-2 rounded"
-        placeholder="Buy now price"
-      />
-
-      {/* <select
-        name="status"
-        value={form.status}
-        onChange={handleChange}
-        className="w-full border p-2 rounded"
-      >
-        <option value="active">Active</option>
-        <option value="ended">Ended</option>
-        <option value="cancelled">Cancelled</option>
-      </select> */}
-
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end pt-2">
         <button
           onClick={submit}
           className="px-4 py-2 bg-primary text-white rounded"
         >
-          Save
+          Save Changes
         </button>
       </div>
     </div>

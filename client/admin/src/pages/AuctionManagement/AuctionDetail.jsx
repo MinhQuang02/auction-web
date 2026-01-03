@@ -56,9 +56,12 @@ const AuctionDetail = ({ auction }) => {
         <div>
           <h3 className="font-semibold mb-2">Bid History</h3>
 
-          <div className="border rounded divide-y text-sm">
-            {auction.bids.map((bid, i) => (
-              <div key={bid.bid_id} className="flex justify-between px-3 py-2">
+          <div className="max-h-64 overflow-y-auto border rounded divide-y text-sm">
+            {auction.bids.map((bid) => (
+              <div
+                key={bid.bid_id}
+                className="flex justify-between px-3 py-2 hover:bg-gray-50"
+              >
                 <div>
                   <div className="font-medium">
                     {bid.bidder?.full_name ?? "Unknown bidder"}
