@@ -78,7 +78,6 @@ const ProductQA = ({ productId, sellerId }) => {
                 <div className="flex items-start gap-4">
                     <div className="bg-gray-100 p-2 rounded-full font-bold text-gray-500">Q</div>
                     <div className="flex-1">
-                        {/* UPDATED FIELD NAME */}
                         <p className="font-semibold text-gray-900">{q.question_text}</p>
                         <p className="text-xs text-gray-400 mt-1">
                             by {q.asker?.full_name} • {new Date(q.question_time).toLocaleDateString()}
@@ -87,7 +86,6 @@ const ProductQA = ({ productId, sellerId }) => {
                 </div>
 
                 {/* Answer Section */}
-                {/* UPDATED FIELD NAME */}
                 {q.answer_text && (
                     <div className="flex items-start gap-4 mt-4 ml-8 border-l-4 border-[#AD9C86] pl-4">
                         <div className="bg-[#AD9C86] text-white p-2 rounded-full font-bold text-xs">A</div>

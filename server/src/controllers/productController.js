@@ -23,8 +23,6 @@ const getProducts = async (req, res) => {
       status,
     });
 
-    // "New" Badge Logic (Req 1.4)
-    // Mark as new if posted within the last 60 minutes (adjust as needed)
     const NEW_THRESHOLD_MINUTES = 60;
     const now = new Date();
 
@@ -55,28 +53,23 @@ const getProducts = async (req, res) => {
 const getProductDetail = async (req, res) => {
   try {
     const { id } = req.params;
-
-    // FIX: Convert String ID ("1") to Integer (1)
     const productId = parseInt(id);
 
     if (isNaN(productId)) {
       return res.status(400).json({ message: "Invalid Product ID" });
     }
 
-    // Pass the Integer ID, not the String
     const product = await productService.getProductById(productId);
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    // Fetch related products
     const related = await productService.getRelatedProducts(
       productId,
       product.category_id
     );
 
-    // Fetch questions
     const questions = await productService.getProductQuestions(productId);
 
     res.status(200).json({
@@ -93,7 +86,6 @@ const getProductDetail = async (req, res) => {
 // 3. CREATE PRODUCT (Seller Feature)
 const createProduct = async (req, res) => {
   try {
-    // Ensure user is authenticated
     if (!req.auth || !req.auth.userId) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -108,7 +100,7 @@ const createProduct = async (req, res) => {
       end_time,
       category_id,
       auto_extend_enabled,
-      images, // Expecting an array of URL strings
+      images, 
     } = req.body;
 
     // Validation
@@ -122,23 +114,21 @@ const createProduct = async (req, res) => {
         .json({ message: "You must provide at least 3 images." });
     }
 
-    // Create Product in Database
     const newProduct = await prisma.product.create({
       data: {
         name,
         description,
         start_price: parseFloat(start_price),
         step_price: parseFloat(step_price),
-        current_price: parseFloat(start_price), // Current price starts equal to start price
+        current_price: parseFloat(start_price), 
         buy_now_price: buy_now_price ? parseFloat(buy_now_price) : null,
         end_time: new Date(end_time),
         auto_extend_enabled: !!auto_extend_enabled,
         seller_id: sellerId,
         category_id: parseInt(category_id),
-        main_image_url: images[0], // Set the first image as main
+        main_image_url: images[0], 
         status: "active",
 
-        // Create associated images in Product_Image table
         images: {
           create: images.map((url) => ({ image_url: url })),
         },
@@ -158,7 +148,7 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { description } = req.body; // We only expect the NEW description here
+    const { description } = req.body; 
     const userId = req.auth.userId;
 
     // 1. Find the product
@@ -176,7 +166,6 @@ const updateProduct = async (req, res) => {
     }
 
     // 3. Append Logic
-    // We add a timestamp header to distinguish the new info
     const timestamp = new Date().toLocaleString();
     const appendContent = `
             <div class="append-section" style="margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 10px;">
@@ -222,7 +211,7 @@ const getSellerProducts = async (req, res) => {
 
 const rejectBidder = async (req, res) => {
   try {
-    const { id } = req.params; // Product ID
+    const { id } = req.params;
     const { bidderId } = req.body;
     const sellerId = req.auth.userId;
 
@@ -357,8 +346,8 @@ const payForProduct = async (req, res) => {
   try {
     if (!req.auth || !req.auth.userId)
       return res.status(401).json({ message: "Unauthorized" });
-    const { id } = req.params; // Product ID
-    const shippingData = req.body; // Full body as shipping data for now
+    const { id } = req.params; 
+    const shippingData = req.body; 
 
     const transaction = await productService.createTransaction(
       req.auth.userId,
@@ -374,7 +363,7 @@ const payForProduct = async (req, res) => {
 
 const getReplacement = async (req, res) => {
   try {
-    const { excludeIds, categoryId } = req.query; // Expecting comma separated string "1,2,3" and optional categoryId
+    const { excludeIds, categoryId } = req.query; 
     let ids = [];
     if (excludeIds) {
       ids = excludeIds.split(",").map((s) => s.trim());
@@ -383,7 +372,6 @@ const getReplacement = async (req, res) => {
     const product = await productService.getReplacementProduct(ids, categoryId);
 
     if (!product) {
-      // Handle case where no products available
       return res.status(404).json({ message: "No replacement available" });
     }
 
@@ -391,6 +379,23 @@ const getReplacement = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+const placeBid = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { amount } = req.body;
+        const userId = req.auth.userId; 
+
+        if (!amount) return res.status(400).json({ message: "Bid amount is required" });
+
+        const bid = await productService.placeBid(userId, id, amount);
+        
+        res.status(201).json({ message: "Bid placed successfully", bid });
+    } catch (error) {
+        console.error("Bid Error:", error.message);
+        res.status(400).json({ message: error.message });
+    }
 };
 
 export default {
@@ -412,4 +417,5 @@ export default {
   getMyPurchases,
   getMyActiveBids,
   payForProduct,
+  placeBid,
 };

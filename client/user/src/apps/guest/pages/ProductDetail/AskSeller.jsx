@@ -1,97 +1,153 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
+import Panel from "@shared/components/Panel";
 import { useAuth } from "@context/AuthContext";
 
-const AskSeller = ({ questions = [], productId }) => {
-    const { isAuthenticated } = useAuth();
-    const [activeIndex, setActiveIndex] = useState(null);
+const API_URL = import.meta.env.VITE_API_URL;
 
-    const toggleFaq = (index) => {
-        setActiveIndex(activeIndex === index ? null : index);
-    };
+const AskSeller = ({ productId, sellerName, isOwner }) => {
+  const { isAuthenticated } = useAuth();
+  
+  const [questions, setQuestions] = useState([]);
+  const [newQuestion, setNewQuestion] = useState("");
+  const [replyText, setReplyText] = useState("");
+  const [activeReplyId, setActiveReplyId] = useState(null);
 
-    const hasData = questions.length > 0;
+  // Fetch Questions
+  const fetchQuestions = async () => {
+    try {
+        const res = await fetch(`${API_URL}/api/products/${productId}/questions`);
+        if (res.ok) setQuestions(await res.json());
+    } catch (err) {
+        console.error("QA Fetch Error", err);
+    }
+  };
 
-    return (
-        <section id="ask-seller" className="container mx-auto px-5 lg:px-12 py-10 font-sans text-[#1f1f1f]">
+  useEffect(() => {
+    if (productId) fetchQuestions();
+  }, [productId]);
 
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-10 tracking-wide">Ask the Seller</h2>
+  // Post Question
+  const handleAsk = async () => {
+    if (!newQuestion.trim()) return;
+    try {
+        const token = localStorage.getItem("token");
+        await fetch(`${API_URL}/api/products/${productId}/questions`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json", 
+                Authorization: `Bearer ${token}` 
+            },
+            body: JSON.stringify({ content: newQuestion })
+        });
+        setNewQuestion("");
+        fetchQuestions();
+    } catch (err) {
+        alert("Failed to post question. Please login.");
+    }
+  };
 
-            <div className="bg-[#F5F5F5] rounded-2xl shadow-lg p-6 md:p-10">
+  // Post Reply (Seller Only)
+  const handleReply = async (questionId) => {
+    if (!replyText.trim()) return;
+    try {
+        const token = localStorage.getItem("token");
+        await fetch(`${API_URL}/api/products/questions/${questionId}/reply`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json", 
+                Authorization: `Bearer ${token}` 
+            },
+            body: JSON.stringify({ answer: replyText })
+        });
+        setReplyText("");
+        setActiveReplyId(null);
+        fetchQuestions();
+    } catch (err) {
+        alert("Failed to reply");
+    }
+  };
 
-                {/* FAQ List Container */}
-                <div className="flex flex-col gap-2" id="faq-container">
-                    {!hasData ? (
-                        <div className="text-center text-gray-500 italic py-4">No questions asked yet.</div>
-                    ) : (
-                        questions.map((item, index) => {
-                            const isOpen = activeIndex === index;
-                            // Backend: question_text, answer_text, asker: { full_name }
-                            // We need to mask asker name if not masked? It should be masked ideally. 
-                            // Or format logic: ***name
-                            const authorName = item.asker?.full_name || "Anonymous";
-                            const questionText = item.question_text || "No text";
-                            const answerText = item.answer_text || "Waiting for seller response...";
+  return (
+    <section className="container mx-auto px-5 lg:px-12 py-10">
+      <Panel className="p-8 rounded-2xl bg-white shadow-sm border border-gray-100">
+        <h3 className="text-2xl font-bold mb-6">Questions & Answers</h3>
+        
+        {/* Ask Question Box (Only for Non-Sellers) */}
+        {!isOwner && isAuthenticated && (
+            <div className="mb-8 flex gap-4">
+                <input 
+                    className="flex-1 border border-gray-300 rounded-xl px-4 py-3 outline-none focus:border-[#AD9C86]"
+                    placeholder={`Ask ${sellerName || "the seller"} a question...`}
+                    value={newQuestion}
+                    onChange={(e) => setNewQuestion(e.target.value)}
+                />
+                <button 
+                    onClick={handleAsk}
+                    className="bg-black text-white px-6 py-3 rounded-xl font-bold hover:bg-gray-800"
+                >
+                    Ask
+                </button>
+            </div>
+        )}
 
-                            return (
-                                <div
-                                    key={item.question_id || index}
-                                    className={`faq-item rounded-xl transition-all duration-300 overflow-hidden cursor-pointer border border-transparent hover:bg-gray-200/50 ${isOpen ? 'bg-white shadow-sm' : ''}`}
-                                    onClick={() => toggleFaq(index)}
-                                >
-                                    {/* Question Header */}
-                                    <div className="flex justify-between items-start p-3 md:p-4">
+        {/* Questions List */}
+        <div className="space-y-6">
+            {questions.length === 0 && (
+                <p className="text-gray-400 text-center py-4">No questions yet. Be the first to ask!</p>
+            )}
 
-                                        <div className="flex flex-col gap-1 md:flex-row md:items-baseline md:gap-2 w-full pr-8 md:pr-4">
-                                            <h3 className="font-bold text-sm md:text-base leading-snug">{questionText}</h3>
-                                            <span className="text-xs text-gray-500 font-medium whitespace-nowrap">by {authorName}</span>
-                                        </div>
+            {questions.map((q) => (
+                <div key={q.question_id} className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+                    <div className="flex gap-3">
+                        <div className="bg-gray-200 text-gray-600 w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs">Q</div>
+                        <div className="flex-1">
+                            <p className="font-semibold text-gray-900">{q.question_text}</p>
+                            <p className="text-xs text-gray-400 mt-1">by {q.asker?.full_name} • {new Date(q.question_time).toLocaleDateString()}</p>
+                        </div>
+                    </div>
 
-                                        {/* Toggle Icon (Giữ vị trí bên phải) */}
-                                        <div className={`faq-btn w-8 h-8 rounded-md flex flex-none items-center justify-center transition-all duration-300 bg-[#E0E0E0] text-gray-600`}>
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                strokeWidth="2"
-                                                stroke="currentColor"
-                                                className={`w-4 h-4 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
-                                            >
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                            </svg>
-                                        </div>
-                                    </div>
+                    {/* Answer (If exists) */}
+                    {q.answer_text && (
+                        <div className="flex gap-3 mt-4 ml-6 pl-4 border-l-2 border-[#AD9C86]">
+                            <div className="bg-[#AD9C86] text-white w-8 h-8 flex items-center justify-center rounded-full font-bold text-xs">A</div>
+                            <div className="flex-1">
+                                <p className="text-gray-800">{q.answer_text}</p>
+                                <p className="text-xs text-gray-400 mt-1">Seller Response</p>
+                            </div>
+                        </div>
+                    )}
 
-                                    {/* Answer Content */}
-                                    <div
-                                        className={`px-4 text-sm text-gray-600 leading-relaxed transition-all duration-300 ease-in-out ${isOpen ? 'max-h-40 pb-6 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}
-                                    >
-                                        {answerText}
-                                    </div>
+                    {/* Seller Reply Input (If Owner & No Answer yet) */}
+                    {isOwner && !q.answer_text && (
+                        <div className="mt-4 ml-11">
+                            {activeReplyId === q.question_id ? (
+                                <div className="flex gap-2">
+                                    <input 
+                                        className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                                        placeholder="Type your answer..."
+                                        value={replyText}
+                                        onChange={(e) => setReplyText(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <button onClick={() => handleReply(q.question_id)} className="bg-[#AD9C86] text-white px-4 rounded-lg text-sm">Send</button>
+                                    <button onClick={() => setActiveReplyId(null)} className="text-gray-500 text-sm">Cancel</button>
                                 </div>
-                            );
-                        })
+                            ) : (
+                                <button 
+                                    onClick={() => setActiveReplyId(q.question_id)}
+                                    className="text-sm text-[#AD9C86] font-bold hover:underline"
+                                >
+                                    Reply to this question
+                                </button>
+                            )}
+                        </div>
                     )}
                 </div>
-
-                {/* Input Form Section */}
-                {isAuthenticated && (
-                    <div className="mt-8 bg-[#E2E0DC] rounded-xl p-2 px-6 py-4 flex justify-between items-center">
-                        <input
-                            type="text"
-                            placeholder="Enter your question?"
-                            className="bg-transparent border-none text-sm w-full focus:outline-none placeholder-gray-500 text-gray-700 h-full"
-                        />
-                        <button className="p-2 hover:translate-x-1 transition-transform">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5 text-black">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                            </svg>
-                        </button>
-                    </div>
-                )}
-
-            </div>
-        </section>
-    );
+            ))}
+        </div>
+      </Panel>
+    </section>
+  );
 };
 
 export default AskSeller;

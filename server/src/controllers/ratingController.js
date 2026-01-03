@@ -21,7 +21,7 @@ const postRating = async (req, res) => {
 
 const getReviews = async (req, res) => {
   try {
-    const userId = req.auth.userId; // Get reviews for the logged-in user
+    const userId = req.auth.userId; 
     const reviews = await ratingService.getReviewsByUserId(userId);
     res.status(200).json(reviews);
   } catch (error) {
