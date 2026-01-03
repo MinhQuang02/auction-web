@@ -1,10 +1,17 @@
-import productService from '../services/productService.js';
-import prisma from '../lib/prisma.js';
+import productService from "../services/productService.js";
+import prisma from "../lib/prisma.js";
 
 // 1. SEARCH LIST (With "New" Badge)
 const getProducts = async (req, res) => {
   try {
-    const { keyword, category_id, sort_by, limit = 12, page = 1, status } = req.query;
+    const {
+      keyword,
+      category_id,
+      sort_by,
+      limit = 12,
+      page = 1,
+      status,
+    } = req.query;
     const offset = (page - 1) * limit;
 
     const { products, total } = await productService.searchProducts({
@@ -36,7 +43,7 @@ const getProducts = async (req, res) => {
       products: productsWithBadge,
       total,
       page: parseInt(page),
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
     console.error(error);
@@ -64,7 +71,10 @@ const getProductDetail = async (req, res) => {
     }
 
     // Fetch related products
-    const related = await productService.getRelatedProducts(productId, product.category_id);
+    const related = await productService.getRelatedProducts(
+      productId,
+      product.category_id
+    );
 
     // Fetch questions
     const questions = await productService.getProductQuestions(productId);
@@ -72,12 +82,11 @@ const getProductDetail = async (req, res) => {
     res.status(200).json({
       product,
       related_products: related,
-      questions: questions
+      questions: questions,
     });
-
   } catch (error) {
     console.error("Get Detail Error:", error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -108,7 +117,9 @@ const createProduct = async (req, res) => {
     }
 
     if (!images || !Array.isArray(images) || images.length < 3) {
-      return res.status(400).json({ message: "You must provide at least 3 images." });
+      return res
+        .status(400)
+        .json({ message: "You must provide at least 3 images." });
     }
 
     // Create Product in Database
@@ -125,20 +136,19 @@ const createProduct = async (req, res) => {
         seller_id: sellerId,
         category_id: parseInt(category_id),
         main_image_url: images[0], // Set the first image as main
-        status: 'active',
+        status: "active",
 
         // Create associated images in Product_Image table
         images: {
-          create: images.map(url => ({ image_url: url }))
-        }
+          create: images.map((url) => ({ image_url: url })),
+        },
       },
     });
 
     return res.status(201).json({
       message: "Product created successfully",
-      product: newProduct
+      product: newProduct,
     });
-
   } catch (error) {
     console.error("Create Product Error:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -271,7 +281,9 @@ const cancelTransaction = async (req, res) => {
 
     await productService.cancelTransaction(sellerId, id);
 
-    res.status(200).json({ message: "Transaction cancelled and user rated -1." });
+    res
+      .status(200)
+      .json({ message: "Transaction cancelled and user rated -1." });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -319,46 +331,53 @@ const getCompetitive = async (req, res) => {
 
 const getMyPurchases = async (req, res) => {
   try {
-    if (!req.auth || !req.auth.userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.auth || !req.auth.userId)
+      return res.status(401).json({ message: "Unauthorized" });
     const products = await productService.getUserPurchases(req.auth.userId);
     res.status(200).json(products);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: error.message });
   }
-}
+};
 
 const getMyActiveBids = async (req, res) => {
   try {
-    if (!req.auth || !req.auth.userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.auth || !req.auth.userId)
+      return res.status(401).json({ message: "Unauthorized" });
     const products = await productService.getUserActiveBids(req.auth.userId);
     res.status(200).json(products);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: error.message });
   }
-}
+};
 
 const payForProduct = async (req, res) => {
   try {
-    if (!req.auth || !req.auth.userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.auth || !req.auth.userId)
+      return res.status(401).json({ message: "Unauthorized" });
     const { id } = req.params; // Product ID
     const shippingData = req.body; // Full body as shipping data for now
 
-    const transaction = await productService.createTransaction(req.auth.userId, id, shippingData);
+    const transaction = await productService.createTransaction(
+      req.auth.userId,
+      id,
+      shippingData
+    );
     res.status(201).json({ message: "Payment successful", transaction });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: error.message });
   }
-}
+};
 
 const getReplacement = async (req, res) => {
   try {
     const { excludeIds, categoryId } = req.query; // Expecting comma separated string "1,2,3" and optional categoryId
     let ids = [];
     if (excludeIds) {
-      ids = excludeIds.split(',').map(s => s.trim());
+      ids = excludeIds.split(",").map((s) => s.trim());
     }
 
     const product = await productService.getReplacementProduct(ids, categoryId);
@@ -372,7 +391,7 @@ const getReplacement = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-}
+};
 
 const getHero = async (req, res) => {
   try {

@@ -1,5 +1,6 @@
-import prisma from '../lib/prisma.js';
+import prisma from "../lib/prisma.js";
 import ratingService from "./ratingService.js";
+import categoryService from "./categoryService.js";
 
 const ALLOWED_STATUS = ["active", "sold", "ended_no_winner", "removed"];
 
@@ -24,14 +25,17 @@ const searchProducts = async ({
 
   // Filter by Category
   if (categoryId) {
-    where.category_id = parseInt(categoryId);
+    const categoryIds = await categoryService.getCategoryAndDescendants(
+      categoryId
+    );
+    where.category_id = { in: categoryIds };
   }
 
   // Full-Text Search
   if (keyword) {
     // Format for Postgres tsquery (simple approach: AND all terms)
     // Replace spaces with ' & '
-    const formattedQuery = keyword.trim().replace(/\s+/g, ' & ');
+    const formattedQuery = keyword.trim().replace(/\s+/g, " & ");
     where.OR = [
       { name: { search: formattedQuery } },
       { description: { search: formattedQuery } },
@@ -56,7 +60,11 @@ const searchProducts = async ({
       skip: parseInt(offset),
       include: {
         images: { take: 1 },
-        bids: { orderBy: { max_bid_amount: "desc" }, take: 1, include: { bidder: { select: { full_name: true } } } },
+        bids: {
+          orderBy: { max_bid_amount: "desc" },
+          take: 1,
+          include: { bidder: { select: { full_name: true } } },
+        },
         seller: { select: { full_name: true } },
         category: { select: { name: true } },
       },
@@ -66,6 +74,39 @@ const searchProducts = async ({
 
   // Masking Logic Applied to List
   const productsWithMasking = maskProducts(products);
+  const productsWithMasking = products.map((p) => {
+    // Mask Seller
+    let maskedSellerName = "***";
+    if (p.seller?.full_name) {
+      maskedSellerName = "***" + p.seller.full_name.trim().slice(-3);
+    }
+
+    // Mask Leading Bidder (if exists)
+    let maskedBidder = null;
+    if (p.bids && p.bids.length > 0) {
+      // Deep copy first bid to avoid mutating reference issues
+      const firstBid = { ...p.bids[0] };
+      if (firstBid.bidder?.full_name) {
+        firstBid.bidder = {
+          ...firstBid.bidder,
+          full_name: "***" + firstBid.bidder.full_name.trim().slice(-3),
+        };
+      } else {
+        // Fallback if bidder name missing
+        if (firstBid.bidder) firstBid.bidder.full_name = "***";
+      }
+      maskedBidder = [firstBid];
+    } else {
+      maskedBidder = [];
+    }
+
+    return {
+      ...p,
+      seller: { ...p.seller, full_name: maskedSellerName },
+      bids: maskedBidder,
+    };
+  });
+
   return { products: productsWithMasking, total };
 };
 
@@ -93,7 +134,7 @@ const getProductById = async (productId) => {
           },
         },
       },
-      transaction: true // Get transaction info if exists
+      transaction: true, // Get transaction info if exists
     },
   });
 
@@ -101,14 +142,33 @@ const getProductById = async (productId) => {
 
   // Mask Bidder Names: *** + last 3 characters
   const maskedProduct = maskProducts([product])[0];
+  const maskedBids = product.bids.map((bid) => {
+    // Safety check if bidder is missing
+    if (!bid.bidder || !bid.bidder.full_name) {
+      return { ...bid, bidder: { ...bid.bidder, full_name: "***" } };
+    }
+
+    const fullName = bid.bidder.full_name.trim();
+    const maskedName = `***${fullName.slice(-3)}`;
+
+    return {
+      ...bid,
+      bidder: {
+        ...bid.bidder,
+        full_name: maskedName,
+      },
+    };
+  });
 
   // Calculate generic payment status if winner
-  let paymentStatus = 'Unpaid';
+  let paymentStatus = "Unpaid";
   if (product.transaction) {
-    if (product.transaction.status === 'completed') paymentStatus = 'Paid';
-    else if (product.transaction.status === 'pending_shipping') paymentStatus = 'Paid';
-    else if (product.transaction.status === 'shipped') paymentStatus = 'Paid';
-    else if (product.transaction.status === 'cancelled') paymentStatus = 'Cancelled';
+    if (product.transaction.status === "completed") paymentStatus = "Paid";
+    else if (product.transaction.status === "pending_shipping")
+      paymentStatus = "Paid";
+    else if (product.transaction.status === "shipped") paymentStatus = "Paid";
+    else if (product.transaction.status === "cancelled")
+      paymentStatus = "Cancelled";
   }
 
   return { ...maskedProduct, paymentStatus };
@@ -143,12 +203,14 @@ const getRelatedProducts = async (productId, categoryId) => {
 
 const getReplacementProduct = async (excludeIds = [], categoryId = null) => {
   // Sanitize excludeIds
-  const excluded = excludeIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+  const excluded = excludeIds
+    .map((id) => parseInt(id))
+    .filter((id) => !isNaN(id));
 
   const where = {
-    status: 'active',
+    status: "active",
     end_time: { gt: new Date() },
-    product_id: { notIn: excluded }
+    product_id: { notIn: excluded },
   };
 
   if (categoryId) {
@@ -167,33 +229,43 @@ const getReplacementProduct = async (excludeIds = [], categoryId = null) => {
     include: {
       images: { take: 1 },
       seller: { select: { full_name: true } },
-      bids: { take: 1, orderBy: { max_bid_amount: 'desc' } }
-    }
+      bids: { take: 1, orderBy: { max_bid_amount: "desc" } },
+    },
   });
 
   if (products.length === 0) return null;
 
   // Masking Logic (Duplicated from searchProducts - simplified)
   return maskProducts(products)[0];
+  const p = products[0];
+  let maskedSellerName = "***";
+  if (p.seller?.full_name) {
+    maskedSellerName = "***" + p.seller.full_name.trim().slice(-3);
+  }
+
+  return {
+    ...p,
+    seller: { ...p.seller, full_name: maskedSellerName },
+  };
 };
 
 // 4. GET SELLER PRODUCTS
 const getProductsBySellerId = async (sellerId) => {
   return await prisma.product.findMany({
     where: { seller_id: parseInt(sellerId) },
-    orderBy: { start_time: 'desc' },
+    orderBy: { start_time: "desc" },
     include: {
       images: { take: 1 },
-      bids: { orderBy: { max_bid_amount: 'desc' }, take: 1 },
+      bids: { orderBy: { max_bid_amount: "desc" }, take: 1 },
       // Winner details to show in "Sold" tab
       winner: {
-        select: { user_id: true, full_name: true }
+        select: { user_id: true, full_name: true },
       },
       // Ratings to see if I already rated them
       ratings: {
-        where: { rater_id: parseInt(sellerId) }
-      }
-    }
+        where: { rater_id: parseInt(sellerId) },
+      },
+    },
   });
 };
 
@@ -279,26 +351,26 @@ const rejectBidder = async (sellerId, productId, bidderId) => {
     where: {
       product_id_bidder_id: {
         product_id: pId,
-        bidder_id: bId
-      }
+        bidder_id: bId,
+      },
     },
     create: { product_id: pId, bidder_id: bId },
-    update: {}
+    update: {},
   });
 
   // 3. RECALCULATE WINNER
   const bannedRecords = await prisma.banned_Bidder.findMany({
     where: { product_id: pId },
-    select: { bidder_id: true }
+    select: { bidder_id: true },
   });
-  const bannedIds = bannedRecords.map(b => b.bidder_id);
+  const bannedIds = bannedRecords.map((b) => b.bidder_id);
 
   const validBids = await prisma.bid_History.findMany({
     where: {
       product_id: pId,
-      bidder_id: { notIn: bannedIds }
+      bidder_id: { notIn: bannedIds },
     },
-    orderBy: { max_bid_amount: 'desc' }
+    orderBy: { max_bid_amount: "desc" },
   });
 
   let newCurrentPrice = product.start_price;
@@ -317,11 +389,14 @@ const rejectBidder = async (sellerId, productId, bidderId) => {
     where: { product_id: pId },
     data: {
       current_price: newCurrentPrice,
-      current_bidder_id: newBidderId
-    }
+      current_bidder_id: newBidderId,
+    },
   });
 
-  return { message: "Bidder rejected and price updated", newPrice: newCurrentPrice };
+  return {
+    message: "Bidder rejected and price updated",
+    newPrice: newCurrentPrice,
+  };
 };
 
 // TASK 3.4: ADD QUESTION
@@ -331,7 +406,7 @@ const addQuestion = async (userId, productId, content) => {
       asker_id: userId,
       product_id: parseInt(productId),
       question_text: content,
-    }
+    },
   });
 };
 
@@ -352,7 +427,7 @@ const answerQuestion = async (sellerId, questionId, answer) => {
     where: { question_id: qId },
     data: {
       answer_text: answer,
-      answer_time: new Date()
+      answer_time: new Date(),
     },
   });
 };
@@ -362,9 +437,9 @@ const getProductQuestions = async (productId) => {
   return await prisma.product_Question.findMany({
     where: { product_id: parseInt(productId) },
     include: {
-      asker: { select: { full_name: true } }
+      asker: { select: { full_name: true } },
     },
-    orderBy: { question_time: 'desc' }
+    orderBy: { question_time: "desc" },
   });
 };
 
@@ -383,12 +458,12 @@ const getUserPurchases = async (userId) => {
         take: 1
       }
     },
-    orderBy: { end_time: 'desc' }
+    orderBy: { end_time: "desc" },
   });
 
-  return products.map(p => {
+  return products.map((p) => {
     // Determine payment status
-    let paymentStatus = 'Unpaid';
+    let paymentStatus = "Unpaid";
     if (p.transaction) {
       // Logic for Paid/Unpaid mapping to Frontend
       // 'pending_shipping', 'shipped', 'completed' => Paid
@@ -397,6 +472,12 @@ const getUserPurchases = async (userId) => {
       } else if (p.transaction.status === 'cancelled') {
         paymentStatus = 'Cancelled';
       }
+      if (p.transaction.status === "completed") paymentStatus = "Paid";
+      else if (p.transaction.status === "pending_shipping")
+        paymentStatus = "Paid";
+      else if (p.transaction.status === "shipped") paymentStatus = "Paid";
+      else if (p.transaction.status === "cancelled")
+        paymentStatus = "Cancelled";
     }
 
     return {
@@ -404,6 +485,7 @@ const getUserPurchases = async (userId) => {
       paymentStatus, // 'Paid', 'Unpaid', 'Cancelled'
       canPay: !p.transaction || p.transaction.status === 'pending_payment',
       hasRated: p.ratings.length > 0 // Boolean to check if user already rated
+      canPay: !p.transaction || p.transaction.status === "pending_payment",
     };
   });
 };
@@ -412,13 +494,13 @@ const getUserPurchases = async (userId) => {
 const getUserActiveBids = async (userId) => {
   const products = await prisma.product.findMany({
     where: {
-      status: 'active',
+      status: "active",
       end_time: { gt: new Date() },
       bids: {
         some: {
-          bidder_id: parseInt(userId)
-        }
-      }
+          bidder_id: parseInt(userId),
+        },
+      },
     },
     include: {
       images: { take: 1 },
@@ -426,17 +508,17 @@ const getUserActiveBids = async (userId) => {
       // Fetch MY highest bid on this object
       bids: {
         where: { bidder_id: parseInt(userId) },
-        orderBy: { max_bid_amount: 'desc' },
-        take: 1
-      }
+        orderBy: { max_bid_amount: "desc" },
+        take: 1,
+      },
     },
-    orderBy: { end_time: 'asc' }
+    orderBy: { end_time: "asc" },
   });
 
-  return products.map(p => ({
+  return products.map((p) => ({
     ...p,
     my_bid: p.bids[0]?.max_bid_amount || 0,
-    is_winning: p.current_bidder_id === parseInt(userId)
+    is_winning: p.current_bidder_id === parseInt(userId),
   }));
 };
 
@@ -447,7 +529,7 @@ const cancelTransaction = async (sellerId, productId) => {
   // 1. Get Product & Winner
   const product = await prisma.product.findUnique({
     where: { product_id: pId },
-    include: { transaction: true } // Make sure we know about transaction
+    include: { transaction: true }, // Make sure we know about transaction
   });
 
   if (!product) throw new Error("Product not found");
@@ -461,7 +543,7 @@ const cancelTransaction = async (sellerId, productId) => {
       rated_user_id: product.winner_id,
       product_id: pId,
       rating_value: -1,
-      comment: "Winner did not pay"
+      comment: "Winner did not pay",
     });
   } catch (e) {
     console.log("Auto-rating skipped:", e.message);
@@ -471,16 +553,16 @@ const cancelTransaction = async (sellerId, productId) => {
   if (product.transaction) {
     await prisma.transaction.update({
       where: { transaction_id: product.transaction.transaction_id },
-      data: { status: 'cancelled' }
+      data: { status: "cancelled" },
     });
   }
 
   return await prisma.product.update({
     where: { product_id: pId },
     data: {
-      status: 'ended_no_winner',
+      status: "ended_no_winner",
       // Optionally reset winner/bidder if you want to allow re-bidding or just close it
-    }
+    },
   });
 };
 
@@ -568,17 +650,20 @@ const getRandomProducts = async (limit = 10) => {
 const getFeaturedProducts = async (limit = 10) => {
   const products = await prisma.product.findMany({
     where: {
-      status: 'active',
-      end_time: { gt: new Date() }
+      status: "active",
+      end_time: { gt: new Date() },
     },
     take: parseInt(limit),
-    orderBy: { bid_count: 'desc' },
+    orderBy: { bid_count: "desc" },
     include: {
       images: { take: 1 },
       category: { include: { parent: true } },
       bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } },
       seller: { select: { full_name: true } }
     }
+      bids: { take: 1, orderBy: { max_bid_amount: "desc" } },
+      seller: { select: { full_name: true } },
+    },
   });
   return maskProducts(products);
 };
@@ -587,16 +672,17 @@ const getFeaturedProducts = async (limit = 10) => {
 const getOngoingProducts = async (limit = 10) => {
   const products = await prisma.product.findMany({
     where: {
-      status: 'active',
-      end_time: { gt: new Date() }
+      status: "active",
+      end_time: { gt: new Date() },
     },
     take: parseInt(limit),
-    orderBy: { end_time: 'asc' }, // Ending soonest
+    orderBy: { end_time: "asc" }, // Ending soonest
     include: {
       images: { take: 1 },
       current_bidder: { select: { full_name: true } },
       bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } }, // Add bids to ensure we have bid info if needed
     }
+    },
   });
   return maskProducts(products);
 };
@@ -605,16 +691,19 @@ const getOngoingProducts = async (limit = 10) => {
 const getCompetitiveProducts = async (limit = 10) => {
   const products = await prisma.product.findMany({
     where: {
-      status: 'active',
-      end_time: { gt: new Date() }
+      status: "active",
+      end_time: { gt: new Date() },
     },
     take: parseInt(limit),
-    orderBy: { current_price: 'desc' }, // Highest Price
+    orderBy: { current_price: "desc" }, // Highest Price
     include: {
       images: { take: 1 },
       bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } },
       seller: { select: { full_name: true } }
     }
+      bids: { take: 1, orderBy: { max_bid_amount: "desc" } },
+      seller: { select: { full_name: true } },
+    },
   });
   return maskProducts(products);
 };
@@ -628,7 +717,7 @@ const createTransaction = async (userId, productId, shippingData) => {
   // 1. Verify Product & Winner
   const product = await prisma.product.findUnique({
     where: { product_id: pId },
-    include: { transaction: true }
+    include: { transaction: true },
   });
 
   if (!product) throw new Error("Product not found");
@@ -640,6 +729,21 @@ const createTransaction = async (userId, productId, shippingData) => {
     if (['completed', 'shipped', 'pending_shipping'].includes(product.transaction.status)) {
       throw new Error("Transaction already completed or processing");
     }
+  if (product.winner_id !== uId)
+    throw new Error("You are not the winner of this item");
+  if (product.transaction) throw new Error("Transaction already exists");
+
+  // 2. Create Transaction
+  const transaction = await prisma.transaction.create({
+    data: {
+      product_id: pId,
+      buyer_id: uId,
+      seller_id: product.seller_id,
+      status: "pending_shipping", // Payment simulated -> waiting shipping
+      shipping_address: JSON.stringify(shippingData),
+      payment_proof: "Online Payment (Simulated)",
+    },
+  });
 
     // Update existing (e.g. from Chat 'pending_payment')
     return await prisma.transaction.update({
