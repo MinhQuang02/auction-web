@@ -75,9 +75,12 @@ const AuctionManagement = () => {
     if (sortBy) params.set("sort_by", sortBy);
 
     const res = await apiFetch(`${API_URL}/api/products?${params}`);
-    const { items, total } = await res.json();
+    const { products, total } = await res.json();
 
-    setProducts(items);
+    console.log(products);
+    console.log(total);
+
+    setProducts(products);
     setTotalPages(Math.ceil(total / PAGE_SIZE));
   };
 
