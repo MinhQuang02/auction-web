@@ -1,8 +1,4 @@
-import prisma from '../lib/prisma.js';
-
-/* ------------------ READ ------------------ */
-
-/* ------------------ READ ------------------ */
+import prisma from "../lib/prisma.js";
 
 const getCategoryTree = async () => {
   return prisma.category.findMany({
@@ -41,14 +37,14 @@ const getCategoryTree = async () => {
 const getSubCategories = async () => {
   return prisma.category.findMany({
     where: {
-      parent_id: { not: null } // Identified by existence of parent
+      parent_id: { not: null },
     },
     select: {
       category_id: true,
       name: true,
       url_icon: true,
-      parent_id: true
-    }
+      parent_id: true,
+    },
   });
 };
 
@@ -57,12 +53,31 @@ const getCategoryById = async (id) => {
     where: { category_id: id },
     include: {
       children: true,
-      parent: true
-    }
+      parent: true,
+    },
   });
 };
 
-/* ------------------ CREATE ------------------ */
+const getCategoryAndDescendants = async (categoryId) => {
+  const ids = [];
+  const stack = [parseInt(categoryId)];
+
+  while (stack.length > 0) {
+    const currentId = stack.pop();
+    ids.push(currentId);
+
+    const children = await prisma.category.findMany({
+      where: { parent_id: currentId },
+      select: { category_id: true },
+    });
+
+    for (const child of children) {
+      stack.push(child.category_id);
+    }
+  }
+
+  return ids;
+};
 
 const createCategory = async ({ name, parent_id }) => {
   if (!name?.trim()) {
@@ -84,8 +99,6 @@ const createCategory = async ({ name, parent_id }) => {
   });
 };
 
-/* ------------------ UPDATE ------------------ */
-
 const updateCategory = async (id, { name, parent_id }) => {
   const category = await prisma.category.findUnique({
     where: { category_id: id },
@@ -99,7 +112,6 @@ const updateCategory = async (id, { name, parent_id }) => {
     throw new Error("Category cannot be its own parent");
   }
 
-  // Prevent cycles (parent cannot be a descendant)
   if (parent_id) {
     let current = parent_id;
 
@@ -125,8 +137,6 @@ const updateCategory = async (id, { name, parent_id }) => {
     },
   });
 };
-
-/* ------------------ DELETE ------------------ */
 
 const deleteCategory = async (id) => {
   const category = await prisma.category.findUnique({
@@ -158,6 +168,7 @@ export default {
   getCategoryTree,
   getSubCategories,
   getCategoryById,
+  getCategoryAndDescendants,
   createCategory,
   updateCategory,
   deleteCategory,

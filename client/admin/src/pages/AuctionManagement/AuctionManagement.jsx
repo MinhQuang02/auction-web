@@ -46,11 +46,13 @@ const AuctionManagement = () => {
     active: 0,
     endingSoon24h: 0,
   });
+  const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [selectedRow, setSelectedRow] = useState(null);
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
+  const [categoryId, setCategoryId] = useState("all");
   const [sortBy, setSortBy] = useState("");
   const [editAuction, setEditAuction] = useState(null);
 
@@ -64,14 +66,22 @@ const AuctionManagement = () => {
       .catch(console.error);
   }, []);
 
+  useEffect(() => {
+    apiFetch(`${API_URL}/api/categories`)
+      .then((res) => res.json())
+      .then(setCategories)
+      .catch(console.error);
+  }, []);
+
   const fetchProducts = async () => {
     const params = new URLSearchParams({
       limit: PAGE_SIZE,
-      offset: page * PAGE_SIZE,
+      page: page + 1,
     });
 
     if (search) params.set("keyword", search);
     if (status !== "all") params.set("status", status);
+    if (categoryId !== "all") params.set("category_id", categoryId);
     if (sortBy) params.set("sort_by", sortBy);
 
     const res = await apiFetch(`${API_URL}/api/products?${params}`);
@@ -86,11 +96,11 @@ const AuctionManagement = () => {
 
   useEffect(() => {
     fetchProducts();
-  }, [page, search, status, sortBy]);
+  }, [page, search, status, categoryId, sortBy]);
 
   useEffect(() => {
     setPage(0);
-  }, [search, status, sortBy]);
+  }, [search, status, categoryId, sortBy]);
 
   const rows = useMemo(() => {
     return products.map((p) => ({
@@ -182,9 +192,12 @@ const AuctionManagement = () => {
           search={search}
           status={status}
           sortBy={sortBy}
+          categoryId={categoryId}
+          categories={categories}
           onSearch={setSearch}
           onStatusChange={setStatus}
           onSortChange={setSortBy}
+          onCategoryChange={setCategoryId}
           onRemove={() => selectedRow && removeProduct(selectedRow.id)}
           onEdit={() => selectedRow && openEdit(selectedRow.id)}
         />
