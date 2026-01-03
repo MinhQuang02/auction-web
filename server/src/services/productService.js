@@ -74,39 +74,6 @@ const searchProducts = async ({
 
   // Masking Logic Applied to List
   const productsWithMasking = maskProducts(products);
-  const productsWithMasking = products.map((p) => {
-    // Mask Seller
-    let maskedSellerName = "***";
-    if (p.seller?.full_name) {
-      maskedSellerName = "***" + p.seller.full_name.trim().slice(-3);
-    }
-
-    // Mask Leading Bidder (if exists)
-    let maskedBidder = null;
-    if (p.bids && p.bids.length > 0) {
-      // Deep copy first bid to avoid mutating reference issues
-      const firstBid = { ...p.bids[0] };
-      if (firstBid.bidder?.full_name) {
-        firstBid.bidder = {
-          ...firstBid.bidder,
-          full_name: "***" + firstBid.bidder.full_name.trim().slice(-3),
-        };
-      } else {
-        // Fallback if bidder name missing
-        if (firstBid.bidder) firstBid.bidder.full_name = "***";
-      }
-      maskedBidder = [firstBid];
-    } else {
-      maskedBidder = [];
-    }
-
-    return {
-      ...p,
-      seller: { ...p.seller, full_name: maskedSellerName },
-      bids: maskedBidder,
-    };
-  });
-
   return { products: productsWithMasking, total };
 };
 
@@ -485,7 +452,6 @@ const getUserPurchases = async (userId) => {
       paymentStatus, // 'Paid', 'Unpaid', 'Cancelled'
       canPay: !p.transaction || p.transaction.status === 'pending_payment',
       hasRated: p.ratings.length > 0 // Boolean to check if user already rated
-      canPay: !p.transaction || p.transaction.status === "pending_payment",
     };
   });
 };
@@ -661,9 +627,6 @@ const getFeaturedProducts = async (limit = 10) => {
       bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } },
       seller: { select: { full_name: true } }
     }
-      bids: { take: 1, orderBy: { max_bid_amount: "desc" } },
-      seller: { select: { full_name: true } },
-    },
   });
   return maskProducts(products);
 };
@@ -682,7 +645,6 @@ const getOngoingProducts = async (limit = 10) => {
       current_bidder: { select: { full_name: true } },
       bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } }, // Add bids to ensure we have bid info if needed
     }
-    },
   });
   return maskProducts(products);
 };
@@ -701,14 +663,10 @@ const getCompetitiveProducts = async (limit = 10) => {
       bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } },
       seller: { select: { full_name: true } }
     }
-      bids: { take: 1, orderBy: { max_bid_amount: "desc" } },
-      seller: { select: { full_name: true } },
-    },
   });
   return maskProducts(products);
 };
 
-// NEW: Create Transaction (Pay Now)
 // NEW: Create Transaction (Pay Now)
 const createTransaction = async (userId, productId, shippingData) => {
   const pId = parseInt(productId);
@@ -729,21 +687,18 @@ const createTransaction = async (userId, productId, shippingData) => {
     if (['completed', 'shipped', 'pending_shipping'].includes(product.transaction.status)) {
       throw new Error("Transaction already completed or processing");
     }
-  if (product.winner_id !== uId)
-    throw new Error("You are not the winner of this item");
-  if (product.transaction) throw new Error("Transaction already exists");
 
-  // 2. Create Transaction
-  const transaction = await prisma.transaction.create({
-    data: {
-      product_id: pId,
-      buyer_id: uId,
-      seller_id: product.seller_id,
-      status: "pending_shipping", // Payment simulated -> waiting shipping
-      shipping_address: JSON.stringify(shippingData),
-      payment_proof: "Online Payment (Simulated)",
-    },
-  });
+    // 2. Create Transaction
+    const transaction = await prisma.transaction.create({
+      data: {
+        product_id: pId,
+        buyer_id: uId,
+        seller_id: product.seller_id,
+        status: "pending_shipping", // Payment simulated -> waiting shipping
+        shipping_address: JSON.stringify(shippingData),
+        payment_proof: "Online Payment (Simulated)",
+      },
+    });
 
     // Update existing (e.g. from Chat 'pending_payment')
     return await prisma.transaction.update({
