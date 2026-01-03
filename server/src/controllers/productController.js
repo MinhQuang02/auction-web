@@ -398,6 +398,16 @@ const placeBid = async (req, res) => {
     }
 };
 
+const getHero = async (req, res) => {
+  try {
+    const limit = req.query.limit || 10;
+    const products = await productService.getRandomProducts(limit);
+    res.status(200).json(products);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export default {
   getProducts,
   getProductDetail,
@@ -418,4 +428,5 @@ export default {
   getMyActiveBids,
   payForProduct,
   placeBid,
+  getHero,
 };

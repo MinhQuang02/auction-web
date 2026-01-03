@@ -24,16 +24,24 @@ const Wishlists = () => {
 
         if (res.ok) {
           // Map backend data format to frontend format
-          const mapped = data.map(item => ({
-            id: item.product.product_id,
-            title: item.product.name,
-            image: item.product.images[0]?.image_url || '',
-            priceTag: `$${item.product.current_price}`, // or buy_now
-            price: `$${item.product.current_price}`,
-            author: "***", // item.product.seller?.full_name - masked
-            // Format date range nicely
-            date: `${new Date(item.product.start_time).toLocaleDateString()} - ${new Date(item.product.end_time).toLocaleDateString()}`
-          }));
+          // Map backend data format to frontend format
+          const mapped = data.map(item => {
+            const p = item.product;
+            const topBid = p.bids?.[0];
+            const bidderName = topBid?.bidder?.full_name;
+            const maskedBidder = bidderName ? `***${bidderName.trim().slice(-3)}` : "No Bids";
+
+            return {
+              id: p.product_id,
+              title: p.name,
+              image: p.main_image_url || (p.images && p.images[0]?.image_url) || '',
+              currentPrice: p.current_price,
+              buyNowPrice: p.buy_now_price,
+              bidder: maskedBidder,
+              status: p.status,
+              date: `${new Date(p.start_time).toLocaleDateString()} - ${new Date(p.end_time).toLocaleDateString()}`
+            };
+          });
           setProducts(mapped);
         }
       } catch (err) {
@@ -114,16 +122,19 @@ const Wishlists = () => {
           {displayedProducts.map((product) => (
             <div key={product.id} className="group flex flex-col gap-3">
               {/* Image Container */}
-              <div className="relative bg-[#F5F5F5] rounded h-[250px] flex items-center justify-center overflow-hidden">
-                {/* Price Badge */}
-                <span className="absolute top-3 left-3 bg-[#AE9B84] text-white text-xs px-3 py-1 rounded shadow-sm">
-                  {product.priceTag}
+              <div className="relative bg-[#F5F5F5] rounded h-[280px] flex items-center justify-center overflow-hidden border border-gray-100">
+                {/* Status Badge */}
+                <span className={`absolute top-3 left-3 text-white text-xs px-3 py-1 rounded shadow-sm font-medium uppercase
+                  ${product.status === 'active' ? 'bg-[#AE9B84]' :
+                    product.status === 'sold' ? 'bg-[#6F5B47]' : 'bg-[#D6C8B7]'}`}>
+                  {product.status === 'active' ? 'Live' : product.status}
                 </span>
 
                 {/* Trash Icon (Remove from Wishlist) */}
                 <button
                   onClick={() => removeFromWatchlist(product.id)}
-                  className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow hover:bg-gray-100 transition"
+                  className="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow hover:bg-red-50 hover:text-red-500 transition z-10"
+                  title="Remove"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -145,31 +156,44 @@ const Wishlists = () => {
                 <img
                   src={product.image}
                   alt={product.title}
-                  className="w-[160px] object-contain drop-shadow-lg"
+                  className="w-[80%] h-[180px] object-contain drop-shadow-sm group-hover:scale-105 transition-transform duration-300"
                 />
 
                 {/* View Details Overlay Button */}
-                <button className="absolute bottom-0 w-full bg-black text-white py-2 text-sm font-medium hover:bg-gray-800 transition">
+                <button className="absolute bottom-0 w-full bg-black/90 text-white py-3 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <Link to={`/product/${product.id}`} className="block w-full h-full">View Details</Link>
                 </button>
               </div>
 
               {/* Product Info */}
-              <div>
+              <div className="flex flex-col gap-1">
                 <h3
-                  className="font-bold text-base mb-1 truncate"
+                  className="font-bold text-base text-[#1f1f1f] truncate"
                   title={product.title}
                 >
                   {product.title}
                 </h3>
-                <div className="flex gap-2 text-sm mb-2">
-                  <span className="text-[#AE9B84] font-medium">
-                    {product.price}
-                  </span>
-                  <span className="text-gray-400">by {product.author}</span>
+
+                {/* Pricing Block */}
+                <div className="flex flex-col text-sm border-l-2 border-[#AE9B84] pl-3 my-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 text-xs">Current Bid:</span>
+                    <span className="font-bold text-[#AE9B84]">${Number(product.currentPrice).toLocaleString()}</span>
+                  </div>
+                  {product.buyNowPrice && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500 text-xs">Buy Now:</span>
+                      <span className="font-medium text-gray-700">${Number(product.buyNowPrice).toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="bg-gray-100 rounded-full px-3 py-1 text-[10px] text-gray-500 inline-block">
-                  {product.date}
+
+                {/* Bidder & Date */}
+                <div className="flex justify-between items-center text-xs mt-1">
+                  <div className="bg-gray-100 px-2 py-0.5 rounded text-gray-600">
+                    Top: <span className="font-mono font-semibold">{product.bidder}</span>
+                  </div>
+                  <span className="text-gray-400 font-light">{product.date.split('-')[1].trim()}</span>
                 </div>
               </div>
             </div>

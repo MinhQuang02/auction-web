@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "../../../../components/ui/Toast";
 
 const Product = ({ product, isOwner, onBidSuccess }) => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const { addToast } = useToast();
 
   // State
   const [activeImage, setActiveImage] = useState("");

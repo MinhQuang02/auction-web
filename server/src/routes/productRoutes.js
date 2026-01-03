@@ -4,39 +4,36 @@ import requireRole from "../middlewares/requireRole.js";
 
 const router = express.Router();
 
-// Search & Listings
-router.get('/', productController.getProducts);
+// Public Routes
+router.get('/', productController.getProducts); 
+router.get('/hero', productController.getHero); 
 router.get('/featured', productController.getFeatured);
 router.get('/ongoing', productController.getOngoing);
 router.get('/competitive', productController.getCompetitive);
 router.get('/replacement', productController.getReplacement);
 
-// Product Detail & Q&A (Read-only)
+// Product Detail & Q&A
 router.get('/:id', productController.getProductDetail);
 router.get("/:id/questions", productController.getQuestions);
 
-// User / Bidder Features
+// User / Bidder
 router.get('/user/purchases', productController.getMyPurchases);
 router.get('/user/active-bids', productController.getMyActiveBids);
 router.post('/user/purchases/:id/pay', productController.payForProduct);
-
-// Bidding (Bidders Only)
 router.post("/:id/bid", requireRole("bidder"), productController.placeBid);
 
-// Q&A (Asking & Replying)
+// Q&A
 router.post("/:id/questions", productController.postQuestion); 
 router.post("/questions/:questionId/reply", productController.answerQuestion); 
 
+// Seller
 router.get('/seller/me', productController.getSellerProducts);
 router.post('/', productController.createProduct);      
 router.patch('/:id', productController.updateProduct);  
 router.post("/:id/reject", productController.rejectBidder);
 router.post("/:id/cancel", productController.cancelTransaction);
 
-router.get(
-  "/admin/stats",
-  requireRole("admin"),
-  productController.getAuctionStats
-);
+// Admin
+router.get("/admin/stats", requireRole("admin"), productController.getAuctionStats);
 
 export default router;

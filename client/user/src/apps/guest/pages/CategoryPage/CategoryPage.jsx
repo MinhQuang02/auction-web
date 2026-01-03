@@ -40,6 +40,24 @@ function CategoryPage() {
     setCurrentPage(1);
   }, [id]);
 
+  const [config, setConfig] = useState({ time_limited: 60 });
+
+  // Fetch Config
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/config`);
+        if (res.ok) {
+          const data = await res.json();
+          setConfig(data);
+        }
+      } catch (e) {
+        console.error("Config load error", e);
+      }
+    };
+    fetchConfig();
+  }, [API_URL]);
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -48,13 +66,30 @@ function CategoryPage() {
         const res = await fetch(`${API_URL}/api/products?category_id=${id}&page=${currentPage}&limit=12`);
         if (res.ok) {
           const data = await res.json();
-          // Handle both array (legacy fallback) and new object format
+          let fetchedProducts = [];
           if (Array.isArray(data)) {
-            setProducts(data);
+            fetchedProducts = data;
           } else {
-            setProducts(data.products || []);
+            fetchedProducts = data.products || [];
             setTotalPages(data.totalPages || 1);
           }
+
+          // Apply New Arrival Logic
+          const now = new Date();
+          const limitMinutes = parseInt(config.time_limited) || 60; // Using config for "New" threshold
+
+          fetchedProducts = fetchedProducts.map(p => {
+            const createdTime = new Date(p.created_at);
+            const diffMs = now - createdTime;
+            const diffMins = Math.floor(diffMs / 60000);
+            return {
+              ...p,
+              // Highlight if created within N minutes
+              is_highlighted: diffMins >= 0 && diffMins <= limitMinutes
+            };
+          });
+
+          setProducts(fetchedProducts);
         }
       } catch (error) {
         console.error("Failed to fetch products", error);
@@ -64,7 +99,7 @@ function CategoryPage() {
     };
 
     if (id) fetchProducts();
-  }, [id, currentPage]);
+  }, [id, currentPage, config.time_limited, API_URL]);
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {

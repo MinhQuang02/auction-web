@@ -8,8 +8,18 @@ const getWatchlistByUserId = async (userId) => {
         include: {
             product: {
                 include: {
-                    images: true, // Include images for display
-                    category: true // Include category name if needed
+                    images: { take: 1 }, // Include images for display
+                    category: true, // Include category name if needed
+                    // Add Bids to get Highest Bidder
+                    bids: {
+                        take: 1,
+                        orderBy: { max_bid_amount: 'desc' },
+                        include: {
+                            bidder: { select: { full_name: true } }
+                        }
+                    },
+                    // Add Seller for completeness if needed (though requirement focused on Bidder Identity)
+                    seller: { select: { full_name: true } }
                 }
             }
         }

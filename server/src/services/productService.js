@@ -4,7 +4,57 @@ import categoryService from "./categoryService.js";
 
 const ALLOWED_STATUS = ["active", "sold", "ended_no_winner", "removed"];
 
+// ==============================================================================
+// HELPER: Mask Usernames (Privacy)
+// ==============================================================================
+const maskProducts = (products) => {
+  return products.map((p) => {
+    // Mask Seller
+    let maskedSeller = p.seller;
+    if (p.seller?.full_name) {
+      maskedSeller = {
+        ...p.seller,
+        full_name: "***" + p.seller.full_name.trim().slice(-3),
+      };
+    }
+
+    // Mask Bids
+    const maskedBids = (p.bids || []).map((bid) => {
+      let maskedBidder = bid.bidder;
+      if (bid.bidder?.full_name) {
+        maskedBidder = {
+          ...bid.bidder,
+          full_name: "***" + bid.bidder.full_name.trim().slice(-3),
+        };
+      } else if (bid.bidder) {
+        maskedBidder = { ...bid.bidder, full_name: "***" };
+      }
+      return { ...bid, bidder: maskedBidder };
+    });
+
+    // Mask Current Bidder
+    let maskedCurrentBidder = p.current_bidder;
+    if (p.current_bidder?.full_name) {
+      maskedCurrentBidder = {
+        ...p.current_bidder,
+        full_name: "***" + p.current_bidder.full_name.trim().slice(-3),
+      };
+    } else if (p.current_bidder) {
+      maskedCurrentBidder = { ...p.current_bidder, full_name: "***" };
+    }
+
+    return {
+      ...p,
+      seller: maskedSeller,
+      bids: maskedBids,
+      current_bidder: maskedCurrentBidder,
+    };
+  });
+};
+
+// ==============================================================================
 // 1. SEARCH & FILTER
+// ==============================================================================
 const searchProducts = async ({
   keyword,
   categoryId,
@@ -23,7 +73,6 @@ const searchProducts = async ({
     where.status = status;
   }
 
-  // Filter by Category
   if (categoryId) {
     const categoryIds = await categoryService.getCategoryAndDescendants(
       categoryId
@@ -31,7 +80,6 @@ const searchProducts = async ({
     where.category_id = { in: categoryIds };
   }
 
-  // Full-Text Search
   if (keyword) {
     const formattedQuery = keyword.trim().replace(/\s+/g, " & ");
     where.OR = [
@@ -40,7 +88,6 @@ const searchProducts = async ({
     ];
   }
 
-  // Sorting
   let orderBy = {};
   if (sortBy === "time_desc") {
     orderBy = { end_time: "desc" };
@@ -70,46 +117,15 @@ const searchProducts = async ({
     prisma.product.count({ where }),
   ]);
 
-  // Masking Logic Applied to List
-  const productsWithMasking = products.map((p) => {
-    let maskedSellerName = "***";
-    if (p.seller?.full_name) {
-      maskedSellerName = "***" + p.seller.full_name.trim().slice(-3);
-    }
-
-    let maskedBidder = null;
-    if (p.bids && p.bids.length > 0) {
-      const firstBid = { ...p.bids[0] };
-      if (firstBid.bidder?.full_name) {
-        firstBid.bidder = {
-          ...firstBid.bidder,
-          full_name: "***" + firstBid.bidder.full_name.trim().slice(-3),
-        };
-      } else {
-        if (firstBid.bidder) firstBid.bidder.full_name = "***";
-      }
-      maskedBidder = [firstBid];
-    } else {
-      maskedBidder = [];
-    }
-
-    return {
-      ...p,
-      seller: { ...p.seller, full_name: maskedSellerName },
-      bids: maskedBidder,
-    };
-  });
-
-  return { products: productsWithMasking, total };
+  return { products: maskProducts(products), total };
 };
 
+// ==============================================================================
 // 2. PRODUCT DETAILS
+// ==============================================================================
 const getProductById = async (productId) => {
   const idInt = parseInt(productId);
-
-  if (isNaN(idInt)) {
-    return null;
-  }
+  if (isNaN(idInt)) return null;
 
   const product = await prisma.product.findUnique({
     where: { product_id: idInt },
@@ -120,7 +136,7 @@ const getProductById = async (productId) => {
       },
       category: true,
       bids: {
-        orderBy: { bid_time: "desc" },
+        orderBy: { max_bid_amount: "desc" },
         include: {
           bidder: {
             select: { full_name: true, avg_rating: true },
@@ -133,16 +149,25 @@ const getProductById = async (productId) => {
 
   if (!product) return null;
 
-  const maskedBids = product.bids.map((bid) => {
-    if (!bid.bidder || !bid.bidder.full_name) {
-      return { ...bid, bidder: { ...bid.bidder, full_name: "***" } };
-    }
+  const bannedRecords = await prisma.banned_Bidder.findMany({
+      where: { product_id: idInt },
+      select: { bidder_id: true }
+  });
+  const bannedSet = new Set(bannedRecords.map(b => b.bidder_id));
 
-    const fullName = bid.bidder.full_name.trim();
-    const maskedName = `***${fullName.slice(-3)}`;
+  const maskedBids = product.bids.map((bid) => {
+    const isBanned = bannedSet.has(bid.bidder_id);
+    const status = isBanned ? 'rejected' : 'valid';
+
+    let maskedName = "***";
+    if (bid.bidder && bid.bidder.full_name) {
+        const fullName = bid.bidder.full_name.trim();
+        maskedName = `***${fullName.slice(-3)}`;
+    }
 
     return {
       ...bid,
+      status, 
       bidder: {
         ...bid.bidder,
         full_name: maskedName,
@@ -150,37 +175,46 @@ const getProductById = async (productId) => {
     };
   });
 
+  const maskedProduct = maskProducts([product])[0];
+
   let paymentStatus = "Unpaid";
   if (product.transaction) {
-    if (product.transaction.status === "completed") paymentStatus = "Paid";
-    else if (product.transaction.status === "pending_shipping")
-      paymentStatus = "Paid";
-    else if (product.transaction.status === "shipped") paymentStatus = "Paid";
-    else if (product.transaction.status === "cancelled")
-      paymentStatus = "Cancelled";
+    if (['completed', 'pending_shipping', 'shipped'].includes(product.transaction.status)) {
+        paymentStatus = 'Paid';
+    } else if (product.transaction.status === 'cancelled') {
+        paymentStatus = 'Cancelled';
+    }
   }
 
-  return { ...product, bids: maskedBids, paymentStatus };
+  return { ...maskedProduct, bids: maskedBids, paymentStatus };
 };
 
-// 3. RELATED PRODUCTS
+// ==============================================================================
+// 3. RELATED & SUGGESTED
+// ==============================================================================
 const getRelatedProducts = async (productId, categoryId) => {
-  return await prisma.product.findMany({
+  // Fetch up to 20 candidates, shuffle, pick 5 (Merged Logic)
+  const candidates = await prisma.product.findMany({
     where: {
       category_id: categoryId,
-      product_id: { not: parseInt(productId) }, 
+      product_id: { not: parseInt(productId) },
       status: "active",
     },
-    take: 5,
-    orderBy: { end_time: "asc" }, 
-    include: { images: { take: 1 } },
+    take: 20,
+    orderBy: { start_time: 'desc' },
+    include: {
+      images: { take: 1 },
+      bids: { take: 1, orderBy: { max_bid_amount: 'desc' }, include: { bidder: { select: { full_name: true } } } },
+      seller: { select: { full_name: true, avg_rating: true, total_ratings: true } }
+    },
   });
+
+  const shuffled = candidates.sort(() => 0.5 - Math.random());
+  return maskProducts(shuffled.slice(0, 5));
 };
 
 const getReplacementProduct = async (excludeIds = [], categoryId = null) => {
-  const excluded = excludeIds
-    .map((id) => parseInt(id))
-    .filter((id) => !isNaN(id));
+  const excluded = excludeIds.map((id) => parseInt(id)).filter((id) => !isNaN(id));
 
   const where = {
     status: "active",
@@ -209,20 +243,31 @@ const getReplacementProduct = async (excludeIds = [], categoryId = null) => {
   });
 
   if (products.length === 0) return null;
-
-  const p = products[0];
-  let maskedSellerName = "***";
-  if (p.seller?.full_name) {
-    maskedSellerName = "***" + p.seller.full_name.trim().slice(-3);
-  }
-
-  return {
-    ...p,
-    seller: { ...p.seller, full_name: maskedSellerName },
-  };
+  return maskProducts(products)[0];
 };
 
-// 4. GET SELLER PRODUCTS
+const getRandomProducts = async (limit = 10) => {
+  const take = parseInt(limit);
+  // Use raw query for true random performance if desired, or skip logic
+  const count = await prisma.product.count({ where: { status: "active" } });
+  const skip = Math.max(0, Math.floor(Math.random() * count) - take);
+
+  const products = await prisma.product.findMany({
+    where: { status: "active" },
+    take, skip,
+    include: {
+      images: { take: 1 },
+      bids: { take: 1, orderBy: { max_bid_amount: "desc" }, include: { bidder: { select: { full_name: true } } } },
+      seller: { select: { full_name: true } },
+      category: { include: { parent: true } },
+    },
+  });
+  return maskProducts(products);
+};
+
+// ==============================================================================
+// 4. SELLER FUNCTIONS
+// ==============================================================================
 const getProductsBySellerId = async (sellerId) => {
   return await prisma.product.findMany({
     where: { seller_id: parseInt(sellerId) },
@@ -242,14 +287,8 @@ const getProductsBySellerId = async (sellerId) => {
 
 const createProduct = async (data) => {
   const {
-    name,
-    description,
-    category_id,
-    seller_id,
-    start_time,
-    end_time,
-    start_price,
-    buy_now_price,
+    name, description, category_id, seller_id,
+    start_time, end_time, start_price, buy_now_price,
   } = data;
 
   if (!name || !category_id || !seller_id || !start_time || !end_time) {
@@ -258,28 +297,18 @@ const createProduct = async (data) => {
 
   return await prisma.product.create({
     data: {
-      name,
-      description,
+      name, description,
       category_id: parseInt(category_id),
       seller_id: parseInt(seller_id),
       start_time: new Date(start_time),
       end_time: new Date(end_time),
-      start_price,
-      buy_now_price,
+      start_price, buy_now_price,
       status: "active",
     },
   });
 };
 
 const updateProduct = async (productId, data) => {
-  const existing = await prisma.product.findUnique({
-    where: { product_id: parseInt(productId) },
-  });
-
-  if (!existing) {
-    throw new Error("Product not found");
-  }
-
   return await prisma.product.update({
     where: { product_id: parseInt(productId) },
     data,
@@ -288,14 +317,11 @@ const updateProduct = async (productId, data) => {
 
 const deleteProduct = async (productId) => {
   const id = parseInt(productId);
-
   const bidCount = await prisma.bid_History.count({
     where: { product_id: id },
   });
 
-  if (bidCount > 0) {
-    throw new Error("Cannot delete product with existing bids");
-  }
+  if (bidCount > 0) throw new Error("Cannot delete product with existing bids");
 
   await prisma.product.update({
     where: { product_id: id },
@@ -303,7 +329,6 @@ const deleteProduct = async (productId) => {
   });
 };
 
-// TASK 3.3: REJECT BIDDER
 const rejectBidder = async (sellerId, productId, bidderId) => {
   const pId = parseInt(productId);
   const bId = parseInt(bidderId);
@@ -315,32 +340,23 @@ const rejectBidder = async (sellerId, productId, bidderId) => {
   if (!product) throw new Error("Product not found");
   if (product.seller_id !== sellerId) throw new Error("Unauthorized");
 
+  // Ban
   await prisma.banned_Bidder.upsert({
-    where: {
-      product_id_bidder_id: {
-        product_id: pId,
-        bidder_id: bId,
-      },
-    },
+    where: { product_id_bidder_id: { product_id: pId, bidder_id: bId } },
     create: { product_id: pId, bidder_id: bId },
     update: {},
   });
 
-  await prisma.bid_History.updateMany({
-      where: { product_id: pId, bidder_id: bId },
-      data: { status: 'rejected' } 
-  });
-
+  // Recalculate Winner
   const bannedRecords = await prisma.banned_Bidder.findMany({
-    where: { product_id: pId },
-    select: { bidder_id: true },
+    where: { product_id: pId }, select: { bidder_id: true },
   });
   const bannedIds = bannedRecords.map((b) => b.bidder_id);
 
   const validBids = await prisma.bid_History.findMany({
     where: {
       product_id: pId,
-      bidder_id: { notIn: bannedIds }, // Exclude banned users
+      bidder_id: { notIn: bannedIds },
     },
     orderBy: { max_bid_amount: "desc" },
   });
@@ -349,44 +365,62 @@ const rejectBidder = async (sellerId, productId, bidderId) => {
   let newCurrentBidderId = null;
 
   if (validBids.length > 0) {
-    // The new price is the highest valid bid
     newCurrentPrice = validBids[0].max_bid_amount;
     newCurrentBidderId = validBids[0].bidder_id;
   }
 
-  // Update the product with the new "Clean" state
   await prisma.product.update({
     where: { product_id: pId },
-    data: {
-      current_price: newCurrentPrice,
-      current_bidder_id: newCurrentBidderId,
-    },
+    data: { current_price: newCurrentPrice, current_bidder_id: newCurrentBidderId },
   });
 
-  return {
-    message: "Bidder rejected. Winner recalculated.",
-    newPrice: newCurrentPrice,
-  };
+  return { message: "Bidder rejected.", newPrice: newCurrentPrice };
 };
 
-// TASK 3.4: ADD QUESTION
+const cancelTransaction = async (sellerId, productId) => {
+  const pId = parseInt(productId);
+  const product = await prisma.product.findUnique({
+    where: { product_id: pId },
+    include: { transaction: true }, 
+  });
+
+  if (!product) throw new Error("Product not found");
+  if (product.seller_id !== sellerId) throw new Error("Unauthorized");
+  if (!product.winner_id) throw new Error("No winner to cancel");
+
+  try {
+    await ratingService.addRating({
+      rater_id: sellerId, rated_user_id: product.winner_id,
+      product_id: pId, rating_value: -1, comment: "Winner did not pay",
+    });
+  } catch (e) {}
+
+  if (product.transaction) {
+    await prisma.transaction.update({
+      where: { transaction_id: product.transaction.transaction_id },
+      data: { status: "cancelled" },
+    });
+  }
+
+  return await prisma.product.update({
+    where: { product_id: pId },
+    data: { status: "ended_no_winner" },
+  });
+};
+
+// ==============================================================================
+// 5. Q&A
+// ==============================================================================
 const addQuestion = async (userId, productId, content) => {
   return await prisma.product_Question.create({
-    data: {
-      asker_id: userId,
-      product_id: parseInt(productId),
-      question_text: content,
-    },
+    data: { asker_id: userId, product_id: parseInt(productId), question_text: content },
   });
 };
 
-// TASK 3.4: ANSWER QUESTION
 const answerQuestion = async (sellerId, questionId, answer) => {
   const qId = parseInt(questionId);
-
   const question = await prisma.product_Question.findUnique({
-    where: { question_id: qId },
-    include: { product: true },
+    where: { question_id: qId }, include: { product: true },
   });
 
   if (!question) throw new Error("Question not found");
@@ -394,33 +428,29 @@ const answerQuestion = async (sellerId, questionId, answer) => {
 
   return await prisma.product_Question.update({
     where: { question_id: qId },
-    data: {
-      answer_text: answer,
-      answer_time: new Date(),
-    },
+    data: { answer_text: answer, answer_time: new Date() },
   });
 };
 
-// TASK 3.4: GET QUESTIONS
 const getProductQuestions = async (productId) => {
   return await prisma.product_Question.findMany({
     where: { product_id: parseInt(productId) },
-    include: {
-      asker: { select: { full_name: true } },
-    },
+    include: { asker: { select: { full_name: true } } },
     orderBy: { question_time: "desc" },
   });
 };
 
+// ==============================================================================
+// 6. USER / BUYER FUNCTIONS
+// ==============================================================================
 const getUserPurchases = async (userId) => {
   const products = await prisma.product.findMany({
-    where: {
-      winner_id: parseInt(userId),
-    },
+    where: { winner_id: parseInt(userId) },
     include: {
       images: { take: 1 },
       seller: { select: { full_name: true } },
-      transaction: true, 
+      transaction: true,
+      ratings: { where: { rater_id: parseInt(userId) }, take: 1 }
     },
     orderBy: { end_time: "desc" },
   });
@@ -428,18 +458,15 @@ const getUserPurchases = async (userId) => {
   return products.map((p) => {
     let paymentStatus = "Unpaid";
     if (p.transaction) {
-      if (p.transaction.status === "completed") paymentStatus = "Paid";
-      else if (p.transaction.status === "pending_shipping")
-        paymentStatus = "Paid";
-      else if (p.transaction.status === "shipped") paymentStatus = "Paid";
-      else if (p.transaction.status === "cancelled")
-        paymentStatus = "Cancelled";
+      if (['completed', 'pending_shipping', 'shipped'].includes(p.transaction.status)) paymentStatus = 'Paid';
+      else if (p.transaction.status === 'cancelled') paymentStatus = 'Cancelled';
     }
 
     return {
       ...p,
-      paymentStatus, 
-      canPay: !p.transaction || p.transaction.status === "pending_payment",
+      paymentStatus,
+      canPay: !p.transaction || p.transaction.status === 'pending_payment',
+      hasRated: p.ratings.length > 0
     };
   });
 };
@@ -449,11 +476,7 @@ const getUserActiveBids = async (userId) => {
     where: {
       status: "active",
       end_time: { gt: new Date() },
-      bids: {
-        some: {
-          bidder_id: parseInt(userId),
-        },
-      },
+      bids: { some: { bidder_id: parseInt(userId) } },
     },
     include: {
       images: { take: 1 },
@@ -474,205 +497,154 @@ const getUserActiveBids = async (userId) => {
   }));
 };
 
-// Cancel Transaction (Task 3.5)
-const cancelTransaction = async (sellerId, productId) => {
-  const pId = parseInt(productId);
+// ==============================================================================
+// 7. PLACE BID (MERGED LOGIC)
+// ==============================================================================
+const placeBid = async (userId, productId, amountStr) => {
+    const pId = parseInt(productId);
+    const uId = parseInt(userId);
+    const amount = parseFloat(amountStr);
 
-  const product = await prisma.product.findUnique({
-    where: { product_id: pId },
-    include: { transaction: true }, 
-  });
-
-  if (!product) throw new Error("Product not found");
-  if (product.seller_id !== sellerId) throw new Error("Unauthorized");
-  if (!product.winner_id) throw new Error("No winner to cancel");
-
-  try {
-    await ratingService.addRating({
-      rater_id: sellerId,
-      rated_user_id: product.winner_id,
-      product_id: pId,
-      rating_value: -1,
-      comment: "Winner did not pay",
+    // 1. CHECK BAN (Your Logic - Priority)
+    const isBanned = await prisma.banned_Bidder.findUnique({
+        where: {
+            product_id_bidder_id: { product_id: pId, bidder_id: uId }
+        }
     });
-  } catch (e) {
-    console.log("Auto-rating skipped:", e.message);
-  }
+    if (isBanned) throw new Error("You have been banned from this auction by the seller.");
 
-  if (product.transaction) {
-    await prisma.transaction.update({
-      where: { transaction_id: product.transaction.transaction_id },
-      data: { status: "cancelled" },
+    // 2. TRANSACTION + VALIDATION (Safe Logic)
+    return await prisma.$transaction(async (tx) => {
+        const product = await tx.product.findUnique({
+            where: { product_id: pId },
+            include: { bids: { orderBy: { max_bid_amount: 'desc' }, take: 1 } }
+        });
+
+        if (!product) throw new Error("Product not found");
+        if (product.status !== 'active') throw new Error("Auction is closed");
+        if (new Date(product.end_time) < new Date()) throw new Error("Auction has ended");
+        if (product.seller_id === uId) throw new Error("You cannot bid on your own product");
+
+        // Min Bid Logic
+        const highestBid = product.bids[0]?.max_bid_amount || product.start_price;
+        const minBid = parseFloat(highestBid) + parseFloat(product.step_price);
+        const effectiveMin = product.bids.length === 0 ? parseFloat(product.start_price) : minBid;
+
+        if (amount < effectiveMin) {
+            throw new Error(`Bid too low. Minimum required is $${effectiveMin.toLocaleString()}`);
+        }
+        if (product.buy_now_price && amount > parseFloat(product.buy_now_price)) {
+            throw new Error(`Bid cannot exceed Buy Now price ($${product.buy_now_price})`);
+        }
+
+        // Auto-Extend
+        let newEndTime = product.end_time;
+        if (product.auto_extend_enabled) {
+            const now = new Date();
+            const timeRemainingMs = new Date(product.end_time) - now;
+            if (timeRemainingMs <= 5 * 60 * 1000 && timeRemainingMs > 0) {
+                newEndTime = new Date(new Date(product.end_time).getTime() + 10 * 60 * 1000);
+            }
+        }
+
+        const newBid = await tx.bid_History.create({
+            data: {
+                product_id: pId,
+                bidder_id: uId,
+                max_bid_amount: amount,
+                bid_time: new Date()
+            }
+        });
+
+        await tx.product.update({
+            where: { product_id: pId },
+            data: {
+                current_price: amount,
+                current_bidder_id: uId,
+                bid_count: { increment: 1 },
+                end_time: newEndTime
+            }
+        });
+
+        return newBid;
     });
-  }
-
-  return await prisma.product.update({
-    where: { product_id: pId },
-    data: {
-      status: "ended_no_winner",
-    },
-  });
 };
 
-const getFeaturedProducts = async (limit = 10) => {
-  return await prisma.product.findMany({
-    where: {
-      status: "active",
-      end_time: { gt: new Date() },
-    },
-    take: parseInt(limit),
-    orderBy: { bid_count: "desc" },
-    include: {
-      images: { take: 1 },
-      category: { include: { parent: true } },
-      bids: { take: 1, orderBy: { max_bid_amount: "desc" } },
-      seller: { select: { full_name: true } },
-    },
-  });
-};
-
-const getOngoingProducts = async (limit = 10) => {
-  return await prisma.product.findMany({
-    where: {
-      status: "active",
-      end_time: { gt: new Date() },
-    },
-    take: parseInt(limit),
-    orderBy: { end_time: "asc" }, 
-    include: {
-      images: { take: 1 },
-      current_bidder: { select: { full_name: true } },
-    },
-  });
-};
-
-const getCompetitiveProducts = async (limit = 10) => {
-  return await prisma.product.findMany({
-    where: {
-      status: "active",
-      end_time: { gt: new Date() },
-    },
-    take: parseInt(limit),
-    orderBy: { current_price: "desc" }, 
-    include: {
-      images: { take: 1 },
-      bids: { take: 1, orderBy: { max_bid_amount: "desc" } },
-      seller: { select: { full_name: true } },
-    },
-  });
-};
-
+// ==============================================================================
+// 8. OTHERS
+// ==============================================================================
 const createTransaction = async (userId, productId, shippingData) => {
-  const pId = parseInt(productId);
-  const uId = parseInt(userId);
+    const pId = parseInt(productId);
+    const uId = parseInt(userId);
+    const product = await prisma.product.findUnique({ where: { product_id: pId }, include: { transaction: true } });
 
-  const product = await prisma.product.findUnique({
-    where: { product_id: pId },
-    include: { transaction: true },
-  });
+    if (!product) throw new Error("Product not found");
+    if (product.winner_id !== uId) throw new Error("You are not the winner");
 
-  if (!product) throw new Error("Product not found");
-  if (product.winner_id !== uId)
-    throw new Error("You are not the winner of this item");
-  if (product.transaction) throw new Error("Transaction already exists");
+    if (product.transaction) {
+        if (['completed', 'shipped', 'pending_shipping'].includes(product.transaction.status)) {
+            throw new Error("Transaction already processing");
+        }
+        return await prisma.transaction.update({
+            where: { transaction_id: product.transaction.transaction_id },
+            data: {
+                status: 'completed',
+                shipping_address: JSON.stringify(shippingData),
+                payment_proof: 'Online Payment (Simulated)'
+            }
+        });
+    }
 
-  const transaction = await prisma.transaction.create({
-    data: {
-      product_id: pId,
-      buyer_id: uId,
-      seller_id: product.seller_id,
-      status: "pending_shipping", 
-      shipping_address: JSON.stringify(shippingData),
-      payment_proof: "Online Payment (Simulated)",
-    },
-  });
-
-  return transaction;
+    return await prisma.transaction.create({
+        data: {
+            product_id: pId,
+            buyer_id: uId,
+            seller_id: product.seller_id,
+            status: 'completed',
+            shipping_address: JSON.stringify(shippingData),
+            payment_proof: 'Online Payment (Simulated)',
+        }
+    });
 };
 
 const getAuctionStats = async () => {
   const now = new Date();
   const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
-  const [activeCount, endingSoonCount] = await Promise.all([
-    prisma.product.count({
-      where: {
-        status: "active",
-        end_time: { gt: now },
-      },
-    }),
-    prisma.product.count({
-      where: {
-        status: "active",
-        end_time: {
-          gt: now,
-          lte: next24h,
-        },
-      },
-    }),
+  const [active, endingSoon] = await Promise.all([
+    prisma.product.count({ where: { status: "active", end_time: { gt: now } } }),
+    prisma.product.count({ where: { status: "active", end_time: { gt: now, lte: next24h } } }),
   ]);
-
-  return {
-    active: activeCount,
-    endingSoon24h: endingSoonCount,
-  };
+  return { active, endingSoon24h: endingSoon };
 };
 
-const placeBid = async (userId, productId, amount) => {
-    const pId = parseInt(productId);
-    const bidAmount = parseFloat(amount);
+const getFeaturedProducts = async (limit = 10) => {
+  const products = await prisma.product.findMany({
+    where: { status: "active", end_time: { gt: new Date() } },
+    take: parseInt(limit),
+    orderBy: { bid_count: "desc" },
+    include: { images: { take: 1 }, category: true, bids: { take: 1 }, seller: { select: { full_name: true } } }
+  });
+  return maskProducts(products);
+};
 
-    const isBanned = await prisma.banned_Bidder.findUnique({
-        where: {
-            product_id_bidder_id: {
-                product_id: pId,
-                bidder_id: userId
-            }
-        }
-    });
+const getOngoingProducts = async (limit = 10) => {
+  const products = await prisma.product.findMany({
+    where: { status: "active", end_time: { gt: new Date() } },
+    take: parseInt(limit),
+    orderBy: { end_time: "asc" },
+    include: { images: { take: 1 }, current_bidder: { select: { full_name: true } } }
+  });
+  return maskProducts(products);
+};
 
-    if (isBanned) {
-        throw new Error("You have been banned from this auction by the seller.");
-    }
-
-    const product = await prisma.product.findUnique({
-        where: { product_id: pId },
-        include: { bids: { orderBy: { max_bid_amount: 'desc' }, take: 1 } }
-    });
-
-    if (!product) throw new Error("Product not found");
-    if (product.seller_id === userId) throw new Error("You cannot bid on your own product");
-
-    const highestBid = product.bids[0]?.max_bid_amount || product.start_price;
-    const minBid = parseFloat(highestBid) + parseFloat(product.step_price);
-    const effectiveMin = product.bids.length === 0 ? parseFloat(product.start_price) : minBid;
-
-    if (bidAmount < effectiveMin) {
-        throw new Error(`Bid too low. Minimum required is $${effectiveMin.toLocaleString()}`);
-    }
-
-    const newBid = await prisma.bid_History.create({
-        data: {
-            product_id: pId,
-            bidder_id: userId,
-            max_bid_amount: bidAmount,
-            bid_time: new Date()
-        }
-    });
-
-    await prisma.product.update({
-        where: { product_id: pId },
-        data: {
-            current_price: bidAmount,
-            bid_count: { increment: 1 },
-            current_bidder_id: userId,
-            ...(product.auto_extend_enabled && (new Date(product.end_time) - new Date() < 5 * 60 * 1000)
-                ? { end_time: new Date(new Date(product.end_time).getTime() + 10 * 60 * 1000) } 
-                : {})
-        }
-    });
-
-    return newBid;
+const getCompetitiveProducts = async (limit = 10) => {
+  const products = await prisma.product.findMany({
+    where: { status: "active", end_time: { gt: new Date() } },
+    take: parseInt(limit),
+    orderBy: { current_price: "desc" },
+    include: { images: { take: 1 }, bids: { take: 1 }, seller: { select: { full_name: true } } }
+  });
+  return maskProducts(products);
 };
 
 export default {
@@ -696,5 +668,6 @@ export default {
   getUserActiveBids,
   createTransaction,
   getAuctionStats,
+  getRandomProducts,
   placeBid,
 };
