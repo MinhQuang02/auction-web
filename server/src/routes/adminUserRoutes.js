@@ -8,6 +8,9 @@ router.get("/", adminUserController.getAllUsers);
 router.get("/stats", adminUserController.getUserStats);
 router.get("/:id", adminUserController.getUserDetail);
 router.post("/downgrade", adminUserController.downgradeSeller);
+router.post("/suspend", adminUserController.suspendUser);
+router.post("/unsuspend", adminUserController.unsuspendUser);
+router.post("/", adminUserController.createUser);
 router.patch(
   "/:id/profile",
   requireRole("admin"),
