@@ -150,6 +150,7 @@ model Bid_History {
   bidder_id      Int
   max_bid_amount Decimal   @db.Decimal(12, 2)
   bid_time       DateTime? @default(now()) @db.Timestamp()
+  status         String    @default("valid")
 
   product        Product   @relation(fields: [product_id], references: [product_id])
   bidder         User      @relation(fields: [bidder_id], references: [user_id])

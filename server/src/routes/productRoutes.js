@@ -5,36 +5,35 @@ import requireRole from "../middlewares/requireRole.js";
 const router = express.Router();
 
 // Public Routes
-router.get('/hero', productController.getHero);
+router.get('/', productController.getProducts); 
+router.get('/hero', productController.getHero); 
 router.get('/featured', productController.getFeatured);
 router.get('/ongoing', productController.getOngoing);
 router.get('/competitive', productController.getCompetitive);
 router.get('/replacement', productController.getReplacement);
+
+// Product Detail & Q&A
+router.get('/:id', productController.getProductDetail);
+router.get("/:id/questions", productController.getQuestions);
+
+// User / Bidder
 router.get('/user/purchases', productController.getMyPurchases);
 router.get('/user/active-bids', productController.getMyActiveBids);
 router.post('/user/purchases/:id/pay', productController.payForProduct);
-router.get('/admin/stats', requireRole("admin"), productController.getAuctionStats);
+router.post("/:id/bid", requireRole("bidder"), productController.placeBid);
 
-// Detail and List
-router.get('/', productController.getProducts);
-router.get('/:id', productController.getProductDetail);
+// Q&A
+router.post("/:id/questions", productController.postQuestion); 
+router.post("/questions/:questionId/reply", productController.answerQuestion); 
 
-// Protected Routes (Order matters! Put specific paths BEFORE :id)
+// Seller
 router.get('/seller/me', productController.getSellerProducts);
-router.post('/', productController.createProduct);
-router.patch('/:id', productController.updateProduct);
-
-// TASK 3.3: REJECT
+router.post('/', productController.createProduct);      
+router.patch('/:id', productController.updateProduct);  
 router.post("/:id/reject", productController.rejectBidder);
-
-// TASK 3.4: Q&A
-router.get("/:id/questions", productController.getQuestions);
-router.post("/:id/questions", productController.postQuestion); // Ask
-router.post("/questions/:questionId/reply", productController.answerQuestion); // Reply (Note: unique path)
-
 router.post("/:id/cancel", productController.cancelTransaction);
 
-// Bidding
-router.post("/:id/bid", requireRole("bidder", "seller"), productController.placeBid);
+// Admin
+router.get("/admin/stats", requireRole("admin"), productController.getAuctionStats);
 
 export default router;

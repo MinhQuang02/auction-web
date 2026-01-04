@@ -42,9 +42,6 @@ const AdminDashboard = () => {
     <VBox className="px-6 py-8 lg:px-10 gap-8 font-sans text-gray-800">
       <HBox className="gap-10">
         <AdminSidebar />
-        {/* <span className="text-3xl font-bold tracking-wide text-black self-center flex-grow">
-          DASHBOARD
-        </span> */}
         <HBox className="w-full">
           <StatsCell
             number={100000}

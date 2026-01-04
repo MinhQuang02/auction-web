@@ -42,8 +42,8 @@ const getSubCategories = async () => {
     select: {
       category_id: true,
       name: true,
-      url_icon: true,
       parent_id: true,
+      url_icon: true,
     },
   });
 };

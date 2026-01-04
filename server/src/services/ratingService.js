@@ -1,7 +1,6 @@
 import prisma from '../lib/prisma.js';
 
 const addRating = async ({ rater_id, rated_user_id, product_id, rating_value, comment }) => {
-  // 1. Check if rating already exists
   const existing = await prisma.rating.findFirst({
     where: {
       product_id: parseInt(product_id),
@@ -14,19 +13,16 @@ const addRating = async ({ rater_id, rated_user_id, product_id, rating_value, co
     throw new Error("You have already rated this user for this product.");
   }
 
-  // 2. Create Rating
   const rating = await prisma.rating.create({
     data: {
       product_id: parseInt(product_id),
       rater_id: parseInt(rater_id),
       rated_user_id: parseInt(rated_user_id),
-      rating_value: parseInt(rating_value), // 1 or -1
+      rating_value: parseInt(rating_value), 
       comment
     }
   });
 
-  // 3. Update User's Average Rating
-  // Aggregate all ratings for the target user
   const aggregations = await prisma.rating.aggregate({
     where: { rated_user_id: parseInt(rated_user_id) },
     _sum: { rating_value: true },
