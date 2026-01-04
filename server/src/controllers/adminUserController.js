@@ -1,4 +1,12 @@
-import prisma from '../lib/prisma.js';
+import prisma from "../lib/prisma.js";
+
+const ALLOWED_FIELDS = [
+  "full_name",
+  "address",
+  "dob",
+  // "is_email_verified",
+  "seller_expires",
+];
 
 const adminUserController = {
   getAllUsers: async (req, res) => {
@@ -192,6 +200,98 @@ const adminUserController = {
     } catch (e) {
       console.error(e);
       res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  downgradeSeller: async (req, res) => {
+    const { userId } = req.body;
+    const sellerId = Number(userId);
+
+    if (!sellerId || Number.isNaN(sellerId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        // 1. Verify user exists and is a seller
+        const user = await tx.user.findUnique({
+          where: { user_id: sellerId },
+          select: { role: true },
+        });
+
+        if (!user) {
+          throw new Error("User not found");
+        }
+
+        if (user.role !== "seller") {
+          throw new Error("User is not a seller");
+        }
+
+        // 2. Remove ALL active products by this seller
+        await tx.product.updateMany({
+          where: {
+            seller_id: sellerId,
+            status: "active",
+          },
+          data: {
+            status: "removed",
+          },
+        });
+
+        // 3. Downgrade seller → bidder
+        await tx.user.update({
+          where: { user_id: sellerId },
+          data: {
+            role: "bidder",
+            seller_expires: null,
+            upgrade_request_time: null,
+          },
+        });
+      });
+
+      res.status(200).json({ message: "Seller downgraded successfully" });
+    } catch (err) {
+      console.error(err);
+      res.status(400).json({ message: err.message });
+    }
+  },
+
+  updateUserProfile: async (req, res) => {
+    const userId = Number(req.params.id);
+    if (!userId) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    // Build a clean update object
+    const data = {};
+    for (const field of ALLOWED_FIELDS) {
+      if (field in req.body) {
+        data[field] = req.body[field];
+      }
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ message: "No editable fields provided" });
+    }
+
+    try {
+      const updatedUser = await prisma.user.update({
+        where: { user_id: userId },
+        data,
+        select: {
+          user_id: true,
+          full_name: true,
+          email: true,
+          role: true,
+          is_email_verified: true,
+          seller_expires: true,
+        },
+      });
+
+      res.json(updatedUser);
+    } catch (err) {
+      console.error(err);
+      res.status(400).json({ message: "Update failed" });
     }
   },
 };

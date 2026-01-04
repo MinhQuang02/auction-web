@@ -134,6 +134,20 @@ const UserManagement = () => {
     refreshCurrentView();
   };
 
+  const downgradeSeller = async (user) => {
+    if (!confirm(`Downgrade ${user.full_name} to bidder?`)) return;
+
+    await apiFetch(`${API_URL}/api/admin/users/downgrade`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ userId: user.user_id }),
+    });
+
+    refreshCurrentView();
+  };
+
   const getUserStatus = (u) => {
     if (u.upgrade_request_time) return "Upgrade Requested";
     if (u.role === "seller" && u.seller_expires)
@@ -303,6 +317,12 @@ const UserManagement = () => {
               isUpgradeView={selectedUser.upgrade_request_time !== null}
               onApprove={approveUpgrade}
               onReject={denyUpgrade}
+              onDowngrade={downgradeSeller}
+              onClose={() => {
+                setIsDetailOpen(false);
+                setSelectedUser(null);
+              }}
+              onSaved={refreshCurrentView}
             />
           )}
         </Modal>
