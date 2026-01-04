@@ -11,7 +11,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 function ProductDetail() {
   const { id } = useParams();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth(); // Corrected from currentUser to user
 
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -62,7 +62,15 @@ function ProductDetail() {
         <Product product={product} onRefresh={fetchProductData} />
       </section>
 
-      {isAuthenticated && <AuctionHistory bids={product.bids || []} />}
+      {isAuthenticated && (
+        <AuctionHistory
+          bids={product.bids || []}
+          isSeller={user && (parseInt(user.id) === parseInt(product.seller_id) || parseInt(user.user_id) === parseInt(product.seller_id))}
+          productId={product.product_id}
+          onRefresh={fetchProductData}
+          productStatus={product.status}
+        />
+      )}
 
       <AskSeller
         productId={product.product_id}
