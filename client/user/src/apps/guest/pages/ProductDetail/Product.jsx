@@ -500,44 +500,52 @@ const Product = ({ product, onRefresh }) => {
         )
       }
 
-      {/* === REVIEWS MODAL === */}
       {isReviewsModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh]">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="bg-[#AE9B84] p-4 flex justify-between items-center text-white">
-              <h3 className="font-bold text-lg">Seller Reviews</h3>
-              <button onClick={() => setIsReviewsModalOpen(false)} className="hover:bg-white/20 p-1 rounded-full">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+            <div className="px-6 py-4 border-b flex justify-between items-center bg-white sticky top-0 z-10">
+              <h3 className="font-bold text-xl text-[#1f1f1f]">Seller Reviews</h3>
+              <button
+                onClick={() => setIsReviewsModalOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition"
+              >
+                ✕
               </button>
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {loadingReviews ? (
-                <div className="text-center py-10 text-gray-500">Loading reviews...</div>
+                <div className="flex justify-center items-center py-10">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#AE9B84]"></div>
+                </div>
               ) : sellerReviews.length === 0 ? (
-                <div className="text-center py-10 text-gray-500">No reviews yet for this seller.</div>
+                <div className="text-center py-10 text-gray-400 italic">No reviews yet for this seller.</div>
               ) : (
                 sellerReviews.map((review) => (
-                  <div key={review.rating_id} className="p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm">
+                  <div key={review.rating_id} className="border-b border-gray-100 pb-6 last:border-0 last:pb-0">
                     <div className="flex justify-between items-start mb-2">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-sm text-[#1f1f1f]">
-                          {review.rater?.full_name || 'Anonymous user'}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {new Date(review.created_at).toLocaleDateString()}
-                        </span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-sm">
+                          {review.rater?.full_name ? review.rater.full_name.charAt(0).toUpperCase() : "?"}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-sm text-[#1f1f1f]">
+                            {review.rater?.full_name || 'Anonymous'}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {new Date(review.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
                       </div>
-                      <div className={`px-2 py-1 rounded text-xs font-bold ${review.rating_value > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {review.rating_value > 0 ? "👍 Positive" : "👎 Negative"}
+
+                      <div className={`px-3 py-1 rounded-full text-xs font-bold border ${review.rating_value > 0 ? 'bg-[#F4EBE2] text-[#AE9B84] border-[#AE9B84]/30' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                        {review.rating_value > 0 ? "Recommended" : "Not Recommended"}
                       </div>
                     </div>
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      {review.comment || "No comment provided."}
+                    <p className="text-sm text-gray-600 leading-relaxed mt-2 pl-[52px]">
+                      {review.comment || <span className="italic text-gray-400">No comment provided.</span>}
                     </p>
                   </div>
                 ))

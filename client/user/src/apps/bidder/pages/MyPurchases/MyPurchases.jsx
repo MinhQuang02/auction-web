@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import React, { useState, useEffect } from 'react';
 import Sidebar from "../../components/Sidebar";
 import { useToast } from "../../../../components/ui/Toast";
@@ -7,6 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 const MyPurchases = () => {
   const { addToast } = useToast();
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -193,59 +194,49 @@ const MyPurchases = () => {
 
                         <img src={imageUrl} alt={product.name} className="max-h-[160px] max-w-full object-contain drop-shadow-md" />
 
-                        {/* Unified Action Overlay */}
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm z-10">
-                          {/* Case 1: Paid & Not Rated -> Rate */}
-                          {isPaid && !product.hasRated && (
-                            <>
-                              <button
-                                onClick={() => openRatingModal(product, 1)}
-                                className="bg-white p-2 rounded-full hover:scale-110 transition shadow-lg text-green-600" title="Like">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-6 h-6">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a2.25 2.25 0 012.25 2.25c0 1.152-.26 2.247-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904M14.25 9h2.25M5.904 18.75c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 01-.521-3.507c0-1.553.295-3.036.831-4.396C3.387 10.203 4.167 9.75 5 9.75h1.053c.472 0 .745.556.5.96a8.958 8.958 0 00-1.302 4.665c0 1.194.232 2.333.654 3.375z" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => openRatingModal(product, -1)}
-                                className="bg-white p-2 rounded-full hover:scale-110 transition shadow-lg text-red-600" title="Dislike">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-6 h-6">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 15h2.25m8.024-9.75c.011.05.028.1.052.148.591 1.2.924 2.55.924 3.977a8.96 8.96 0 01-.999 4.125m.023-8.25c-.076-.365.183-.75.575-.75h.908c.889 0 1.713.518 1.972 1.368.339 1.11.521 2.287.521 3.507 0 1.553-.295 3.036-.831 4.396-.536.78-1.316 1.242-2.149 1.242h-1.053c-.472 0-.745-.556-.5-.96a8.958 8.958 0 001.302-4.665 5.799 5.799 0 00-.654-3.375m-9.585 14.5c-.806 0-1.533.446-2.031 1.08a9.04 9.04 0 00-2.861 2.4c-.723.384-1.35.956-1.653 1.715a4.498 4.498 0 01-.322 1.672V21a2.25 2.25 0 002.25-2.25c0-1.152.26-2.247.723-3.218.266-.558-.107-1.282-.725-1.282H4.496c-1.026 0-1.945-.694-2.054-1.715A11.95 11.95 0 005.091 6.57c.388-.482.987-.729 1.605-.729H8.02c.483 0 .964.078 1.423.23l3.114 1.04a4.501 4.501 0 011.423.23h1.294M7.48 9H5.25m2.23-1.5c-.083-.205-.173-.405-.27-.602-.197-.4.078-.898.523-.898h.908c.889 0 1.713.518 1.972 1.368.339 1.11.521 2.287.521 3.507 0 1.553-.295 3.036-.831 4.396-.536.78-1.316 1.242-2.149 1.242h1.053c.472 0 .745.556.5.96a8.958 8.958 0 01-1.302 4.665 5.799 5.799 0 01-.654 3.375" />
-                                </svg>
-                              </button>
-                            </>
-                          )}
-
-                          {/* Case 2: Unpaid -> Contact & Pay */}
-                          {!isPaid && product.paymentStatus !== 'Cancelled' && (
-                            <>
-                              <button onClick={() => openContactModal(product)} className="bg-white p-2 text-xs font-bold rounded hover:scale-105 transition shadow-sm text-gray-800 flex flex-col items-center gap-1 w-20">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-                                </svg>
-                                Contact
-                              </button>
-
-                              {product.canPay && (
-                                <Link to="/billing" state={{ product }} className="bg-[#AE9B84] p-2 text-xs font-bold rounded hover:scale-105 transition shadow-sm text-white flex flex-col items-center gap-1 w-20">
-                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+                        <div
+                          className="absolute inset-0 bg-black/5 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300"
+                          onClick={() => navigate(`/product/${product.product_id}`)}
+                        >
+                          {/* Action Buttons (Stop Propagation to navigate on background) */}
+                          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                            {/* Case 1: Paid & Not Rated -> Rate */}
+                            {isPaid && !product.hasRated && (
+                              <>
+                                <button
+                                  onClick={() => openRatingModal(product, 1)}
+                                  className="bg-white hover:bg-[#AE9B84] hover:text-white p-2 rounded-full transition shadow-lg text-[#AE9B84]" title="Like">
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a2.25 2.25 0 012.25 2.25c0 1.152-.26 2.247-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904M14.25 9h2.25M5.904 18.75c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 01-.521-3.507c0-1.553.295-3.036.831-4.396C3.387 10.203 4.167 9.75 5 9.75h1.053c.472 0 .745.556.5.96a8.958 8.958 0 00-1.302 4.665c0 1.194.232 2.333.654 3.375z" />
                                   </svg>
-                                  Pay Now
-                                </Link>
-                              )}
-                            </>
-                          )}
+                                </button>
+                                <button
+                                  onClick={() => openRatingModal(product, -1)}
+                                  className="bg-white hover:bg-[#5E4B35] hover:text-white p-2 rounded-full transition shadow-lg text-[#5E4B35]" title="Dislike">
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 15h2.25m8.024-9.75c.011.05.028.1.052.148.591 1.2.924 2.55.924 3.977a8.96 8.96 0 01-.999 4.125m.023-8.25c-.076-.365.183-.75.575-.75h.908c.889 0 1.713.518 1.972 1.368.339 1.11.521 2.287.521 3.507 0 1.553-.295 3.036-.831 4.396-.536.78-1.316 1.242-2.149 1.242h-1.053c-.472 0-.745-.556-.5-.96a8.958 8.958 0 001.302-4.665 5.799 5.799 0 00-.654-3.375m-9.585 14.5c-.806 0-1.533.446-2.031 1.08a9.04 9.04 0 00-2.861 2.4c-.723.384-1.35.956-1.653 1.715a4.498 4.498 0 01-.322 1.672V21a2.25 2.25 0 002.25-2.25c0-1.152.26-2.247.723-3.218.266-.558-.107-1.282-.725-1.282H4.496c-1.026 0-1.945-.694-2.054-1.715A11.95 11.95 0 005.091 6.57c.388-.482.987-.729 1.605-.729H8.02c.483 0 .964.078 1.423.23l3.114 1.04a4.501 4.501 0 011.423.23h1.294M7.48 9H5.25m2.23-1.5c-.083-.205-.173-.405-.27-.602-.197.4.078-.898.523-.898h.908c.889 0 1.713.518 1.972 1.368.339 1.11.521 2.287.521 3.507 0 1.553-.295 3.036-.831 4.396-.536.78-1.316 1.242-2.149 1.242h1.053c.472 0 .745.556.5.96a8.958 8.958 0 01-1.302 4.665 5.799 5.799 0 01-.654 3.375" />
+                                  </svg>
+                                </button>
+                              </>
+                            )}
 
-                          <Link
-                            to={`/product/${product.product_id}`}
-                            className="bg-white p-2 text-xs font-bold rounded hover:scale-105 transition shadow-sm text-gray-800 flex flex-col items-center gap-1 w-20"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            View
-                          </Link>
+                            {/* Case 2: Unpaid -> Contact & Pay */}
+                            {!isPaid && product.paymentStatus !== 'Cancelled' && (
+                              <>
+                                <button onClick={() => openContactModal(product)} className="bg-white p-2 text-xs font-bold rounded shadow-md text-gray-700 hover:text-[#AE9B84] flex items-center gap-1 transition">
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                                  </svg>
+                                </button>
+
+                                {product.canPay && (
+                                  <Link to="/billing" state={{ product }} className="bg-[#AE9B84] p-2 text-xs font-bold rounded text-white hover:bg-[#8F7E6A] flex items-center gap-1 shadow-md transition">
+                                    Pay
+                                  </Link>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
 

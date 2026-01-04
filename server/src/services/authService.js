@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import generateOtp from "../utils/generateOtp.js";
-import transporter from "../utils/mailer.js";
+import emailService from "./emailService.js";
 import { OAuth2Client } from "google-auth-library";
 
 const SALT_ROUNDS = Number(process.env.SALT_ROUNDS || 10);
@@ -80,12 +80,7 @@ class AuthService {
       },
     });
 
-    await transporter.sendMail({
-      from: `"Your App" <${process.env.MAIL_USER}>`,
-      to: email,
-      subject: "Verify your email",
-      text: `Your verification code is: ${otp}`,
-    });
+    await emailService.sendOtp(email, otp);
   }
 
   async verifyEmail({ email, otp }) {
@@ -161,62 +156,53 @@ class AuthService {
   async requestPasswordReset(email) {
     const user = await prisma.user.findUnique({ where: { email } });
 
-    if (!user) return;
+    if (!user) return; // Silent fail security
 
-    if (!user.password) return;
-
-    const rawToken = crypto.randomBytes(32).toString("hex");
-    const hashedToken = await hash(rawToken);
-    const expires = new Date(Date.now() + 15 * 60 * 1000);
+    // Generate 6-digit OTP
+    const otp = generateOtp();
+    const hashedOtp = await hash(otp);
+    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
     await prisma.user.update({
       where: { user_id: user.user_id },
       data: {
-        reset_token_hash: hashedToken,
+        reset_token_hash: hashedOtp, // Reusing this field for OTP hash
         reset_token_expires: expires,
       },
     });
 
-    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${rawToken}`;
-
-    await transporter.sendMail({
-      from: `"Your App" <${process.env.MAIL_USER}>`,
-      to: user.email,
-      subject: "Reset your password",
-      text: `Reset your password here:\n\n${resetLink}\n\nThis link expires in 15 minutes.`,
-    });
+    // Send OTP Email
+    await emailService.sendOtp(user.email, otp, 'reset');
   }
 
-  async resetPassword({ token, password }) {
+  async resetPassword({ email, otp, password }) {
+    if (!email || !otp || !password) {
+      throw new Error("Missing required fields");
+    }
+
     if (password.length < 6) {
       throw new Error("Password too short");
     }
 
-    const users = await prisma.user.findMany({
-      where: {
-        reset_token_hash: { not: null },
-        reset_token_expires: { gt: new Date() },
-      },
-    });
+    const user = await prisma.user.findUnique({ where: { email } });
 
-    let matchedUser = null;
-
-    for (const user of users) {
-      const isMatch = await bcrypt.compare(token, user.reset_token_hash);
-      if (isMatch) {
-        matchedUser = user;
-        break;
-      }
+    if (!user || !user.reset_token_hash || !user.reset_token_expires) {
+      throw new Error("Invalid request");
     }
 
-    if (!matchedUser) {
-      throw new Error("Invalid or expired token");
+    if (user.reset_token_expires < new Date()) {
+      throw new Error("OTP expired");
+    }
+
+    const isMatch = await bcrypt.compare(otp, user.reset_token_hash);
+    if (!isMatch) {
+      throw new Error("Invalid OTP");
     }
 
     const newHashedPassword = await hash(password);
 
     await prisma.user.update({
-      where: { user_id: matchedUser.user_id },
+      where: { user_id: user.user_id },
       data: {
         password: newHashedPassword,
         reset_token_hash: null,

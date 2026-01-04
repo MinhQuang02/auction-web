@@ -1,4 +1,5 @@
 import prisma from "../lib/prisma.js";
+import emailService from "./emailService.js";
 import ratingService from "./ratingService.js";
 import categoryService from "./categoryService.js";
 
@@ -412,9 +413,27 @@ const cancelTransaction = async (sellerId, productId) => {
 // 5. Q&A
 // ==============================================================================
 const addQuestion = async (userId, productId, content) => {
-  return await prisma.product_Question.create({
+  const question = await prisma.product_Question.create({
     data: { asker_id: userId, product_id: parseInt(productId), question_text: content },
+    include: {
+      product: { include: { seller: true } },
+      asker: true
+    }
   });
+
+  // Notification (B)
+  if (question.product.seller?.email) {
+    emailService.sendQuestionNotification(
+      question.product.seller.email,
+      question.product.seller.full_name,
+      question.asker?.full_name || 'A Buyer',
+      question.product.name,
+      question.product_id,
+      content
+    );
+  }
+
+  return question;
 };
 
 const answerQuestion = async (sellerId, questionId, answer) => {
@@ -524,7 +543,7 @@ const placeBid = async (userId, productId, amountStr) => {
   }
 
   // 2. TRANSACTION + VALIDATION (Safe Logic)
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const product = await tx.product.findUnique({
       where: { product_id: pId },
       include: { bids: { orderBy: { max_bid_amount: 'desc' }, take: 1 } }
@@ -577,7 +596,37 @@ const placeBid = async (userId, productId, amountStr) => {
     });
 
     return newBid;
-  });
+  }); // End Transaction
+
+  // --- OUTBID NOTIFICATIONS (D) ---
+  // Run outside transaction
+  // Find previous bidders (unique, not current bidder)
+  try {
+    const previousBids = await prisma.bid_History.findMany({
+      where: {
+        product_id: pId,
+        bidder_id: { not: uId }
+      },
+      distinct: ['bidder_id'],
+      select: { bidder_id: true }
+    });
+
+    if (previousBids.length > 0) {
+      const bidderIds = previousBids.map(b => b.bidder_id);
+      const bidders = await prisma.user.findMany({
+        where: { user_id: { in: bidderIds } },
+        select: { email: true, full_name: true }
+      });
+
+      const productInfo = await prisma.product.findUnique({ where: { product_id: pId }, select: { name: true } });
+
+      emailService.sendOutbidNotifications(bidders, productInfo?.name || "Auction Item", pId, amount);
+    }
+  } catch (err) {
+    console.error("Outbid Email Error:", err);
+  }
+
+  return result;
 };
 
 // ==============================================================================
@@ -591,11 +640,13 @@ const createTransaction = async (userId, productId, shippingData) => {
   if (!product) throw new Error("Product not found");
   if (product.winner_id !== uId) throw new Error("You are not the winner");
 
+  let trans;
+
   if (product.transaction) {
     if (['completed', 'shipped', 'pending_shipping'].includes(product.transaction.status)) {
       throw new Error("Transaction already processing");
     }
-    return await prisma.transaction.update({
+    trans = await prisma.transaction.update({
       where: { transaction_id: product.transaction.transaction_id },
       data: {
         status: 'completed',
@@ -603,18 +654,30 @@ const createTransaction = async (userId, productId, shippingData) => {
         payment_proof: 'Online Payment (Simulated)'
       }
     });
+  } else {
+    trans = await prisma.transaction.create({
+      data: {
+        product_id: pId,
+        buyer_id: uId,
+        seller_id: product.seller_id,
+        status: 'completed',
+        shipping_address: JSON.stringify(shippingData),
+        payment_proof: 'Online Payment (Simulated)',
+      }
+    });
   }
 
-  return await prisma.transaction.create({
-    data: {
-      product_id: pId,
-      buyer_id: uId,
-      seller_id: product.seller_id,
-      status: 'completed',
-      shipping_address: JSON.stringify(shippingData),
-      payment_proof: 'Online Payment (Simulated)',
-    }
-  });
+  // Notification (C)
+  const [buyer, seller] = await Promise.all([
+    prisma.user.findUnique({ where: { user_id: uId } }),
+    prisma.user.findUnique({ where: { user_id: product.seller_id } })
+  ]);
+
+  if (buyer && seller) {
+    emailService.sendTransactionEmails(buyer, seller, product, trans, shippingData);
+  }
+
+  return trans;
 };
 
 const getAuctionStats = async () => {

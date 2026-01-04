@@ -157,17 +157,17 @@ class AuthController {
 
   async resetPassword(req, res) {
     try {
-      const { token, password } = req.body;
+      const { email, otp, password } = req.body;
 
-      if (!token || !password) {
-        return res.status(400).json({ message: "Missing token or password" });
+      if (!email || !otp || !password) {
+        return res.status(400).json({ message: "Missing email, otp, or information" });
       }
 
-      await authService.resetPassword({ token, password });
+      await authService.resetPassword({ email, otp, password });
 
       return res.json({ message: "Password reset successful" });
     } catch (err) {
-      if (err.message === "Invalid or expired token") {
+      if (err.message === "Invalid OTP" || err.message === "OTP expired" || err.message === "Invalid request") {
         return res.status(400).json({ message: err.message });
       }
       console.error(err);
