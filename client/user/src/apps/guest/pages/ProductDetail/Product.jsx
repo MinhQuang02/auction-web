@@ -100,6 +100,31 @@ const Product = ({ product, onRefresh }) => {
   if (!product) return null;
 
   // Constants to use in render
+  // Reviews Logic
+  const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
+  const [sellerReviews, setSellerReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+
+  const fetchSellerReviews = async () => {
+    setIsReviewsModalOpen(true);
+    if (sellerReviews.length > 0) return; // Cache simple
+
+    setLoadingReviews(true);
+    try {
+      const sellerId = product.seller?.user_id || product.seller_id;
+      // Note: Backend endpoint should be public
+      const res = await fetch(`${API_URL}/api/ratings/user/${sellerId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSellerReviews(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch reviews");
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
   const currentPrice = Number(product.current_price || 0);
   const stepPrice = Number(product.step_price || 0);
   // const startPrice = Number(product.start_price || 0);
@@ -302,7 +327,10 @@ const Product = ({ product, onRefresh }) => {
           {/* Rating & Views */}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             {renderStars(Number(product.seller?.avg_rating || 0))}
-            <span className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer transition">
+            <span
+              onClick={fetchSellerReviews}
+              className="text-sm text-gray-500 hover:text-[#AE9B84] cursor-pointer transition font-medium underline decoration-dotted"
+            >
               ({product.seller?.total_ratings || 0} reviews)
             </span>
             <span className="text-gray-300">|</span>
@@ -471,6 +499,53 @@ const Product = ({ product, onRefresh }) => {
           </div>
         )
       }
+
+      {/* === REVIEWS MODAL === */}
+      {isReviewsModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh]">
+            {/* Header */}
+            <div className="bg-[#AE9B84] p-4 flex justify-between items-center text-white">
+              <h3 className="font-bold text-lg">Seller Reviews</h3>
+              <button onClick={() => setIsReviewsModalOpen(false)} className="hover:bg-white/20 p-1 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {loadingReviews ? (
+                <div className="text-center py-10 text-gray-500">Loading reviews...</div>
+              ) : sellerReviews.length === 0 ? (
+                <div className="text-center py-10 text-gray-500">No reviews yet for this seller.</div>
+              ) : (
+                sellerReviews.map((review) => (
+                  <div key={review.rating_id} className="p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-sm text-[#1f1f1f]">
+                          {review.rater?.full_name || 'Anonymous user'}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(review.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className={`px-2 py-1 rounded text-xs font-bold ${review.rating_value > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {review.rating_value > 0 ? "👍 Positive" : "👎 Negative"}
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      {review.comment || "No comment provided."}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div >
   );

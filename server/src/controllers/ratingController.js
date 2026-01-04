@@ -21,7 +21,7 @@ const postRating = async (req, res) => {
 
 const getReviews = async (req, res) => {
   try {
-    const userId = req.auth.userId; 
+    const userId = req.auth.userId;
     const reviews = await ratingService.getReviewsByUserId(userId);
     res.status(200).json(reviews);
   } catch (error) {
@@ -29,4 +29,14 @@ const getReviews = async (req, res) => {
   }
 }
 
-export default { postRating, getReviews };
+const getPublicReviews = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const reviews = await ratingService.getReviewsByUserId(userId);
+    res.status(200).json(reviews);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+export default { postRating, getReviews, getPublicReviews };

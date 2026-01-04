@@ -143,15 +143,15 @@ const getProductById = async (productId) => {
           },
         },
       },
-      transaction: true, 
+      transaction: true,
     },
   });
 
   if (!product) return null;
 
   const bannedRecords = await prisma.banned_Bidder.findMany({
-      where: { product_id: idInt },
-      select: { bidder_id: true }
+    where: { product_id: idInt },
+    select: { bidder_id: true }
   });
   const bannedSet = new Set(bannedRecords.map(b => b.bidder_id));
 
@@ -161,13 +161,13 @@ const getProductById = async (productId) => {
 
     let maskedName = "***";
     if (bid.bidder && bid.bidder.full_name) {
-        const fullName = bid.bidder.full_name.trim();
-        maskedName = `***${fullName.slice(-3)}`;
+      const fullName = bid.bidder.full_name.trim();
+      maskedName = `***${fullName.slice(-3)}`;
     }
 
     return {
       ...bid,
-      status, 
+      status,
       bidder: {
         ...bid.bidder,
         full_name: maskedName,
@@ -180,9 +180,9 @@ const getProductById = async (productId) => {
   let paymentStatus = "Unpaid";
   if (product.transaction) {
     if (['completed', 'pending_shipping', 'shipped'].includes(product.transaction.status)) {
-        paymentStatus = 'Paid';
+      paymentStatus = 'Paid';
     } else if (product.transaction.status === 'cancelled') {
-        paymentStatus = 'Cancelled';
+      paymentStatus = 'Cancelled';
     }
   }
 
@@ -381,7 +381,7 @@ const cancelTransaction = async (sellerId, productId) => {
   const pId = parseInt(productId);
   const product = await prisma.product.findUnique({
     where: { product_id: pId },
-    include: { transaction: true }, 
+    include: { transaction: true },
   });
 
   if (!product) throw new Error("Product not found");
@@ -393,7 +393,7 @@ const cancelTransaction = async (sellerId, productId) => {
       rater_id: sellerId, rated_user_id: product.winner_id,
       product_id: pId, rating_value: -1, comment: "Winner did not pay",
     });
-  } catch (e) {}
+  } catch (e) { }
 
   if (product.transaction) {
     await prisma.transaction.update({
@@ -501,110 +501,120 @@ const getUserActiveBids = async (userId) => {
 // 7. PLACE BID (MERGED LOGIC)
 // ==============================================================================
 const placeBid = async (userId, productId, amountStr) => {
-    const pId = parseInt(productId);
-    const uId = parseInt(userId);
-    const amount = parseFloat(amountStr);
+  const pId = parseInt(productId);
+  const uId = parseInt(userId);
+  const amount = parseFloat(amountStr);
 
-    // 1. CHECK BAN (Your Logic - Priority)
-    const isBanned = await prisma.banned_Bidder.findUnique({
-        where: {
-            product_id_bidder_id: { product_id: pId, bidder_id: uId }
-        }
+  // 1. CHECK BAN (Your Logic - Priority)
+  const isBanned = await prisma.banned_Bidder.findUnique({
+    where: {
+      product_id_bidder_id: { product_id: pId, bidder_id: uId }
+    }
+  });
+  if (isBanned) throw new Error("You have been banned from this auction by the seller.");
+
+  // 1.5 CHECK RATING QUALIFICATION
+  const bidder = await prisma.user.findUnique({
+    where: { user_id: uId },
+    select: { avg_rating: true }
+  });
+
+  if (bidder && bidder.avg_rating > 0 && bidder.avg_rating <= 4.0) {
+    throw new Error(`Your rating (${bidder.avg_rating.toFixed(1)}) is too low to bid. Minimum required is 4.0.`);
+  }
+
+  // 2. TRANSACTION + VALIDATION (Safe Logic)
+  return await prisma.$transaction(async (tx) => {
+    const product = await tx.product.findUnique({
+      where: { product_id: pId },
+      include: { bids: { orderBy: { max_bid_amount: 'desc' }, take: 1 } }
     });
-    if (isBanned) throw new Error("You have been banned from this auction by the seller.");
 
-    // 2. TRANSACTION + VALIDATION (Safe Logic)
-    return await prisma.$transaction(async (tx) => {
-        const product = await tx.product.findUnique({
-            where: { product_id: pId },
-            include: { bids: { orderBy: { max_bid_amount: 'desc' }, take: 1 } }
-        });
+    if (!product) throw new Error("Product not found");
+    if (product.status !== 'active') throw new Error("Auction is closed");
+    if (new Date(product.end_time) < new Date()) throw new Error("Auction has ended");
+    if (product.seller_id === uId) throw new Error("You cannot bid on your own product");
 
-        if (!product) throw new Error("Product not found");
-        if (product.status !== 'active') throw new Error("Auction is closed");
-        if (new Date(product.end_time) < new Date()) throw new Error("Auction has ended");
-        if (product.seller_id === uId) throw new Error("You cannot bid on your own product");
+    // Min Bid Logic
+    const highestBid = product.bids[0]?.max_bid_amount || product.start_price;
+    const minBid = parseFloat(highestBid) + parseFloat(product.step_price);
+    const effectiveMin = product.bids.length === 0 ? parseFloat(product.start_price) : minBid;
 
-        // Min Bid Logic
-        const highestBid = product.bids[0]?.max_bid_amount || product.start_price;
-        const minBid = parseFloat(highestBid) + parseFloat(product.step_price);
-        const effectiveMin = product.bids.length === 0 ? parseFloat(product.start_price) : minBid;
+    if (amount < effectiveMin) {
+      throw new Error(`Bid too low. Minimum required is $${effectiveMin.toLocaleString()}`);
+    }
+    if (product.buy_now_price && amount > parseFloat(product.buy_now_price)) {
+      throw new Error(`Bid cannot exceed Buy Now price ($${product.buy_now_price})`);
+    }
 
-        if (amount < effectiveMin) {
-            throw new Error(`Bid too low. Minimum required is $${effectiveMin.toLocaleString()}`);
-        }
-        if (product.buy_now_price && amount > parseFloat(product.buy_now_price)) {
-            throw new Error(`Bid cannot exceed Buy Now price ($${product.buy_now_price})`);
-        }
+    // Auto-Extend
+    let newEndTime = product.end_time;
+    if (product.auto_extend_enabled) {
+      const now = new Date();
+      const timeRemainingMs = new Date(product.end_time) - now;
+      if (timeRemainingMs <= 5 * 60 * 1000 && timeRemainingMs > 0) {
+        newEndTime = new Date(new Date(product.end_time).getTime() + 10 * 60 * 1000);
+      }
+    }
 
-        // Auto-Extend
-        let newEndTime = product.end_time;
-        if (product.auto_extend_enabled) {
-            const now = new Date();
-            const timeRemainingMs = new Date(product.end_time) - now;
-            if (timeRemainingMs <= 5 * 60 * 1000 && timeRemainingMs > 0) {
-                newEndTime = new Date(new Date(product.end_time).getTime() + 10 * 60 * 1000);
-            }
-        }
-
-        const newBid = await tx.bid_History.create({
-            data: {
-                product_id: pId,
-                bidder_id: uId,
-                max_bid_amount: amount,
-                bid_time: new Date()
-            }
-        });
-
-        await tx.product.update({
-            where: { product_id: pId },
-            data: {
-                current_price: amount,
-                current_bidder_id: uId,
-                bid_count: { increment: 1 },
-                end_time: newEndTime
-            }
-        });
-
-        return newBid;
+    const newBid = await tx.bid_History.create({
+      data: {
+        product_id: pId,
+        bidder_id: uId,
+        max_bid_amount: amount,
+        bid_time: new Date()
+      }
     });
+
+    await tx.product.update({
+      where: { product_id: pId },
+      data: {
+        current_price: amount,
+        current_bidder_id: uId,
+        bid_count: { increment: 1 },
+        end_time: newEndTime
+      }
+    });
+
+    return newBid;
+  });
 };
 
 // ==============================================================================
 // 8. OTHERS
 // ==============================================================================
 const createTransaction = async (userId, productId, shippingData) => {
-    const pId = parseInt(productId);
-    const uId = parseInt(userId);
-    const product = await prisma.product.findUnique({ where: { product_id: pId }, include: { transaction: true } });
+  const pId = parseInt(productId);
+  const uId = parseInt(userId);
+  const product = await prisma.product.findUnique({ where: { product_id: pId }, include: { transaction: true } });
 
-    if (!product) throw new Error("Product not found");
-    if (product.winner_id !== uId) throw new Error("You are not the winner");
+  if (!product) throw new Error("Product not found");
+  if (product.winner_id !== uId) throw new Error("You are not the winner");
 
-    if (product.transaction) {
-        if (['completed', 'shipped', 'pending_shipping'].includes(product.transaction.status)) {
-            throw new Error("Transaction already processing");
-        }
-        return await prisma.transaction.update({
-            where: { transaction_id: product.transaction.transaction_id },
-            data: {
-                status: 'completed',
-                shipping_address: JSON.stringify(shippingData),
-                payment_proof: 'Online Payment (Simulated)'
-            }
-        });
+  if (product.transaction) {
+    if (['completed', 'shipped', 'pending_shipping'].includes(product.transaction.status)) {
+      throw new Error("Transaction already processing");
     }
-
-    return await prisma.transaction.create({
-        data: {
-            product_id: pId,
-            buyer_id: uId,
-            seller_id: product.seller_id,
-            status: 'completed',
-            shipping_address: JSON.stringify(shippingData),
-            payment_proof: 'Online Payment (Simulated)',
-        }
+    return await prisma.transaction.update({
+      where: { transaction_id: product.transaction.transaction_id },
+      data: {
+        status: 'completed',
+        shipping_address: JSON.stringify(shippingData),
+        payment_proof: 'Online Payment (Simulated)'
+      }
     });
+  }
+
+  return await prisma.transaction.create({
+    data: {
+      product_id: pId,
+      buyer_id: uId,
+      seller_id: product.seller_id,
+      status: 'completed',
+      shipping_address: JSON.stringify(shippingData),
+      payment_proof: 'Online Payment (Simulated)',
+    }
+  });
 };
 
 const getAuctionStats = async () => {
