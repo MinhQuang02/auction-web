@@ -66,7 +66,6 @@ const UserDetail = ({
     <VBox className="space-y-10">
       <h2 className="text-2xl font-bold">{user.full_name}</h2>
 
-      {/* Account Info (View + Edit unified) */}
       <VBox className="gap-4">
         <HBox className="justify-between items-center">
           <h3 className="text-lg font-semibold">Account Information</h3>
@@ -195,7 +194,6 @@ const UserDetail = ({
         </div>
       </VBox>
 
-      {/* Activity Summary */}
       <VBox className="gap-4">
         <h3 className="text-lg font-semibold">Activity Summary</h3>
         <div className="grid grid-cols-2 gap-4 text-gray-700">
@@ -220,23 +218,49 @@ const UserDetail = ({
         </div>
       </VBox>
 
-      {/* Upgrade + Seller Actions (unchanged) */}
-      {isUpgradeView && user.upgrade_request_time && (
+      {user.role === "bidder" && (
         <VBox className="gap-4 pt-6 border-t">
-          <h3 className="text-lg font-semibold">Upgrade Request</h3>
-          <div className="flex gap-4">
-            <button
-              onClick={() => onReject(user)}
-              className="flex-1 px-4 py-2 bg-red-600 text-white rounded"
-            >
-              Deny
-            </button>
-            <button
-              onClick={() => onApprove(user)}
-              className="flex-1 px-4 py-2 bg-green-600 text-white rounded"
-            >
-              Approve
-            </button>
+          <h3 className="text-lg font-semibold">Upgrade to Seller</h3>
+
+          {user.upgrade_request_time && (
+            <div className="text-gray-700 space-y-2">
+              <p>
+                <strong>Requested At:</strong>{" "}
+                {new Date(user.upgrade_request_time).toLocaleString()}
+              </p>
+
+              {user.upgrade_reason && (
+                <p>
+                  <strong>Reason:</strong> {user.upgrade_reason}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-4 pt-2">
+            {user.upgrade_request_time ? (
+              <>
+                <button
+                  onClick={() => onReject(user)}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded"
+                >
+                  Deny
+                </button>
+                <button
+                  onClick={() => onApprove(user)}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded"
+                >
+                  Approve
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => onApprove(user)}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded"
+              >
+                Upgrade to Seller
+              </button>
+            )}
           </div>
         </VBox>
       )}
