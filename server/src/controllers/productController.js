@@ -100,7 +100,7 @@ const createProduct = async (req, res) => {
       end_time,
       category_id,
       auto_extend_enabled,
-      images, 
+      images,
     } = req.body;
 
     // Validation
@@ -120,13 +120,13 @@ const createProduct = async (req, res) => {
         description,
         start_price: parseFloat(start_price),
         step_price: parseFloat(step_price),
-        current_price: parseFloat(start_price), 
+        current_price: parseFloat(start_price),
         buy_now_price: buy_now_price ? parseFloat(buy_now_price) : null,
         end_time: new Date(end_time),
         auto_extend_enabled: !!auto_extend_enabled,
         seller_id: sellerId,
         category_id: parseInt(category_id),
-        main_image_url: images[0], 
+        main_image_url: images[0],
         status: "active",
 
         images: {
@@ -148,7 +148,7 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { description } = req.body; 
+    const { description } = req.body;
     const userId = req.auth.userId;
 
     // 1. Find the product
@@ -346,8 +346,8 @@ const payForProduct = async (req, res) => {
   try {
     if (!req.auth || !req.auth.userId)
       return res.status(401).json({ message: "Unauthorized" });
-    const { id } = req.params; 
-    const shippingData = req.body; 
+    const { id } = req.params;
+    const shippingData = req.body;
 
     const transaction = await productService.createTransaction(
       req.auth.userId,
@@ -363,7 +363,7 @@ const payForProduct = async (req, res) => {
 
 const getReplacement = async (req, res) => {
   try {
-    const { excludeIds, categoryId } = req.query; 
+    const { excludeIds, categoryId } = req.query;
     let ids = [];
     if (excludeIds) {
       ids = excludeIds.split(",").map((s) => s.trim());
@@ -382,20 +382,36 @@ const getReplacement = async (req, res) => {
 };
 
 const placeBid = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { amount } = req.body;
-        const userId = req.auth.userId; 
+  try {
+    const { id } = req.params;
+    const { amount } = req.body;
+    const userId = req.auth.userId;
 
-        if (!amount) return res.status(400).json({ message: "Bid amount is required" });
+    if (!amount) return res.status(400).json({ message: "Bid amount is required" });
 
-        const bid = await productService.placeBid(userId, id, amount);
-        
-        res.status(201).json({ message: "Bid placed successfully", bid });
-    } catch (error) {
-        console.error("Bid Error:", error.message);
-        res.status(400).json({ message: error.message });
-    }
+    const bid = await productService.placeBid(userId, id, amount);
+
+    res.status(201).json({ message: "Bid placed successfully", bid });
+  } catch (error) {
+    console.error("Bid Error:", error.message);
+    res.status(400).json({ message: error.message });
+  }
+};
+
+const placeAutoBid = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { max_amount } = req.body;
+    const userId = req.auth.userId;
+
+    if (!max_amount) return res.status(400).json({ message: "Max amount is required" });
+
+    const result = await productService.placeAutoBid(userId, id, max_amount);
+    res.status(201).json({ message: "Auto-bid placed successfully", result });
+  } catch (error) {
+    console.error("Auto-Bid Error:", error.message);
+    res.status(400).json({ message: error.message });
+  }
 };
 
 const getHero = async (req, res) => {
@@ -428,5 +444,6 @@ export default {
   getMyActiveBids,
   payForProduct,
   placeBid,
+  placeAutoBid,
   getHero,
 };

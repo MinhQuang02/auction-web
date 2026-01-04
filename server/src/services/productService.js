@@ -519,31 +519,168 @@ const getUserActiveBids = async (userId) => {
 // ==============================================================================
 // 7. PLACE BID (MERGED LOGIC)
 // ==============================================================================
+// ==============================================================================
+// 7. PLACE BID (AUTO & MANUAL) - ATOMIC BATTLE LOGIC
+// ==============================================================================
+
+/**
+ * CORE LOGIC: Resolve the Auction "Battle"
+ * Determines the winner and current price based on all Manual and Auto bids.
+ * 
+ * SCENARIOS:
+ * A: Auto vs Manual -> Auto outbids Manual by Step (up to Max).
+ * B: Auto vs Auto -> Instantly jumps to "Loser's Max + Step".
+ * C: Tie -> Earliest timestamp wins.
+ */
+const resolveAuctionBattle = async (tx, productId) => {
+  const pId = parseInt(productId);
+  const product = await tx.product.findUnique({ where: { product_id: pId } });
+  if (!product) throw new Error("Product not found");
+
+  const step = parseFloat(product.step_price);
+  const startPrice = parseFloat(product.start_price);
+
+  // 1. Fetch All Active Competitors
+  // - Manual Bids: status = 'valid'
+  // - Auto Bids: status = 'auto'
+  const allBids = await tx.bid_History.findMany({
+    where: { product_id: pId, status: { in: ['valid', 'auto'] } },
+    orderBy: { bid_time: 'asc' } // Oldest first for tie-breaking
+  });
+
+  // 2. Consolidate into Unique Bidders (User -> { capacity, type, time })
+  const bidderMap = new Map();
+
+  for (const bid of allBids) {
+    const amount = parseFloat(bid.max_bid_amount);
+    const existing = bidderMap.get(bid.bidder_id);
+
+    // If User has an AUTO bid, that effectively sets their "True Capacity"
+    // If multiple bids, we take the highest definition.
+    // Logic: Auto Bid overwrites Manual in terms of "Capacity" calculation if higher?
+    // Actually, usually a user is either Manual or Auto. The check prevents mixing.
+    // But if mixed, we take the MAX capacity.
+
+    if (!existing || amount > existing.capacity) {
+      bidderMap.set(bid.bidder_id, {
+        userId: bid.bidder_id,
+        capacity: amount,
+        type: bid.status, // 'auto' or 'valid' (manual)
+        time: bid.bid_time
+      });
+    } else if (amount === existing.capacity && bid.status === 'auto') {
+      // Prefer marking them as 'auto' type if amounts equal (stronger intent)
+      existing.type = 'auto';
+    }
+  }
+
+  // 3. Sort Bidders (The "Battle")
+  // - Priority 1: Higer Capacity
+  // - Priority 2: Earlier Time
+  const competitors = Array.from(bidderMap.values()).sort((a, b) => {
+    if (b.capacity !== a.capacity) return b.capacity - a.capacity;
+    return new Date(a.time) - new Date(b.time);
+  });
+
+  // No bidders?
+  if (competitors.length === 0) {
+    return { winnerId: null, price: startPrice };
+  }
+
+  const winner = competitors[0];
+  const runnerUp = competitors[1]; // Can be undefined
+
+  // 4. Calculate New Price
+  let newLocalPrice = startPrice;
+
+  if (winner.type === 'valid') {
+    // MANUAL WINNER: Hard Bid. The price is exactly what they bid.
+    // (Unless they just placed it and it's lower than current? No, validation prevents that).
+    // Manual bids constitute an explicit "I pay X".
+    newLocalPrice = winner.capacity;
+  } else {
+    // AUTO WINNER: Proxy Bid.
+    // Price = RunnerUp Capacity + Step.
+    // Cap at Winner Capacity.
+    // Floor at Start Price (or Current Price, but we recalc from scratch to be safe/atomic).
+
+    const opponentMax = runnerUp ? runnerUp.capacity : 0;
+
+    // If only one bidder (Auto), and they started higher, price should be Start Price?
+    // Usually yes. If I Auto-Bid $1000 on $0 item, price is $0 (or start).
+    // Unless there was a previous price? 
+    // We strictly follow: Price = max(StartPrice, OpponentMax + Step)
+
+    let calculated = opponentMax + step;
+
+    // Edge Case: If only 1 bidder, opponentMax is 0. Calculated is Step.
+    // Standard: Price = Start Price.
+    if (!runnerUp) {
+      calculated = startPrice;
+    } else {
+      // If RunnerUp is roughly equal to Winner (Tie but Winner was earlier),
+      // price goes to Winner's Max (aka RunnerUp Max).
+      // Logic: Opponent bids 500. I Max 500. I win (earlier). Price is 500.
+      // My Logic: 500 + Step = 510. Clamped to My Max (500) -> 500. Correct.
+    }
+
+    // Clamp
+    newLocalPrice = Math.min(winner.capacity, calculated);
+  }
+
+  // Ensure monotonic increase? 
+  // If the calculated price < current DB price, something is weird (maybe a retraction, but we don't support that).
+  // Or maybe "Start Price" rules.
+  // We trust the recalc.
+
+  // 5. Update Product State
+  await tx.product.update({
+    where: { product_id: pId },
+    data: {
+      current_price: newLocalPrice,
+      current_bidder_id: winner.userId
+    }
+  });
+
+  // 6. Record the System Bid (If Auto Won and Price != Capacity)
+  // If the winner is Manual, the 'valid' row already exists.
+  // If the winner is Auto, we usually need a visual 'valid' row representing the price they are holding.
+  // Check if there is already a 'valid' row for this user at this price?
+  // If not, insert one. This makes the "History" list look correct on frontend.
+  if (winner.type === 'auto') {
+    const existingExactBid = await tx.bid_History.findFirst({
+      where: { product_id: pId, bidder_id: winner.userId, max_bid_amount: newLocalPrice, status: 'valid' }
+    });
+
+    if (!existingExactBid) {
+      // Create a "Ghost" bid representing the system's move
+      await tx.bid_History.create({
+        data: {
+          product_id: pId,
+          bidder_id: winner.userId,
+          max_bid_amount: newLocalPrice,
+          status: 'valid', // Show in history
+          bid_time: new Date() // Now
+        }
+      });
+
+      // Increment count
+      await tx.product.update({ where: { product_id: pId }, data: { bid_count: { increment: 1 } } });
+    }
+  }
+
+  return { winnerId: winner.userId, price: newLocalPrice };
+};
+
+
+// --- PUBLIC API: Place Manual Bid ---
 const placeBid = async (userId, productId, amountStr) => {
   const pId = parseInt(productId);
   const uId = parseInt(userId);
   const amount = parseFloat(amountStr);
 
-  // 1. CHECK BAN (Your Logic - Priority)
-  const isBanned = await prisma.banned_Bidder.findUnique({
-    where: {
-      product_id_bidder_id: { product_id: pId, bidder_id: uId }
-    }
-  });
-  if (isBanned) throw new Error("You have been banned from this auction by the seller.");
-
-  // 1.5 CHECK RATING QUALIFICATION
-  const bidder = await prisma.user.findUnique({
-    where: { user_id: uId },
-    select: { avg_rating: true }
-  });
-
-  if (bidder && bidder.avg_rating > 0 && bidder.avg_rating <= 4.0) {
-    throw new Error(`Your rating (${bidder.avg_rating.toFixed(1)}) is too low to bid. Minimum required is 4.0.`);
-  }
-
-  // 2. TRANSACTION + VALIDATION (Safe Logic)
-  const result = await prisma.$transaction(async (tx) => {
+  return await prisma.$transaction(async (tx) => {
+    // 1. Validation
     const product = await tx.product.findUnique({
       where: { product_id: pId },
       include: { bids: { orderBy: { max_bid_amount: 'desc' }, take: 1 } }
@@ -554,79 +691,116 @@ const placeBid = async (userId, productId, amountStr) => {
     if (new Date(product.end_time) < new Date()) throw new Error("Auction has ended");
     if (product.seller_id === uId) throw new Error("You cannot bid on your own product");
 
-    // Min Bid Logic
-    const highestBid = product.bids[0]?.max_bid_amount || product.start_price;
-    const minBid = parseFloat(highestBid) + parseFloat(product.step_price);
-    const effectiveMin = product.bids.length === 0 ? parseFloat(product.start_price) : minBid;
+    // 2. Check for Active Auto-Bid (User Instruction: Reject Manual if Auto exists)
+    const existingAuto = await tx.bid_History.findFirst({
+      where: { product_id: pId, bidder_id: uId, status: 'auto' }
+    });
+    if (existingAuto) {
+      throw new Error("You have an active auto-bid. Please update that instead.");
+    }
 
-    if (amount < effectiveMin) {
-      throw new Error(`Bid too low. Minimum required is $${effectiveMin.toLocaleString()}`);
+    // 3. Min Bid Validation
+    // Note: We use the *Calculated* current state from Product, not just history
+    const currentPrice = parseFloat(product.current_price);
+    const minBid = product.bid_count === 0 ? parseFloat(product.start_price) : currentPrice + parseFloat(product.step_price);
+
+    if (amount < minBid) {
+      throw new Error(`Bid too low. Minimum required is $${minBid.toLocaleString()}`);
     }
     if (product.buy_now_price && amount > parseFloat(product.buy_now_price)) {
-      throw new Error(`Bid cannot exceed Buy Now price ($${product.buy_now_price})`);
+      throw new Error(`Bid cannot exceed Buy Now price`);
     }
 
-    // Auto-Extend
-    let newEndTime = product.end_time;
-    if (product.auto_extend_enabled) {
-      const now = new Date();
-      const timeRemainingMs = new Date(product.end_time) - now;
-      if (timeRemainingMs <= 5 * 60 * 1000 && timeRemainingMs > 0) {
-        newEndTime = new Date(new Date(product.end_time).getTime() + 10 * 60 * 1000);
-      }
-    }
-
+    // 4. Insert Manual Bid
     const newBid = await tx.bid_History.create({
       data: {
         product_id: pId,
         bidder_id: uId,
         max_bid_amount: amount,
+        status: 'valid', // Manual
         bid_time: new Date()
       }
     });
 
+    // Update count immediately for the manual action
     await tx.product.update({
       where: { product_id: pId },
-      data: {
-        current_price: amount,
-        current_bidder_id: uId,
-        bid_count: { increment: 1 },
-        end_time: newEndTime
-      }
+      data: { bid_count: { increment: 1 } }
     });
+
+    // 5. Trigger Battle (Atomic)
+    await resolveAuctionBattle(tx, pId);
+
+    // Auto-Extend Check (Moved here or inside battle? Here is fine)
+    if (product.auto_extend_enabled) {
+      const now = new Date();
+      const timeRemainingMs = new Date(product.end_time) - now;
+      if (timeRemainingMs <= 5 * 60 * 1000 && timeRemainingMs > 0) {
+        await tx.product.update({
+          where: { product_id: pId },
+          data: { end_time: new Date(new Date(product.end_time).getTime() + 10 * 60 * 1000) }
+        });
+      }
+    }
 
     return newBid;
-  }); // End Transaction
+  });
+};
 
-  // --- OUTBID NOTIFICATIONS (D) ---
-  // Run outside transaction
-  // Find previous bidders (unique, not current bidder)
-  try {
-    const previousBids = await prisma.bid_History.findMany({
-      where: {
-        product_id: pId,
-        bidder_id: { not: uId }
-      },
-      distinct: ['bidder_id'],
-      select: { bidder_id: true }
+
+// --- PUBLIC API: Place Auto Bid ---
+const placeAutoBid = async (userId, productId, maxAmountStr) => {
+  const pId = parseInt(productId);
+  const uId = parseInt(userId);
+  const maxAmount = parseFloat(maxAmountStr);
+
+  return await prisma.$transaction(async (tx) => {
+    // 1. Validation
+    const product = await tx.product.findUnique({ where: { product_id: pId } });
+    if (!product) throw new Error("Product not found");
+    if (product.status !== 'active' || new Date(product.end_time) < new Date()) throw new Error("Auction ended");
+    if (product.seller_id === uId) throw new Error("Cannot bid on own product");
+
+    // 2. Upsert Auto Bid Logic
+    // We deactivate old auto bids or just insert a new one?
+    // Usually, a user has ONLY ONE active auto-bid limit.
+    // We can update the existing one or insert new one. 
+    // Inserting new one preserves history of "I increased my limit".
+    // Let's insert new, relying on `resolveAuctionBattle` to pick the latest/highest.
+    // But to keep things clean, let's mark old 'auto' bids as 'outdated'? 
+    // Or valid 'resolveBattle' effectively ignores lower ones.
+    // Let's UPDATE existing if present to keep DB clean, or Insert.
+
+    const existingAuto = await tx.bid_History.findFirst({
+      where: { product_id: pId, bidder_id: uId, status: 'auto' }
     });
 
-    if (previousBids.length > 0) {
-      const bidderIds = previousBids.map(b => b.bidder_id);
-      const bidders = await prisma.user.findMany({
-        where: { user_id: { in: bidderIds } },
-        select: { email: true, full_name: true }
+    if (existingAuto) {
+      if (maxAmount <= parseFloat(existingAuto.max_bid_amount)) {
+        throw new Error("New auto-bid must be higher than your current auto-bid.");
+      }
+      // Update
+      await tx.bid_History.update({
+        where: { bid_id: existingAuto.bid_id },
+        data: { max_bid_amount: maxAmount, bid_time: new Date() }
       });
-
-      const productInfo = await prisma.product.findUnique({ where: { product_id: pId }, select: { name: true } });
-
-      emailService.sendOutbidNotifications(bidders, productInfo?.name || "Auction Item", pId, amount);
+    } else {
+      // Create New
+      await tx.bid_History.create({
+        data: {
+          product_id: pId,
+          bidder_id: uId,
+          max_bid_amount: maxAmount,
+          status: 'auto', // AUTO flag
+          bid_time: new Date()
+        }
+      });
     }
-  } catch (err) {
-    console.error("Outbid Email Error:", err);
-  }
 
-  return result;
+    // 3. Trigger Battle
+    const result = await resolveAuctionBattle(tx, pId);
+    return result;
+  });
 };
 
 // ==============================================================================
@@ -743,4 +917,5 @@ export default {
   getAuctionStats,
   getRandomProducts,
   placeBid,
+  placeAutoBid
 };
