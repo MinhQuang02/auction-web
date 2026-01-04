@@ -55,6 +55,40 @@ class AuthService {
   }
 
   async registerAndSendOtp({ email, password, full_name, address, dob }) {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+
+    if (existingUser) {
+      if (existingUser.is_email_verified) {
+        throw new Error("Email is already registered. Please login.");
+      }
+
+      const hashedPassword = await hash(password);
+      const otp = generateOtp();
+      const otpHash = await hash(otp);
+      const expires = new Date(Date.now() + 10 * 60 * 1000);
+
+      await prisma.user.update({
+        where: { user_id: existingUser.user_id },
+        data: {
+          password: hashedPassword,
+          full_name,
+          address,
+          dob: dob ? new Date(dob) : null,
+          otp: otpHash,
+          otp_expires: expires,
+        },
+      });
+
+      await transporter.sendMail({
+        from: `"Your App" <${process.env.MAIL_USER}>`,
+        to: email,
+        subject: "Verify your email",
+        text: `Your verification code is: ${otp}`,
+      });
+
+      return; 
+    }
+
     const hashedPassword = await hash(password);
 
     const user = await prisma.user.create({
@@ -135,6 +169,13 @@ class AuthService {
           is_email_verified: true,
         },
       });
+    } else {
+       if (!user.is_email_verified) {
+           user = await prisma.user.update({
+               where: { user_id: user.user_id },
+               data: { is_email_verified: true }
+           });
+       }
     }
 
     if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET not set");
