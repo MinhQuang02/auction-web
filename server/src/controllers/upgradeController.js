@@ -1,22 +1,20 @@
-import prisma from '../lib/prisma.js';
+import prisma from "../lib/prisma.js";
 
 const upgradeController = {
   requestUpgrade: async (req, res) => {
     try {
-      // Ensure ID is an Integer (Prisma requires Int for ID)
       const userId = parseInt(req.auth.userId);
 
-      // 2. Check if user exists (Optional safety check)
       const user = await prisma.user.findUnique({ where: { user_id: userId } });
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // 3. Update Database
       await prisma.user.update({
         where: { user_id: userId },
         data: {
           upgrade_request_time: new Date(),
+          upgrade_reason: req.body.reason,
         },
       });
 
@@ -62,7 +60,7 @@ const upgradeController = {
         where: { user_id: userId },
       });
 
-      if (!user || user.role !== "bidder" || !user.upgrade_request_time) {
+      if (!user || user.role !== "bidder") {
         return res.status(400).json({ message: "Invalid upgrade request" });
       }
 
@@ -74,6 +72,7 @@ const upgradeController = {
         data: {
           role: "seller",
           upgrade_request_time: null,
+          upgrade_reason: null,
           seller_expires: sellerExpires,
         },
       });
@@ -98,7 +97,7 @@ const upgradeController = {
 
       await prisma.user.update({
         where: { user_id: userId },
-        data: { upgrade_request_time: null },
+        data: { upgrade_request_time: null, upgrade_reason: null },
       });
 
       res.status(200).json({ message: "Upgrade request rejected" });

@@ -59,6 +59,7 @@ const adminUserController = {
             avg_rating: true,
             created_at: true,
             upgrade_request_time: true,
+            upgrade_reason: true,
             seller_expires: true,
           },
         }),
@@ -90,6 +91,7 @@ const adminUserController = {
           role: true,
           created_at: true,
           upgrade_request_time: true,
+          upgrade_reason: true,
           seller_expires: true,
         },
       });
@@ -163,6 +165,7 @@ const adminUserController = {
         role: user.role,
         join_date: user.created_at,
         upgrade_request_time: user.upgrade_request_time,
+        upgrade_reason: user.upgrade_reason,
         seller_expires: user.seller_expires,
 
         total_bids: totalBids,

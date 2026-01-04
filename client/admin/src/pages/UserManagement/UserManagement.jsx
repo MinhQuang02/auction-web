@@ -46,12 +46,12 @@ const UserManagement = () => {
     const res = await apiFetch(`${API_URL}/api/admin/users/stats`);
     const data = await res.json();
     setUserStats(data);
-    console.log(data);
   };
 
   const refreshCurrentView = () => {
     setIsDetailOpen(false);
     setSelectedUser(null);
+    fetchUserStats();
     fetchUsers();
   };
 
