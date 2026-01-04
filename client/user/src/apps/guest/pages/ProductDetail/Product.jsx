@@ -145,6 +145,29 @@ const Product = ({ product, onRefresh }) => {
     setIsModalOpen(true);
   };
 
+  const handlePrevImage = () => {
+    const idx = allImages.indexOf(activeImage);
+    const prevIdx = (idx - 1 + allImages.length) % allImages.length;
+    setActiveImage(allImages[prevIdx]);
+  };
+
+  const handleNextImage = () => {
+    const idx = allImages.indexOf(activeImage);
+    const nextIdx = (idx + 1) % allImages.length;
+    setActiveImage(allImages[nextIdx]);
+  };
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "ArrowLeft") handlePrevImage();
+      if (e.key === "ArrowRight") handleNextImage();
+      if (e.key === "Escape") setIsModalOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isModalOpen, activeImage, allImages]);
+
   // Helper: Time Remaining
   const getTimeRemaining = (endTime) => {
     const now = Date.now();
@@ -469,29 +492,66 @@ const Product = ({ product, onRefresh }) => {
       {/* === IMAGE MODAL === */}
       {
         isModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4">
+            {/* Close Button */}
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 text-white hover:text-gray-300"
+              className="absolute top-4 right-4 z-[60] text-white/70 hover:text-white transition-colors"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-10 h-10">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <div className="max-w-4xl w-full max-h-screen flex flex-col items-center">
+
+            {/* Left Nav Button */}
+            {allImages.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePrevImage();
+                }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-[60] bg-white/10 hover:bg-white/20 text-white rounded-full p-3 backdrop-blur-sm transition-all hover:scale-110"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+              </button>
+            )}
+
+            {/* Right Nav Button */}
+            {allImages.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNextImage();
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-[60] bg-white/10 hover:bg-white/20 text-white rounded-full p-3 backdrop-blur-sm transition-all hover:scale-110"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
+            )}
+
+            <div className="max-w-5xl w-full max-h-screen flex flex-col items-center relative">
               <img
+                key={activeImage} // Triggers animation on change
                 src={activeImage}
                 alt="Full View"
-                className="max-h-[80vh] object-contain mb-4"
+                className="max-h-[80vh] w-full object-contain mb-6 animate-fadeIn select-none"
               />
-              <div className="flex gap-2 overflow-x-auto py-2 max-w-full">
+
+              <div className="flex gap-3 overflow-x-auto py-2 px-4 max-w-full scrollbar-hide">
                 {allImages.map((img, idx) => (
                   <div
                     key={idx}
                     onClick={() => setActiveImage(img)}
-                    className={`w-16 h-16 flex-none rounded border-2 cursor-pointer bg-black ${activeImage === img ? "border-white" : "border-transparent opacity-60"}`}
+                    className={`
+                      w-16 h-16 flex-none rounded-lg border-2 cursor-pointer transition-all duration-300
+                      ${activeImage === img ? "border-[#AE9B84] scale-110 opacity-100 ring-2 ring-[#AE9B84]/50" : "border-transparent opacity-50 hover:opacity-100 hover:scale-105"}
+                    `}
                   >
-                    <img src={img} className="w-full h-full object-contain" />
+                    <img src={img} className="w-full h-full object-cover rounded-md" />
                   </div>
                 ))}
               </div>

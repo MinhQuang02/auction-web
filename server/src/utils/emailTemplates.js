@@ -179,3 +179,16 @@ export const getOutbidTemplate = (bidderName, productName, productUrl, newPrice)
   `;
   return getBaseTemplate(content, "Auction Update: Outbid!");
 };
+export const getBidderKickTemplate = (bidderName, productName, productUrl) => {
+  const content = `
+    <h2>Notification of Removal</h2>
+    <p>Hi <strong>${bidderName}</strong>,</p>
+    <p>Use to the decision of the seller, you have been removed from the auction for <strong>${productName}</strong>.</p>
+    <p>Your bids have been cancelled. If you believe this is an error, please contact the seller or support.</p>
+    
+    <div style="text-align: center;">
+      <a href="${productUrl}" class="btn">View Auction</a>
+    </div>
+  `;
+  return getBaseTemplate(content, "Auction Notification");
+};

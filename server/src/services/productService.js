@@ -56,6 +56,89 @@ const maskProducts = (products) => {
 // ==============================================================================
 // 1. SEARCH & FILTER
 // ==============================================================================
+
+/**
+ * CORE LOGIC: Resolve the Auction "Battle"
+ * Moved here to be accessible by both placeBid and rejectBidder.
+ */
+const resolveAuctionBattle = async (tx, productId) => {
+  const pId = parseInt(productId);
+  const product = await tx.product.findUnique({ where: { product_id: pId } });
+  if (!product) throw new Error("Product not found");
+
+  const step = parseFloat(product.step_price);
+  const startPrice = parseFloat(product.start_price);
+
+  const allBids = await tx.bid_History.findMany({
+    where: { product_id: pId, status: { in: ['valid', 'auto'] } },
+    orderBy: { bid_time: 'asc' }
+  });
+
+  const bidderMap = new Map();
+
+  for (const bid of allBids) {
+    const amount = parseFloat(bid.max_bid_amount);
+    const existing = bidderMap.get(bid.bidder_id);
+
+    if (!existing || amount > existing.capacity) {
+      bidderMap.set(bid.bidder_id, {
+        userId: bid.bidder_id, capacity: amount, type: bid.status, time: bid.bid_time
+      });
+    } else if (amount === existing.capacity && bid.status === 'auto') {
+      existing.type = 'auto';
+    }
+  }
+
+  const competitors = Array.from(bidderMap.values()).sort((a, b) => {
+    if (b.capacity !== a.capacity) return b.capacity - a.capacity;
+    return new Date(a.time) - new Date(b.time);
+  });
+
+  if (competitors.length === 0) {
+    // Reset to start if no bidders left
+    await tx.product.update({
+      where: { product_id: pId },
+      data: { current_price: startPrice, current_bidder_id: null, bid_count: 0 }
+    });
+    return { winnerId: null, price: startPrice };
+  }
+
+  const winner = competitors[0];
+  const runnerUp = competitors[1];
+
+  let newLocalPrice = startPrice;
+
+  if (winner.type === 'valid') {
+    newLocalPrice = winner.capacity;
+  } else {
+    const opponentMax = runnerUp ? runnerUp.capacity : 0;
+    let calculated = opponentMax + step;
+    if (!runnerUp) calculated = startPrice;
+    newLocalPrice = Math.min(winner.capacity, calculated);
+  }
+
+  await tx.product.update({
+    where: { product_id: pId },
+    data: { current_price: newLocalPrice, current_bidder_id: winner.userId }
+  });
+
+  if (winner.type === 'auto') {
+    const existingExactBid = await tx.bid_History.findFirst({
+      where: { product_id: pId, bidder_id: winner.userId, max_bid_amount: newLocalPrice, status: 'valid' }
+    });
+
+    if (!existingExactBid) {
+      await tx.bid_History.create({
+        data: {
+          product_id: pId, bidder_id: winner.userId, max_bid_amount: newLocalPrice, status: 'valid', bid_time: new Date()
+        }
+      });
+      await tx.product.update({ where: { product_id: pId }, data: { bid_count: { increment: 1 } } });
+    }
+  }
+  return { winnerId: winner.userId, price: newLocalPrice };
+};
+
 const searchProducts = async ({
   keyword,
   categoryId,
@@ -334,48 +417,42 @@ const rejectBidder = async (sellerId, productId, bidderId) => {
   const pId = parseInt(productId);
   const bId = parseInt(bidderId);
 
-  const product = await prisma.product.findUnique({
-    where: { product_id: pId },
+  return await prisma.$transaction(async (tx) => {
+    const product = await tx.product.findUnique({ where: { product_id: pId } });
+    if (!product) throw new Error("Product not found");
+    if (product.seller_id !== sellerId) throw new Error("Unauthorized");
+    if (product.status !== 'active') throw new Error("Product is not active or sold");
+
+    // Fetch user for email
+    const bidder = await tx.user.findUnique({ where: { user_id: bId } });
+
+    // Ban (Prevent Re-entry)
+    await tx.banned_Bidder.upsert({
+      where: { product_id_bidder_id: { product_id: pId, bidder_id: bId } },
+      create: { product_id: pId, bidder_id: bId },
+      update: {},
+    });
+
+    // Delete Bids (As requested: "xóa bên database")
+    await tx.bid_History.deleteMany({
+      where: { product_id: pId, bidder_id: bId }
+    });
+
+    // Recalculate Winner
+    const result = await resolveAuctionBattle(tx, pId);
+
+    // Email Notification
+    if (bidder?.email) {
+      emailService.sendBidderKickNotification(
+        bidder.email,
+        bidder.full_name || 'User',
+        product.name,
+        `${process.env.FRONTEND_URL}/product/${pId}`
+      );
+    }
+
+    return { message: "Bidder rejected and bids removed.", newPrice: result.price };
   });
-
-  if (!product) throw new Error("Product not found");
-  if (product.seller_id !== sellerId) throw new Error("Unauthorized");
-
-  // Ban
-  await prisma.banned_Bidder.upsert({
-    where: { product_id_bidder_id: { product_id: pId, bidder_id: bId } },
-    create: { product_id: pId, bidder_id: bId },
-    update: {},
-  });
-
-  // Recalculate Winner
-  const bannedRecords = await prisma.banned_Bidder.findMany({
-    where: { product_id: pId }, select: { bidder_id: true },
-  });
-  const bannedIds = bannedRecords.map((b) => b.bidder_id);
-
-  const validBids = await prisma.bid_History.findMany({
-    where: {
-      product_id: pId,
-      bidder_id: { notIn: bannedIds },
-    },
-    orderBy: { max_bid_amount: "desc" },
-  });
-
-  let newCurrentPrice = product.start_price;
-  let newCurrentBidderId = null;
-
-  if (validBids.length > 0) {
-    newCurrentPrice = validBids[0].max_bid_amount;
-    newCurrentBidderId = validBids[0].bidder_id;
-  }
-
-  await prisma.product.update({
-    where: { product_id: pId },
-    data: { current_price: newCurrentPrice, current_bidder_id: newCurrentBidderId },
-  });
-
-  return { message: "Bidder rejected.", newPrice: newCurrentPrice };
 };
 
 const cancelTransaction = async (sellerId, productId) => {
@@ -519,158 +596,8 @@ const getUserActiveBids = async (userId) => {
 // ==============================================================================
 // 7. PLACE BID (MERGED LOGIC)
 // ==============================================================================
-// ==============================================================================
-// 7. PLACE BID (AUTO & MANUAL) - ATOMIC BATTLE LOGIC
-// ==============================================================================
 
-/**
- * CORE LOGIC: Resolve the Auction "Battle"
- * Determines the winner and current price based on all Manual and Auto bids.
- * 
- * SCENARIOS:
- * A: Auto vs Manual -> Auto outbids Manual by Step (up to Max).
- * B: Auto vs Auto -> Instantly jumps to "Loser's Max + Step".
- * C: Tie -> Earliest timestamp wins.
- */
-const resolveAuctionBattle = async (tx, productId) => {
-  const pId = parseInt(productId);
-  const product = await tx.product.findUnique({ where: { product_id: pId } });
-  if (!product) throw new Error("Product not found");
 
-  const step = parseFloat(product.step_price);
-  const startPrice = parseFloat(product.start_price);
-
-  // 1. Fetch All Active Competitors
-  // - Manual Bids: status = 'valid'
-  // - Auto Bids: status = 'auto'
-  const allBids = await tx.bid_History.findMany({
-    where: { product_id: pId, status: { in: ['valid', 'auto'] } },
-    orderBy: { bid_time: 'asc' } // Oldest first for tie-breaking
-  });
-
-  // 2. Consolidate into Unique Bidders (User -> { capacity, type, time })
-  const bidderMap = new Map();
-
-  for (const bid of allBids) {
-    const amount = parseFloat(bid.max_bid_amount);
-    const existing = bidderMap.get(bid.bidder_id);
-
-    // If User has an AUTO bid, that effectively sets their "True Capacity"
-    // If multiple bids, we take the highest definition.
-    // Logic: Auto Bid overwrites Manual in terms of "Capacity" calculation if higher?
-    // Actually, usually a user is either Manual or Auto. The check prevents mixing.
-    // But if mixed, we take the MAX capacity.
-
-    if (!existing || amount > existing.capacity) {
-      bidderMap.set(bid.bidder_id, {
-        userId: bid.bidder_id,
-        capacity: amount,
-        type: bid.status, // 'auto' or 'valid' (manual)
-        time: bid.bid_time
-      });
-    } else if (amount === existing.capacity && bid.status === 'auto') {
-      // Prefer marking them as 'auto' type if amounts equal (stronger intent)
-      existing.type = 'auto';
-    }
-  }
-
-  // 3. Sort Bidders (The "Battle")
-  // - Priority 1: Higer Capacity
-  // - Priority 2: Earlier Time
-  const competitors = Array.from(bidderMap.values()).sort((a, b) => {
-    if (b.capacity !== a.capacity) return b.capacity - a.capacity;
-    return new Date(a.time) - new Date(b.time);
-  });
-
-  // No bidders?
-  if (competitors.length === 0) {
-    return { winnerId: null, price: startPrice };
-  }
-
-  const winner = competitors[0];
-  const runnerUp = competitors[1]; // Can be undefined
-
-  // 4. Calculate New Price
-  let newLocalPrice = startPrice;
-
-  if (winner.type === 'valid') {
-    // MANUAL WINNER: Hard Bid. The price is exactly what they bid.
-    // (Unless they just placed it and it's lower than current? No, validation prevents that).
-    // Manual bids constitute an explicit "I pay X".
-    newLocalPrice = winner.capacity;
-  } else {
-    // AUTO WINNER: Proxy Bid.
-    // Price = RunnerUp Capacity + Step.
-    // Cap at Winner Capacity.
-    // Floor at Start Price (or Current Price, but we recalc from scratch to be safe/atomic).
-
-    const opponentMax = runnerUp ? runnerUp.capacity : 0;
-
-    // If only one bidder (Auto), and they started higher, price should be Start Price?
-    // Usually yes. If I Auto-Bid $1000 on $0 item, price is $0 (or start).
-    // Unless there was a previous price? 
-    // We strictly follow: Price = max(StartPrice, OpponentMax + Step)
-
-    let calculated = opponentMax + step;
-
-    // Edge Case: If only 1 bidder, opponentMax is 0. Calculated is Step.
-    // Standard: Price = Start Price.
-    if (!runnerUp) {
-      calculated = startPrice;
-    } else {
-      // If RunnerUp is roughly equal to Winner (Tie but Winner was earlier),
-      // price goes to Winner's Max (aka RunnerUp Max).
-      // Logic: Opponent bids 500. I Max 500. I win (earlier). Price is 500.
-      // My Logic: 500 + Step = 510. Clamped to My Max (500) -> 500. Correct.
-    }
-
-    // Clamp
-    newLocalPrice = Math.min(winner.capacity, calculated);
-  }
-
-  // Ensure monotonic increase? 
-  // If the calculated price < current DB price, something is weird (maybe a retraction, but we don't support that).
-  // Or maybe "Start Price" rules.
-  // We trust the recalc.
-
-  // 5. Update Product State
-  await tx.product.update({
-    where: { product_id: pId },
-    data: {
-      current_price: newLocalPrice,
-      current_bidder_id: winner.userId
-    }
-  });
-
-  // 6. Record the System Bid (If Auto Won and Price != Capacity)
-  // If the winner is Manual, the 'valid' row already exists.
-  // If the winner is Auto, we usually need a visual 'valid' row representing the price they are holding.
-  // Check if there is already a 'valid' row for this user at this price?
-  // If not, insert one. This makes the "History" list look correct on frontend.
-  if (winner.type === 'auto') {
-    const existingExactBid = await tx.bid_History.findFirst({
-      where: { product_id: pId, bidder_id: winner.userId, max_bid_amount: newLocalPrice, status: 'valid' }
-    });
-
-    if (!existingExactBid) {
-      // Create a "Ghost" bid representing the system's move
-      await tx.bid_History.create({
-        data: {
-          product_id: pId,
-          bidder_id: winner.userId,
-          max_bid_amount: newLocalPrice,
-          status: 'valid', // Show in history
-          bid_time: new Date() // Now
-        }
-      });
-
-      // Increment count
-      await tx.product.update({ where: { product_id: pId }, data: { bid_count: { increment: 1 } } });
-    }
-  }
-
-  return { winnerId: winner.userId, price: newLocalPrice };
-};
 
 
 // --- PUBLIC API: Place Manual Bid ---

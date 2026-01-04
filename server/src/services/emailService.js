@@ -5,7 +5,8 @@ import {
     getBuyerReceiptTemplate,
     getSellerOrderTemplate,
     getOutbidTemplate,
-    getResetLinkTemplate
+    getResetLinkTemplate,
+    getBidderKickTemplate
 } from '../utils/emailTemplates.js';
 
 // Configure Transporter
@@ -78,6 +79,12 @@ class EmailService {
         });
 
         Promise.allSettled(promises);
+    }
+
+    // E. Kick Notification
+    async sendBidderKickNotification(email, fullName, productName, productUrl) {
+        const html = getBidderKickTemplate(fullName, productName, productUrl);
+        await sendEmail(email, `Auction Alert: You have been removed from ${productName}`, html);
     }
 }
 
