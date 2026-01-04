@@ -7,10 +7,11 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 const UserDetail = ({
   user,
-  isUpgradeView,
   onApprove,
   onReject,
   onDowngrade,
+  onSuspend,
+  onUnsuspend,
   onClose,
   onSaved,
 }) => {
@@ -218,9 +219,93 @@ const UserDetail = ({
         </div>
       </VBox>
 
+      {user.products && user.products.length > 0 && (
+        <VBox className="gap-3 pt-6 border-t">
+          <h3 className="text-lg font-semibold">Products</h3>
+
+          <div className="max-h-56 overflow-y-auto border rounded text-sm">
+            <table className="w-full border-collapse">
+              <thead className="bg-gray-100 sticky top-0">
+                <tr>
+                  <th className="p-2 text-left">Name</th>
+                  <th className="p-2 text-left">Role</th>
+                  <th className="p-2 text-left">Status</th>
+                  <th className="p-2 text-right">Price</th>
+                  <th className="p-2 text-left">Ended</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {user.products.map((p) => (
+                  <tr key={p.product_id} className="border-t hover:bg-gray-50">
+                    <td className="p-2 truncate max-w-[180px]">{p.name}</td>
+
+                    <td className="p-2">
+                      {p.seller_id === user.user_id
+                        ? "Seller"
+                        : p.winner_id === user.user_id
+                        ? "Winner"
+                        : "-"}
+                    </td>
+
+                    <td className="p-2 capitalize">
+                      {p.status.replaceAll("_", " ")}
+                    </td>
+
+                    <td className="p-2 text-right">
+                      ${Number(p.current_price).toFixed(2)}
+                    </td>
+
+                    <td className="p-2">
+                      {p.end_time
+                        ? new Date(p.end_time).toLocaleDateString()
+                        : "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </VBox>
+      )}
+
+      {user.activity_history && user.activity_history.length > 0 && (
+        <VBox className="gap-4">
+          <h3 className="text-lg font-semibold">Activity History</h3>
+
+          <div className="max-h-64 overflow-y-auto border rounded">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b">
+                  <th className="p-2 font-medium">Event</th>
+
+                  <th className="p-2 font-medium">Date</th>
+
+                  <th className="p-2 font-medium">Details</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {user.activity_history.map((event, i) => (
+                  <tr key={i} className="border-b hover:bg-gray-50">
+                    <td className="p-2">{event.event_type}</td>
+
+                    <td className="p-2">
+                      {new Date(event.date).toLocaleString()}
+                    </td>
+
+                    <td className="p-2">{event.details}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </VBox>
+      )}
+
       {user.role === "bidder" && (
         <VBox className="gap-4 pt-6 border-t">
-          <h3 className="text-lg font-semibold">Upgrade to Seller</h3>
+          {/* <h3 className="text-lg font-semibold">Upgrade to Seller</h3> */}
 
           {user.upgrade_request_time && (
             <div className="text-gray-700 space-y-2">
@@ -273,6 +358,30 @@ const UserDetail = ({
             className="w-full px-4 py-2 bg-red-600 text-white rounded"
           >
             Downgrade to Bidder
+          </button>
+        </VBox>
+      )}
+
+      {user.role !== "admin" && user.role !== "suspended" && (
+        <button
+          onClick={() => onSuspend(user)}
+          className="w-full px-4 py-2 bg-red-700 text-white rounded"
+        >
+          Suspend User
+        </button>
+      )}
+
+      {user.role === "suspended" && (
+        <VBox className="gap-4 pt-6 border-t">
+          <div className="px-4 py-2 bg-red-100 text-red-800 rounded">
+            This user is suspended and cannot bid or sell.
+          </div>
+
+          <button
+            onClick={() => onUnsuspend(user)}
+            className="w-full px-4 py-2 bg-green-600 text-white rounded"
+          >
+            Unsuspend User
           </button>
         </VBox>
       )}

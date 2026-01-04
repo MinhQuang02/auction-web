@@ -1,4 +1,5 @@
 import prisma from "../lib/prisma.js";
+import bcrypt from "bcryptjs";
 
 const ALLOWED_FIELDS = [
   "full_name",
@@ -86,6 +87,7 @@ const adminUserController = {
         select: {
           user_id: true,
           full_name: true,
+          dob: true,
           email: true,
           address: true,
           role: true,
@@ -99,6 +101,23 @@ const adminUserController = {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
+
+      const products = await prisma.product.findMany({
+        where: {
+          OR: [{ seller_id: userId }, { winner_id: userId }],
+        },
+        orderBy: { end_time: "desc" },
+        take: 20,
+        select: {
+          product_id: true,
+          name: true,
+          status: true,
+          current_price: true,
+          end_time: true,
+          seller_id: true,
+          winner_id: true,
+        },
+      });
 
       const bidHistory = await prisma.bid_History.findMany({
         where: { bidder_id: userId },
@@ -162,6 +181,7 @@ const adminUserController = {
         full_name: user.full_name,
         email: user.email,
         address: user.address,
+        dob: user.dob,
         role: user.role,
         join_date: user.created_at,
         upgrade_request_time: user.upgrade_request_time,
@@ -176,6 +196,7 @@ const adminUserController = {
         ratings_received: ratingsReceived,
         ratings_given: ratingsGiven,
 
+        products,
         activity_history: activityHistory,
       });
     } catch (error) {
@@ -259,13 +280,59 @@ const adminUserController = {
     }
   },
 
+  suspendUser: async (req, res) => {
+    const { userId } = req.body;
+    const targetId = Number(userId);
+
+    if (!targetId || Number.isNaN(targetId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { user_id: targetId },
+          select: { role: true },
+        });
+
+        if (!user) throw new Error("User not found");
+        if (user.role === "admin") {
+          throw new Error("Cannot suspend admin");
+        }
+
+        await tx.product.updateMany({
+          where: {
+            seller_id: targetId,
+            status: "active",
+          },
+          data: {
+            status: "removed",
+          },
+        });
+
+        await tx.user.update({
+          where: { user_id: targetId },
+          data: {
+            role: "suspended",
+            seller_expires: null,
+            upgrade_request_time: null,
+          },
+        });
+      });
+
+      res.status(200).json({ message: "User suspended successfully" });
+    } catch (err) {
+      console.error(err);
+      res.status(400).json({ message: err.message });
+    }
+  },
+
   updateUserProfile: async (req, res) => {
     const userId = Number(req.params.id);
     if (!userId) {
       return res.status(400).json({ message: "Invalid user id" });
     }
 
-    // Build a clean update object
     const data = {};
     for (const field of ALLOWED_FIELDS) {
       if (field in req.body) {
@@ -295,6 +362,78 @@ const adminUserController = {
     } catch (err) {
       console.error(err);
       res.status(400).json({ message: "Update failed" });
+    }
+  },
+
+  unsuspendUser: async (req, res) => {
+    const { userId } = req.body;
+    const targetId = Number(userId);
+
+    if (!targetId || Number.isNaN(targetId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { user_id: targetId },
+        select: { role: true },
+      });
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.role !== "suspended") {
+        return res.status(400).json({ message: "User is not suspended" });
+      }
+
+      await prisma.user.update({
+        where: { user_id: targetId },
+        data: {
+          role: "bidder",
+        },
+      });
+
+      res.status(200).json({ message: "User unsuspended successfully" });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  createUser: async (req, res) => {
+    const { email, password, full_name, address, dob } = req.body;
+
+    if (!email || !password || !full_name) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    try {
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const user = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          full_name,
+          address,
+          dob: dob ? new Date(dob) : null,
+          role: "bidder",
+          is_email_verified: true,
+        },
+        select: {
+          user_id: true,
+        },
+      });
+
+      res.status(201).json(user);
+    } catch (err) {
+      if (err.code === "P2002") {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+
+      console.error(err);
+      res.status(500).json({ message: "Internal server error" });
     }
   },
 };

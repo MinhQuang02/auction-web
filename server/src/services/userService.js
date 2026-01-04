@@ -1,6 +1,6 @@
-import prisma from '../lib/prisma.js';
+import prisma from "../lib/prisma.js";
 import bcrypt from "bcryptjs";
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key_123';
+const JWT_SECRET = process.env.JWT_SECRET || "super_secret_key_123";
 const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS) || 10;
 
 const getUserProfile = async (userId) => {
@@ -17,8 +17,8 @@ const getUserProfile = async (userId) => {
       is_email_verified: true,
       avg_rating: true,
       total_ratings: true,
-      role: true
-    }
+      role: true,
+    },
   });
   return user;
 };
@@ -31,7 +31,7 @@ const updateUserProfile = async (userId, data) => {
       },
       select: {
         email: true,
-        password: true // Need password if verifying
+        password: true, // Need password if verifying
       },
     });
 
@@ -53,7 +53,7 @@ const updateUserProfile = async (userId, data) => {
     }
 
     const user = await prisma.user.findUnique({
-      where: { user_id: userId }
+      where: { user_id: userId },
     });
 
     if (!user) throw new Error("User not found");
@@ -77,8 +77,8 @@ const updateUserProfile = async (userId, data) => {
       email: true,
       address: true,
       is_email_verified: true,
-      role: true
-    }
+      role: true,
+    },
   });
 
   return updatedUser;

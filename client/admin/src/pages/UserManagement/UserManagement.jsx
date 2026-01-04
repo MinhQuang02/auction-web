@@ -5,6 +5,7 @@ import AdminSidebar from "@components/Sidebar/AdminSidebar";
 import ActionBar from "@components/ActionBar";
 import TablePanel from "@components/TablePanel";
 import Modal from "@components/Modal";
+import CreateUser from "./CreateUser";
 import UserDetail from "./UserDetail";
 import Panel from "@components/Panel";
 import Pagination from "@components/Pagination";
@@ -29,6 +30,7 @@ const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [page, setPage] = useState(0);
   const [queryVersion, setQueryVersion] = useState(0);
@@ -91,6 +93,7 @@ const UserManagement = () => {
       if (!res.ok) throw new Error("Failed to fetch user detail");
 
       const data = await res.json();
+      console.log(data);
       setSelectedUser(data);
     } catch (err) {
       console.error(err);
@@ -142,6 +145,36 @@ const UserManagement = () => {
       headers: {
         "Content-Type": "application/json",
       },
+      body: JSON.stringify({ userId: user.user_id }),
+    });
+
+    refreshCurrentView();
+  };
+
+  const suspendUser = async (user) => {
+    if (
+      !confirm(
+        `Suspend ${user.full_name}? This will disable selling and bidding.`
+      )
+    ) {
+      return;
+    }
+
+    await apiFetch(`${API_URL}/api/admin/users/suspend`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.user_id }),
+    });
+
+    refreshCurrentView();
+  };
+
+  const unsuspendUser = async (user) => {
+    if (!confirm(`Re-activate ${user.full_name}?`)) return;
+
+    await apiFetch(`${API_URL}/api/admin/users/unsuspend`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: user.user_id }),
     });
 
@@ -208,6 +241,7 @@ const UserManagement = () => {
 
       <VBox className="gap-4">
         <ActionBar
+          onAdd={() => setIsCreateOpen(true)}
           leftExtras={
             <HBox className="gap-3 items-center">
               {/* Search */}
@@ -254,10 +288,7 @@ const UserManagement = () => {
                 <option value="rating_desc">Rating (High → Low)</option>
                 <option value="rating_asc">Rating (Low → High)</option>
               </select>
-            </HBox>
-          }
-          rightExtras={
-            <>
+
               <button
                 onClick={() => setStatus("all")}
                 className={`px-4 py-2 rounded shadow-lg ${
@@ -277,7 +308,7 @@ const UserManagement = () => {
               >
                 Upgrade Requests
               </button>
-            </>
+            </HBox>
           }
         />
 
@@ -301,7 +332,6 @@ const UserManagement = () => {
           />
         </>
 
-        {/* User detail */}
         <Modal
           isOpen={isDetailOpen}
           onClose={() => {
@@ -314,10 +344,11 @@ const UserManagement = () => {
           ) : (
             <UserDetail
               user={selectedUser}
-              isUpgradeView={selectedUser.upgrade_request_time !== null}
               onApprove={approveUpgrade}
               onReject={denyUpgrade}
               onDowngrade={downgradeSeller}
+              onSuspend={suspendUser}
+              onUnsuspend={unsuspendUser}
               onClose={() => {
                 setIsDetailOpen(false);
                 setSelectedUser(null);
@@ -325,6 +356,17 @@ const UserManagement = () => {
               onSaved={refreshCurrentView}
             />
           )}
+        </Modal>
+
+        <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)}>
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <CreateUser
+              onSuccess={() => {
+                setIsCreateOpen(false);
+                refreshCurrentView();
+              }}
+            />
+          </div>
         </Modal>
       </VBox>
     </VBox>
