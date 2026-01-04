@@ -1,14 +1,16 @@
 import React, { useState } from "react";
 import Panel from "@shared/components/Panel";
+import { useToast } from "../../../components/ui/Toast";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 const BidderManagement = ({ productId, bids, onRefresh }) => {
   const [loading, setLoading] = useState(false);
+  const { addToast } = useToast();
 
   const handleReject = async (bidderId) => {
     if (!confirm("Are you sure? This user will be banned from this auction.")) return;
-    
+
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
@@ -22,12 +24,12 @@ const BidderManagement = ({ productId, bids, onRefresh }) => {
       });
 
       if (!res.ok) throw new Error("Failed to reject bidder");
-      
-      alert("Bidder rejected successfully.");
+
+      addToast("Bidder rejected successfully.", "success");
       if (onRefresh) onRefresh(); // Callback to reload the product data
 
     } catch (err) {
-      alert(err.message);
+      addToast(err.message, "error");
     } finally {
       setLoading(false);
     }
@@ -57,11 +59,11 @@ const BidderManagement = ({ productId, bids, onRefresh }) => {
                 <td>
                   {bid.status !== 'rejected' ? (
                     <button
-                        onClick={() => handleReject(bid.bidder.user_id)}
-                        disabled={loading}
-                        className="text-xs bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200 transition"
+                      onClick={() => handleReject(bid.bidder.user_id)}
+                      disabled={loading}
+                      className="text-xs bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200 transition"
                     >
-                        Reject
+                      Reject
                     </button>
                   ) : (
                     <span className="text-xs text-gray-400 italic">Banned</span>

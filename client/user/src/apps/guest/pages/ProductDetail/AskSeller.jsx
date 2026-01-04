@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from "@context/AuthContext";
+import { useToast } from "../../../../components/ui/Toast";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 const AskSeller = ({ questions = [], productId, sellerId, onRefresh }) => {
     const { isAuthenticated, user } = useAuth();
+    const { addToast } = useToast();
     const [activeIndex, setActiveIndex] = useState(null);
     const [questionInput, setQuestionInput] = useState("");
     const [replyInput, setReplyInput] = useState("");
@@ -34,7 +36,7 @@ const AskSeller = ({ questions = [], productId, sellerId, onRefresh }) => {
                 setQuestionInput("");
                 if (onRefresh) onRefresh();
             } else {
-                alert("Failed to post question");
+                addToast("Failed to post question", "error");
             }
         } catch (e) {
             console.error(e);
@@ -61,7 +63,7 @@ const AskSeller = ({ questions = [], productId, sellerId, onRefresh }) => {
                 setReplyingTo(null);
                 if (onRefresh) onRefresh();
             } else {
-                alert("Failed to reply");
+                addToast("Failed to reply", "error");
             }
         } catch (e) {
             console.error(e);

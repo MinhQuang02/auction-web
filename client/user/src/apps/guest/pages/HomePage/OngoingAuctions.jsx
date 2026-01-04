@@ -3,11 +3,13 @@ import ProductCard from "../../../../shared/components/ProductCard";
 
 import arrowLeft from "@assets/images/_arrowLeft.svg";
 import arrowRight from "@assets/images/_arrowRight.svg";
+import { useToast } from "../../../../components/ui/Toast";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 const OngoingAuctions = () => {
   const [products, setProducts] = useState([]);
+  const { addToast } = useToast();
   const [watchlistIds, setWatchlistIds] = useState(new Set());
   const scrollRef = useRef(null);
   const token = localStorage.getItem('token');
@@ -74,7 +76,7 @@ const OngoingAuctions = () => {
   // Watchlist Logic
   const handleToggleWatchlist = async (product) => {
     if (!token) {
-      alert("Please login to use watchlist");
+      addToast("Please login to use watchlist", "info");
       return;
     }
     const id = product.product_id;

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useToast } from "../../../../components/ui/Toast";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 const BillingDetails = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const product = location.state?.product;
 
   const [paymentMethod, setPaymentMethod] = useState("cod"); // 'bank' or 'cod'
@@ -22,7 +24,7 @@ const BillingDetails = () => {
 
   useEffect(() => {
     if (!product) {
-      alert("No product selected for payment.");
+      addToast("No product selected for payment.", "error");
       navigate('/my-purchases');
     }
   }, [product, navigate]);
@@ -39,7 +41,7 @@ const BillingDetails = () => {
 
     // Basic validation
     if (!formData.firstName || !formData.address || !formData.city || !formData.phone || !formData.email) {
-      alert("Please fill in all required fields.");
+      addToast("Please fill in all required fields.", "error");
       setLoading(false);
       return;
     }
@@ -62,14 +64,14 @@ const BillingDetails = () => {
       const data = await res.json();
 
       if (res.ok) {
-        alert("Payment Successful!");
+        addToast("Payment Successful!", "success");
         navigate('/my-purchases');
       } else {
-        alert(data.message || "Payment failed");
+        addToast(data.message || "Payment failed", "error");
       }
     } catch (err) {
       console.error(err);
-      alert("An error occurred during payment.");
+      addToast("An error occurred during payment.", "error");
     } finally {
       setLoading(false);
     }

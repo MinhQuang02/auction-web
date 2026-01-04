@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import ProductGrid from "../CategoryPage/ProductGrid";
+import { useToast } from "../../../../components/ui/Toast";
 
 const SearchResults = () => {
     const [searchParams] = useSearchParams();
+    const { addToast } = useToast();
     const keyword = searchParams.get('keyword') || '';
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -114,7 +116,7 @@ const SearchResults = () => {
 
     const handleToggleWatchlist = async (product) => {
         if (!token) {
-            alert("Please login to use watchlist");
+            addToast("Please login to use watchlist", "info");
             return;
         }
         const productId = product.product_id;

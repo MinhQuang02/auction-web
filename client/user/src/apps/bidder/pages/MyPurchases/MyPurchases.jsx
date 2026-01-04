@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import React, { useState, useEffect } from 'react';
 import Sidebar from "../../components/Sidebar";
+import { useToast } from "../../../../components/ui/Toast";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 const MyPurchases = () => {
+  const { addToast } = useToast();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,16 +75,16 @@ const MyPurchases = () => {
       });
 
       if (res.ok) {
-        alert("Rating submitted successfully!");
+        addToast("Rating submitted successfully!", "success");
         setIsModalOpen(false);
         fetchPurchases(); // Refresh to hide buttons
       } else {
         const err = await res.json();
-        alert(`Failed to submit rating: ${err.message}`);
+        addToast(`Failed to submit rating: ${err.message}`, "error");
       }
     } catch (e) {
       console.error(e);
-      alert("Error submitting rating.");
+      addToast("Error submitting rating.", "error");
     }
   };
 

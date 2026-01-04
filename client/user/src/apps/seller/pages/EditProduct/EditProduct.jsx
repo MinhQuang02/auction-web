@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Quill from "quill";
+import { useToast } from "../../../../components/ui/Toast";
 
 import Panel from "@shared/components/Panel";
 import HBox from "@shared/components/HBox";
@@ -10,6 +11,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 const EditProduct = () => {
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const { id } = useParams(); // Get ID if editing
   const isEditMode = !!id;
 
@@ -166,7 +168,7 @@ const EditProduct = () => {
         });
 
         if (!res.ok) throw new Error("Failed to update description");
-        alert("Description appended successfully!");
+        addToast("Description appended successfully!", "success");
       } else {
         // --- CREATE MODE ---
         const validImages = formData.images.filter((img) => img.trim() !== "");
@@ -195,7 +197,7 @@ const EditProduct = () => {
         });
 
         if (!res.ok) throw new Error("Failed to create");
-        alert("Product created!");
+        addToast("Product created!", "success");
       }
 
       navigate("/seller/products");

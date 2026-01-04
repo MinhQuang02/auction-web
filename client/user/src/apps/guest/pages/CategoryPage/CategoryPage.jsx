@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import ProductGrid from "./ProductGrid";
+import { useToast } from "../../../../components/ui/Toast";
 
 function CategoryPage() {
   const { id } = useParams();
+  const { addToast } = useToast();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -151,7 +153,7 @@ function CategoryPage() {
 
   const handleToggleWatchlist = async (product) => {
     if (!token) {
-      alert("Please login to use watchlist");
+      addToast("Please login to use watchlist", "info");
       return;
     }
     const productId = product.product_id;
