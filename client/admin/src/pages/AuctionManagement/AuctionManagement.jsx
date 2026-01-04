@@ -6,7 +6,7 @@ import AuctionActionBar from "./AuctionActionBar";
 import TablePanel from "@components/TablePanel";
 import Modal from "@components/Modal";
 import AuctionDetail from "./AuctionDetail";
-import AuctionEditForm from "./AuctionEditForm";
+import CreateAuction from "./CreateAuction";
 import Panel from "@components/Panel";
 import Pagination from "@components/Pagination";
 
@@ -54,7 +54,7 @@ const AuctionManagement = () => {
   const [status, setStatus] = useState("all");
   const [categoryId, setCategoryId] = useState("all");
   const [sortBy, setSortBy] = useState("");
-  const [editAuction, setEditAuction] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -121,6 +121,23 @@ const AuctionManagement = () => {
     setSelectedDetail(data.product);
   };
 
+  const updateProduct = async (productId, payload) => {
+    const res = await apiFetch(`${API_URL}/api/admin/products/${productId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || "Failed to update product");
+    }
+
+    return res.json();
+  };
+
   const removeProduct = async (productId) => {
     try {
       const res = await apiFetch(`${API_URL}/api/admin/products/${productId}`, {
@@ -143,12 +160,6 @@ const AuctionManagement = () => {
     } catch (e) {
       alert("Failed to remove product");
     }
-  };
-
-  const openEdit = async (productId) => {
-    const res = await apiFetch(`${API_URL}/api/products/${productId}`);
-    const data = await res.json();
-    setEditAuction(data.product);
   };
 
   return (
@@ -198,8 +209,7 @@ const AuctionManagement = () => {
           onStatusChange={setStatus}
           onSortChange={setSortBy}
           onCategoryChange={setCategoryId}
-          onRemove={() => selectedRow && removeProduct(selectedRow.id)}
-          onEdit={() => selectedRow && openEdit(selectedRow.id)}
+          onAdd={() => setShowCreate(true)}
         />
 
         <TablePanel
@@ -207,11 +217,12 @@ const AuctionManagement = () => {
           rows={rows}
           selectedRowId={selectedRow?.id}
           onRowClick={(row) => {
-            setSelectedRow(row); // single click = select only
+            setSelectedRow(row);
+            openDetail(row.id);
           }}
-          onRowDoubleClick={(row) => {
-            openDetail(row.id); // double click = open modal
-          }}
+          // onRowDoubleClick={(row) => {
+          //   openDetail(row.id);
+          // }}
         />
 
         <Pagination
@@ -226,18 +237,34 @@ const AuctionManagement = () => {
           isOpen={!!selectedDetail}
           onClose={() => setSelectedDetail(null)}
         >
-          {selectedDetail && <AuctionDetail auction={selectedDetail} />}
-        </Modal>
-        <Modal isOpen={!!editAuction} onClose={() => setEditAuction(null)}>
-          {editAuction && (
-            <AuctionEditForm
-              auction={editAuction}
-              onSaved={() => {
-                setEditAuction(null);
-                fetchProducts();
+          {selectedDetail && (
+            <AuctionDetail
+              auction={selectedDetail}
+              onSave={async (draft) => {
+                try {
+                  await updateProduct(selectedDetail.product_id, draft);
+                  setSelectedDetail(null);
+                  fetchProducts(); // refresh table
+                } catch (e) {
+                  alert(e.message);
+                }
+              }}
+              onRemove={async () => {
+                await removeProduct(selectedDetail.product_id);
+                setSelectedDetail(null);
               }}
             />
           )}
+        </Modal>
+
+        <Modal isOpen={showCreate} onClose={() => setShowCreate(false)}>
+          <CreateAuction
+            onClose={() => setShowCreate(false)}
+            onCreated={() => {
+              setShowCreate(false);
+              fetchProducts(); // refresh table
+            }}
+          />
         </Modal>
       </VBox>
     </VBox>
