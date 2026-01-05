@@ -264,9 +264,9 @@ const CategoryManagement = () => {
                 if (modalMode === "delete")
                   await deleteCategory(selectedCategory.id);
 
-                setModalMode(null); // close ONLY on success
+                setModalMode(null);
               } catch (e) {
-                alert(e.message); // or toast
+                alert(e.message);
               }
             }}
           />

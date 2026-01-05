@@ -1,5 +1,7 @@
 import prisma from "../lib/prisma.js";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import emailService from "../services/emailService.js";
 
 const ALLOWED_FIELDS = [
   "full_name",
@@ -434,6 +436,43 @@ const adminUserController = {
 
       console.error(err);
       res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  resetUserPassword: async (req, res) => {
+    const userId = Number(req.params.id);
+    if (!userId || Number.isNaN(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    try {
+      let newPassword = crypto
+        .randomBytes(6)
+        .toString("base64")
+        .replace(/[/+=]/g, "");
+
+      newPassword += Math.floor(Math.random() * 10);
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      const user = await prisma.user.update({
+        where: { user_id: userId },
+        data: { password: hashedPassword },
+        select: { email: true, full_name: true },
+      });
+
+      await emailService.sendNewPasswordEmail(
+        user.email,
+        user.full_name,
+        newPassword
+      );
+
+      return res.json({
+        message: "Password reset successfully and emailed to the user.",
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
     }
   },
 };

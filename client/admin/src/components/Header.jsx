@@ -10,7 +10,6 @@ const Header = () => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {

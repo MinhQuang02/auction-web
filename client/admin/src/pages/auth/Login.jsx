@@ -35,7 +35,7 @@ const Login = () => {
 
       localStorage.setItem("token", data.token);
       await refetchUser();
-      navigate("/dashboard");
+      navigate("/categories");
     } catch (err) {
       setError(err.message);
     }

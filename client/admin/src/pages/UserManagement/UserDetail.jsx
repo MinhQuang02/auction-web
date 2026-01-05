@@ -303,88 +303,112 @@ const UserDetail = ({
         </VBox>
       )}
 
-      {user.role === "bidder" && (
+      {(user.role === "bidder" || user.role === "seller") && (
         <VBox className="gap-4 pt-6 border-t">
-          {/* <h3 className="text-lg font-semibold">Upgrade to Seller</h3> */}
+          <h3 className="text-lg font-semibold">Role</h3>
 
-          {user.upgrade_request_time && (
-            <div className="text-gray-700 space-y-2">
-              <p>
-                <strong>Requested At:</strong>{" "}
-                {new Date(user.upgrade_request_time).toLocaleString()}
-              </p>
-
-              {user.upgrade_reason && (
-                <p>
-                  <strong>Reason:</strong> {user.upgrade_reason}
-                </p>
+          {user.role === "bidder" && (
+            <>
+              {user.upgrade_request_time && (
+                <div className="text-gray-700 space-y-2">
+                  <p>
+                    <strong>Requested At:</strong>{" "}
+                    {new Date(user.upgrade_request_time).toLocaleString()}
+                  </p>
+                  {user.upgrade_reason && (
+                    <p>
+                      <strong>Reason:</strong> {user.upgrade_reason}
+                    </p>
+                  )}
+                </div>
               )}
-            </div>
+
+              <div className="flex gap-4 pt-2">
+                {user.upgrade_request_time ? (
+                  <>
+                    <button
+                      onClick={() => onReject(user)}
+                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded"
+                    >
+                      Deny
+                    </button>
+                    <button
+                      onClick={() => onApprove(user)}
+                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded"
+                    >
+                      Approve
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => onApprove(user)}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded"
+                  >
+                    Upgrade to Seller
+                  </button>
+                )}
+              </div>
+            </>
           )}
 
-          <div className="flex gap-4 pt-2">
-            {user.upgrade_request_time ? (
-              <>
-                <button
-                  onClick={() => onReject(user)}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded"
-                >
-                  Deny
-                </button>
-                <button
-                  onClick={() => onApprove(user)}
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded"
-                >
-                  Approve
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => onApprove(user)}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded"
-              >
-                Upgrade to Seller
-              </button>
-            )}
-          </div>
+          {user.role === "seller" && (
+            <button
+              onClick={() => onDowngrade(user)}
+              className="w-full px-4 py-2 bg-red-600 text-white rounded"
+            >
+              Downgrade to Bidder
+            </button>
+          )}
         </VBox>
       )}
 
-      {user.role === "seller" && (
-        <VBox className="gap-4 pt-6 border-t">
-          <h3 className="text-lg font-semibold text-red-700">Seller Actions</h3>
+      {/* Administrative Actions Section */}
+      <VBox className="gap-4 pt-6 border-t">
+        <h3 className="text-lg font-semibold">Other</h3>
+
+        {user.role !== "admin" && user.role !== "suspended" && (
           <button
-            onClick={() => onDowngrade(user)}
-            className="w-full px-4 py-2 bg-red-600 text-white rounded"
+            onClick={() => onSuspend(user)}
+            className="w-full px-4 py-2 bg-red-700 text-white rounded"
           >
-            Downgrade to Bidder
+            Suspend User
           </button>
-        </VBox>
-      )}
+        )}
 
-      {user.role !== "admin" && user.role !== "suspended" && (
-        <button
-          onClick={() => onSuspend(user)}
-          className="w-full px-4 py-2 bg-red-700 text-white rounded"
-        >
-          Suspend User
-        </button>
-      )}
+        {user.role === "suspended" && (
+          <VBox className="gap-4 pt-2">
+            <div className="px-4 py-2 bg-red-100 text-red-800 rounded">
+              This user is suspended and cannot bid or sell.
+            </div>
 
-      {user.role === "suspended" && (
-        <VBox className="gap-4 pt-6 border-t">
-          <div className="px-4 py-2 bg-red-100 text-red-800 rounded">
-            This user is suspended and cannot bid or sell.
-          </div>
+            <button
+              onClick={() => onUnsuspend(user)}
+              className="w-full px-4 py-2 bg-green-600 text-white rounded"
+            >
+              Unsuspend User
+            </button>
+          </VBox>
+        )}
 
+        {user.role !== "admin" && (
           <button
-            onClick={() => onUnsuspend(user)}
-            className="w-full px-4 py-2 bg-green-600 text-white rounded"
+            onClick={async () => {
+              if (!confirm("Reset this user's password and email it to them?"))
+                return;
+
+              await apiFetch(
+                `${API_URL}/api/admin/users/${user.user_id}/reset-password`,
+                { method: "POST" }
+              );
+
+              alert("Password has been reset and emailed to the user.");
+            }}
+            className="w-full px-4 py-2 bg-yellow-600 text-white rounded"
           >
-            Unsuspend User
+            Reset Password
           </button>
-        </VBox>
-      )}
+        )}
+      </VBox>
     </VBox>
   );
 };

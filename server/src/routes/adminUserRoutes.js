@@ -6,6 +6,11 @@ const router = express.Router();
 
 router.get("/", adminUserController.getAllUsers);
 router.get("/stats", adminUserController.getUserStats);
+router.post(
+  "/:id/reset-password",
+  requireRole("admin"),
+  adminUserController.resetUserPassword
+);
 router.get("/:id", adminUserController.getUserDetail);
 router.post("/downgrade", adminUserController.downgradeSeller);
 router.post("/suspend", adminUserController.suspendUser);

@@ -244,7 +244,7 @@ const AuctionManagement = () => {
                 try {
                   await updateProduct(selectedDetail.product_id, draft);
                   setSelectedDetail(null);
-                  fetchProducts(); // refresh table
+                  fetchProducts();
                 } catch (e) {
                   alert(e.message);
                 }
@@ -262,7 +262,7 @@ const AuctionManagement = () => {
             onClose={() => setShowCreate(false)}
             onCreated={() => {
               setShowCreate(false);
-              fetchProducts(); // refresh table
+              fetchProducts();
             }}
           />
         </Modal>
