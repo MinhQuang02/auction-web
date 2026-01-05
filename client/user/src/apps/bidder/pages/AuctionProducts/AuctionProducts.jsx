@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import Sidebar from "../../components/Sidebar";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -7,18 +7,17 @@ const API_URL = import.meta.env.VITE_API_URL;
 const AuctionProducts = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
   useEffect(() => {
     const fetchDeep = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       if (!token) return;
 
       try {
         const res = await fetch(`${API_URL}/api/products/user/active-bids`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
           const data = await res.json();
@@ -34,9 +33,11 @@ const AuctionProducts = () => {
     fetchDeep();
   }, []);
 
-  // Pagination Logic
   const totalPages = Math.ceil(products.length / itemsPerPage);
-  const displayedProducts = products.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const displayedProducts = products.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const handlePageChange = (page) => setCurrentPage(page);
 
@@ -58,21 +59,37 @@ const AuctionProducts = () => {
           {loading ? (
             <div className="text-center py-20 text-gray-500">Loading...</div>
           ) : products.length === 0 ? (
-            <div className="text-center py-20 text-gray-500">You are not bidding on any items currently.</div>
+            <div className="text-center py-20 text-gray-500">
+              You are not bidding on any items currently.
+            </div>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
                 {displayedProducts.map((product) => {
-                  const imageUrl = product.main_image_url || product.images?.[0]?.image_url || "https://via.placeholder.com/200";
-                  const endDate = new Date(product.end_time).toLocaleDateString();
+                  const imageUrl =
+                    product.main_image_url ||
+                    product.images?.[0]?.image_url ||
+                    "https://via.placeholder.com/200";
+                  const endDate = new Date(
+                    product.end_time
+                  ).toLocaleDateString();
 
                   return (
-                    <div key={product.product_id} className="group flex flex-col gap-3">
+                    <div
+                      key={product.product_id}
+                      className="group flex flex-col gap-3"
+                    >
                       {/* Image Container */}
                       <div className="relative bg-[#F5F5F5] rounded h-[250px] flex items-center justify-center overflow-hidden">
                         {/* Badge: Winning or Outbid */}
-                        <div className={`absolute top-2 left-2 px-2 py-1 text-[10px] rounded shadow-sm font-bold uppercase ${product.is_winning ? 'bg-[#AE9B84] text-white' : 'bg-[#D6C8B7] text-gray-700'}`}>
-                          {product.is_winning ? 'Leading' : 'Not Leading'}
+                        <div
+                          className={`absolute top-2 left-2 px-2 py-1 text-[10px] rounded shadow-sm font-bold uppercase ${
+                            product.is_winning
+                              ? "bg-[#AE9B84] text-white"
+                              : "bg-[#D6C8B7] text-gray-700"
+                          }`}
+                        >
+                          {product.is_winning ? "Leading" : "Not Leading"}
                         </div>
 
                         <img
@@ -100,12 +117,18 @@ const AuctionProducts = () => {
                         </h3>
                         <div className="flex flex-col gap-1 text-sm mb-2">
                           <div className="flex justify-between">
-                            <span className="text-gray-500">Current Price:</span>
-                            <span className="text-[#AE9B84] font-medium">${Number(product.current_price).toFixed(2)}</span>
+                            <span className="text-gray-500">
+                              Current Price:
+                            </span>
+                            <span className="text-[#AE9B84] font-medium">
+                              ${Number(product.current_price).toFixed(2)}
+                            </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-500">My Max Bid:</span>
-                            <span className="font-medium">${Number(product.my_bid).toFixed(2)}</span>
+                            <span className="font-medium">
+                              ${Number(product.my_bid).toFixed(2)}
+                            </span>
                           </div>
                         </div>
                         <div className="bg-gray-100 rounded-full px-3 py-1 text-[10px] text-gray-500 inline-block">
@@ -129,15 +152,21 @@ const AuctionProducts = () => {
                   </button>
 
                   <div className="flex items-center gap-2">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                      <button
-                        key={page}
-                        onClick={() => handlePageChange(page)}
-                        className={`w-8 h-8 rounded flex items-center justify-center ${currentPage === page ? 'bg-[#AE9B84] text-white' : 'hover:bg-gray-200'}`}
-                      >
-                        {page}
-                      </button>
-                    ))}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (page) => (
+                        <button
+                          key={page}
+                          onClick={() => handlePageChange(page)}
+                          className={`w-8 h-8 rounded flex items-center justify-center ${
+                            currentPage === page
+                              ? "bg-[#AE9B84] text-white"
+                              : "hover:bg-gray-200"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      )
+                    )}
                   </div>
 
                   <button

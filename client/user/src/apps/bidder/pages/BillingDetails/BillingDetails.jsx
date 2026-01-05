@@ -10,7 +10,7 @@ const BillingDetails = () => {
   const { addToast } = useToast();
   const product = location.state?.product;
 
-  const [paymentMethod, setPaymentMethod] = useState("cod"); // 'bank' or 'cod'
+  const [paymentMethod, setPaymentMethod] = useState("cod");
   const [formData, setFormData] = useState({
     firstName: "",
     companyName: "",
@@ -18,14 +18,14 @@ const BillingDetails = () => {
     apartment: "",
     city: "",
     phone: "",
-    email: ""
+    email: "",
   });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!product) {
       addToast("No product selected for payment.", "error");
-      navigate('/my-purchases');
+      navigate("/my-purchases");
     }
   }, [product, navigate]);
 
@@ -39,33 +39,41 @@ const BillingDetails = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Basic validation
-    if (!formData.firstName || !formData.address || !formData.city || !formData.phone || !formData.email) {
+    if (
+      !formData.firstName ||
+      !formData.address ||
+      !formData.city ||
+      !formData.phone ||
+      !formData.email
+    ) {
       addToast("Please fill in all required fields.", "error");
       setLoading(false);
       return;
     }
 
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
 
     try {
-      const res = await fetch(`${API_URL}/api/products/user/purchases/${product.product_id}/pay`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...formData,
-          paymentMethod
-        })
-      });
+      const res = await fetch(
+        `${API_URL}/api/products/user/purchases/${product.product_id}/pay`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            ...formData,
+            paymentMethod,
+          }),
+        }
+      );
 
       const data = await res.json();
 
       if (res.ok) {
         addToast("Payment Successful!", "success");
-        navigate('/my-purchases');
+        navigate("/my-purchases");
       } else {
         addToast(data.message || "Payment failed", "error");
       }
@@ -78,7 +86,10 @@ const BillingDetails = () => {
   };
 
   const price = Number(product.current_price);
-  const imageUrl = product.main_image_url || product.images?.[0]?.image_url || "https://via.placeholder.com/150";
+  const imageUrl =
+    product.main_image_url ||
+    product.images?.[0]?.image_url ||
+    "https://via.placeholder.com/150";
 
   return (
     <section
@@ -208,7 +219,10 @@ const BillingDetails = () => {
             <div className="flex flex-col gap-1">
               <h3 className="font-medium text-base">{product.name}</h3>
               <p className="text-xs text-gray-500">
-                Seller: <span className="font-medium">{product.seller?.full_name || '***'}</span>
+                Seller:{" "}
+                <span className="font-medium">
+                  {product.seller?.full_name || "***"}
+                </span>
               </p>
               <p className="text-xs text-gray-600 leading-relaxed max-w-xs truncate">
                 {product.description}
@@ -282,7 +296,7 @@ const BillingDetails = () => {
             disabled={loading}
             className="bg-[#AE9B84] text-white w-full py-4 rounded text-sm font-medium hover:bg-[#968571] transition mt-2 disabled:bg-gray-400"
           >
-            {loading ? 'Processing...' : 'Place Order'}
+            {loading ? "Processing..." : "Place Order"}
           </button>
         </div>
       </div>

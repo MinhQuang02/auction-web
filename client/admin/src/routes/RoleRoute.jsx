@@ -4,7 +4,7 @@ import { useAuth } from "@context/AuthContext";
 const RoleRoute = ({ allowedRoles }) => {
   const { user, isAuthenticated, loading } = useAuth();
 
-  if (loading) return null; // or spinner
+  if (loading) return null;
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

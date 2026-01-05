@@ -7,7 +7,7 @@ const AuthContext = createContext(null);
 const API_URL = import.meta.env.VITE_API_URL;
 
 export const AuthProvider = ({ children }) => {
-  const [auth, setAuth] = useState(null); // null = unknown, object = known
+  const [auth, setAuth] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const fetchMe = async () => {

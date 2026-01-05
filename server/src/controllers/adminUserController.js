@@ -446,7 +446,6 @@ const adminUserController = {
     }
 
     try {
-      // Generate random 10-character password
       let newPassword = crypto
         .randomBytes(6)
         .toString("base64")
@@ -454,17 +453,14 @@ const adminUserController = {
 
       newPassword += Math.floor(Math.random() * 10);
 
-      // Hash the password
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-      // Update user password
       const user = await prisma.user.update({
         where: { user_id: userId },
         data: { password: hashedPassword },
         select: { email: true, full_name: true },
       });
 
-      // Send new password via email
       await emailService.sendNewPasswordEmail(
         user.email,
         user.full_name,
