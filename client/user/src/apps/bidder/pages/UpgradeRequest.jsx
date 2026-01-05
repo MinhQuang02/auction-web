@@ -9,7 +9,7 @@ const UpgradeRequest = () => {
   const [details, setDetails] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const { auth } = useAuth(); 
+  const { auth } = useAuth();
   const navigate = useNavigate();
 
   const onlineImage =
@@ -36,7 +36,7 @@ const UpgradeRequest = () => {
       if (!res.ok) throw new Error(data.message || "Request failed");
 
       setMessage("Request sent! Please wait for admin approval.");
-      setTimeout(() => navigate("/home"), 2000); 
+      setTimeout(() => navigate("/home"), 2000);
     } catch (err) {
       setMessage(err.message);
     } finally {
@@ -67,9 +67,15 @@ const UpgradeRequest = () => {
             </p>
 
             {message && (
-                <div className={`p-3 rounded mb-4 text-sm ${message.includes("sent") ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                    {message}
-                </div>
+              <div
+                className={`p-3 rounded mb-4 text-sm ${
+                  message.includes("sent")
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-700"
+                }`}
+              >
+                {message}
+              </div>
             )}
 
             <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
@@ -87,7 +93,7 @@ const UpgradeRequest = () => {
                 </label>
               </div>
 
-              <div className="relative">
+              {/* <div className="relative">
                 <textarea
                   rows={3}
                   value={details}
@@ -97,7 +103,7 @@ const UpgradeRequest = () => {
                 <label className="absolute -top-2.5 left-3 bg-white lg:bg-[#F4F4F4] px-1 text-xs font-medium text-gray-400">
                   Additional details (optional)
                 </label>
-              </div>
+              </div> */}
 
               <button
                 type="submit"
