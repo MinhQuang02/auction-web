@@ -156,17 +156,17 @@ class AuthService {
   async requestPasswordReset(email) {
     const user = await prisma.user.findUnique({ where: { email } });
 
-    if (!user) return; // Silent fail security
+    if (!user) return; 
 
     // Generate 6-digit OTP
     const otp = generateOtp();
     const hashedOtp = await hash(otp);
-    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+    const expires = new Date(Date.now() + 15 * 60 * 1000); 
 
     await prisma.user.update({
       where: { user_id: user.user_id },
       data: {
-        reset_token_hash: hashedOtp, // Reusing this field for OTP hash
+        reset_token_hash: hashedOtp, 
         reset_token_expires: expires,
       },
     });

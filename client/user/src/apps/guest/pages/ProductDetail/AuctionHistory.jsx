@@ -70,16 +70,10 @@ const AuctionHistory = ({ bids = [], isSeller = false, productId, onRefresh, pro
                         bids.map((bid, index) => {
                             const rowBgClass = index % 2 === 0 ? 'bg-[#F5F5F5]' : 'bg-white';
 
-                            // Format: "27/10/2025 10:43"
                             const timeStr = new Date(bid.bid_time).toLocaleString();
-                            // Masked name from backend
                             const bidderName = bid.bidder?.full_name || "Unknown";
                             const priceStr = `$${Number(bid.max_bid_amount).toLocaleString()}`;
                             const isProcessed = processingId === bid.bidder_id;
-
-                            // If user is banned/rejected, style it?
-                            // Backend usually filters banned bids or marks them.
-                            // If we just kicked them, onRefresh will reload data.
 
                             return (
                                 <div

@@ -11,7 +11,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 function ProductDetail() {
   const { id } = useParams();
-  const { isAuthenticated, user } = useAuth(); // Corrected from currentUser to user
+  const { isAuthenticated, user } = useAuth(); 
 
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -21,7 +21,6 @@ function ProductDetail() {
 
   const fetchProductData = async () => {
     try {
-      // Don't set loading true here to avoid flashing on refresh
       setError(null);
 
       const res = await fetch(`${API_URL}/api/products/${id}`);
@@ -52,7 +51,6 @@ function ProductDetail() {
   if (!product) return <div className="p-20 text-center text-gray-500">Product Not Found.</div>;
 
   return (
-    // DEBUG STYLE: Red Border to prove this file is running
     <div>
       <section
         id="hero"

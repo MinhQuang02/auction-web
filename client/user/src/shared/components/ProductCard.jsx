@@ -4,7 +4,7 @@ import { useAuth } from "@context/AuthContext";
 
 import wishIcon from "@assets/images/_wishIcon.svg";
 import viewIcon from "@assets/images/_viewIcon.svg";
-import removeIcon from "@assets/images/_removeIcon.svg"; // Assuming this exists, confirmed by ls
+import removeIcon from "@assets/images/_removeIcon.svg"; 
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -17,8 +17,6 @@ const ProductCard = ({ product, isWatchlisted, onToggleWatchlist, onHide, classN
     const imageUrl = product.main_image_url || product.images?.[0]?.image_url || "https://via.placeholder.com/270x250?text=No+Image";
     const buyNowPrice = product.buy_now_price;
     const currentPrice = product.current_price || product.start_price;
-    // Masking handling if not already masked by backend, though backend usually handles it.
-    // Backend Logic: "***" + full_name.slice(-3)
     const bidderName = product.current_bidder?.full_name || (product.bids?.[0]?.bidder?.full_name) || "No Bids";
 
     const handleWishlistClick = async (e) => {
@@ -29,10 +27,6 @@ const ProductCard = ({ product, isWatchlisted, onToggleWatchlist, onHide, classN
             navigate("/login");
             return;
         }
-
-        // Optimistic toggle handled by parent via callback, but we can do it here too?
-        // Better to let parent handle state to sync with other lists if needed, 
-        // but for now simple callback
         if (onToggleWatchlist) {
             onToggleWatchlist(product);
         }
@@ -78,7 +72,6 @@ const ProductCard = ({ product, isWatchlisted, onToggleWatchlist, onHide, classN
                         </svg>
                     </button>
 
-                    {/* Hide & Replace Icon (Eye) - Only if onHide is provided, otherwise Link (or nothing if just view)*/}
                     {onHide ? (
                         <button
                             onClick={handleHideClick}
@@ -124,11 +117,6 @@ const ProductCard = ({ product, isWatchlisted, onToggleWatchlist, onHide, classN
                     by {bidderName}
                 </span>
             </div>
-            {/* 
-            <div className="bg-gray-200/50 rounded-full px-2 py-0.5 text-[10px] inline-block text-gray-600">
-               Time remaining logic if needed
-            </div> 
-            */}
         </div>
     );
 };

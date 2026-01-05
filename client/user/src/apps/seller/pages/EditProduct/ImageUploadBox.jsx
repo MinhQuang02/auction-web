@@ -1,75 +1,85 @@
-import { useRef, useState } from "react";
+import React, { useRef } from "react";
+import removeIcon from "@assets/images/_removeIcon.svg";
+import cameraIcon from "@assets/images/_cameraIcon.svg";
 
-const ImageUploadBox = () => {
-  const [images, setImages] = useState([]);
+const ImageUploadBox = ({ images = [], onImagesChange }) => {
   const fileInputRef = useRef(null);
 
-  const handleFiles = (files) => {
-    const arr = [...files].slice(0, 20); // cap if needed
-    const mapped = arr.map((file) => ({
-      file,
-      preview: URL.createObjectURL(file),
-    }));
-    setImages((prev) => [...prev, ...mapped]);
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    // Convert new files to URLs
+    const newImageUrls = files.map((file) => URL.createObjectURL(file));
+    
+    // Append to existing images
+    const updatedImages = [...images, ...newImageUrls];
+    onImagesChange(updatedImages);
   };
 
-  const onInputChange = (e) => {
-    handleFiles(e.target.files);
-  };
-
-  const onDrop = (e) => {
-    e.preventDefault();
-    handleFiles(e.dataTransfer.files);
-  };
-
-  const removeImage = (i) => {
-    setImages((prev) => prev.filter((_, idx) => idx !== i));
+  const handleRemove = (index) => {
+    const updatedImages = images.filter((_, i) => i !== index);
+    onImagesChange(updatedImages);
   };
 
   return (
-    <div
-      className="border-2 border-gray-300 rounded-xl p-4 flex items-start flex-wrap gap-3"
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={onDrop}
-    >
-      {/* Add Button (always at current end, top-left initially) */}
-      <button
-        type="button"
-        className="w-20 h-20 rounded-lg border border-gray-400 
-                   flex items-center justify-center text-gray-500 hover:bg-gray-100"
-        onClick={() => fileInputRef.current.click()}
-      >
-        +
-      </button>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Product Images (Min 4)
+      </label>
+      
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {/* Render Existing Images */}
+        {images.map((img, index) => (
+          <div key={index} className="aspect-square relative rounded-xl border border-gray-200 overflow-hidden group">
+            <img 
+              src={img} 
+              alt={`Upload ${index}`} 
+              className="w-full h-full object-cover" 
+            />
+            
+            {/* Main Image Badge */}
+            {index === 0 && (
+                <div className="absolute top-2 left-2 bg-[#AD9C86] text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
+                    MAIN
+                </div>
+            )}
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={onInputChange}
-      />
+            {/* Remove Button */}
+            <button
+              type="button"
+              onClick={() => handleRemove(index)}
+              className="absolute top-2 right-2 bg-white/90 p-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+            >
+              <img src={removeIcon} className="w-4 h-4" alt="Remove" />
+            </button>
+          </div>
+        ))}
 
-      {/* Image Previews */}
-      {images.map((img, i) => (
-        <div key={i} className="relative w-20 h-20">
-          <img
-            src={img.preview}
-            className="w-full h-full object-cover rounded-lg"
+        {/* Upload Button (Always Visible) */}
+        <div 
+          onClick={() => fileInputRef.current.click()}
+          className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-[#AD9C86] hover:bg-[#F9F9F9] transition gap-2"
+        >
+          <img src={cameraIcon} className="w-8 h-8 opacity-40" alt="Upload" />
+          <span className="text-xs text-gray-400 font-medium">Add Image</span>
+          
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            multiple 
+            accept="image/*"
+            onChange={handleFileChange} 
           />
-          <button
-            type="button"
-            className="absolute -top-2 -right-2 bg-white border border-gray-400 
-                       w-6 h-6 rounded-full text-xs flex items-center justify-center"
-            onClick={() => removeImage(i)}
-          >
-            ✕
-          </button>
         </div>
-      ))}
+      </div>
+
+      <p className="text-xs text-gray-400 mt-2">
+        * The first image will be the main cover image.
+      </p>
     </div>
   );
-}
+};
 
 export default ImageUploadBox;

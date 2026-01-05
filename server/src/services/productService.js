@@ -5,51 +5,30 @@ import categoryService from "./categoryService.js";
 
 const ALLOWED_STATUS = ["active", "sold", "ended_no_winner", "removed"];
 
-// ==============================================================================
-// HELPER: Mask Usernames (Privacy)
-// ==============================================================================
+const updateExpiredAuctions = async () => {
+  const now = new Date();
+  await prisma.product.updateMany({
+    where: { status: 'active', end_time: { lte: now }, bid_count: 0 },
+    data: { status: 'ended_no_winner' }
+  });
+};
+
 const maskProducts = (products) => {
   return products.map((p) => {
-    // Mask Seller
     let maskedSeller = p.seller;
     if (p.seller?.full_name) {
-      maskedSeller = {
-        ...p.seller,
-        full_name: "***" + p.seller.full_name.trim().slice(-3),
-      };
+      maskedSeller = { ...p.seller, full_name: "***" + p.seller.full_name.trim().slice(-3) };
     }
-
-    // Mask Bids
     const maskedBids = (p.bids || []).map((bid) => {
       let maskedBidder = bid.bidder;
-      if (bid.bidder?.full_name) {
-        maskedBidder = {
-          ...bid.bidder,
-          full_name: "***" + bid.bidder.full_name.trim().slice(-3),
-        };
-      } else if (bid.bidder) {
-        maskedBidder = { ...bid.bidder, full_name: "***" };
-      }
+      if (bid.bidder?.full_name) { maskedBidder = { ...bid.bidder, full_name: "***" + bid.bidder.full_name.trim().slice(-3) }; }
+      else if (bid.bidder) { maskedBidder = { ...bid.bidder, full_name: "***" }; }
       return { ...bid, bidder: maskedBidder };
     });
-
-    // Mask Current Bidder
     let maskedCurrentBidder = p.current_bidder;
-    if (p.current_bidder?.full_name) {
-      maskedCurrentBidder = {
-        ...p.current_bidder,
-        full_name: "***" + p.current_bidder.full_name.trim().slice(-3),
-      };
-    } else if (p.current_bidder) {
-      maskedCurrentBidder = { ...p.current_bidder, full_name: "***" };
-    }
-
-    return {
-      ...p,
-      seller: maskedSeller,
-      bids: maskedBids,
-      current_bidder: maskedCurrentBidder,
-    };
+    if (p.current_bidder?.full_name) { maskedCurrentBidder = { ...p.current_bidder, full_name: "***" + p.current_bidder.full_name.trim().slice(-3) }; }
+    else if (p.current_bidder) { maskedCurrentBidder = { ...p.current_bidder, full_name: "***" }; }
+    return { ...p, seller: maskedSeller, bids: maskedBids, current_bidder: maskedCurrentBidder };
   });
 };
 
@@ -57,10 +36,6 @@ const maskProducts = (products) => {
 // 1. SEARCH & FILTER
 // ==============================================================================
 
-/**
- * CORE LOGIC: Resolve the Auction "Battle"
- * Moved here to be accessible by both placeBid and rejectBidder.
- */
 const resolveAuctionBattle = async (tx, productId) => {
   const pId = parseInt(productId);
   const product = await tx.product.findUnique({ where: { product_id: pId } });
@@ -81,9 +56,7 @@ const resolveAuctionBattle = async (tx, productId) => {
     const existing = bidderMap.get(bid.bidder_id);
 
     if (!existing || amount > existing.capacity) {
-      bidderMap.set(bid.bidder_id, {
-        userId: bid.bidder_id, capacity: amount, type: bid.status, time: bid.bid_time
-      });
+      bidderMap.set(bid.bidder_id, { userId: bid.bidder_id, capacity: amount, type: bid.status, time: bid.bid_time });
     } else if (amount === existing.capacity && bid.status === 'auto') {
       existing.type = 'auto';
     }
@@ -95,17 +68,12 @@ const resolveAuctionBattle = async (tx, productId) => {
   });
 
   if (competitors.length === 0) {
-    // Reset to start if no bidders left
-    await tx.product.update({
-      where: { product_id: pId },
-      data: { current_price: startPrice, current_bidder_id: null, bid_count: 0 }
-    });
+    await tx.product.update({ where: { product_id: pId }, data: { current_price: startPrice, current_bidder_id: null, bid_count: 0 } });
     return { winnerId: null, price: startPrice };
   }
 
   const winner = competitors[0];
   const runnerUp = competitors[1];
-
   let newLocalPrice = startPrice;
 
   if (winner.type === 'valid') {
@@ -117,22 +85,12 @@ const resolveAuctionBattle = async (tx, productId) => {
     newLocalPrice = Math.min(winner.capacity, calculated);
   }
 
-  await tx.product.update({
-    where: { product_id: pId },
-    data: { current_price: newLocalPrice, current_bidder_id: winner.userId }
-  });
+  await tx.product.update({ where: { product_id: pId }, data: { current_price: newLocalPrice, current_bidder_id: winner.userId } });
 
   if (winner.type === 'auto') {
-    const existingExactBid = await tx.bid_History.findFirst({
-      where: { product_id: pId, bidder_id: winner.userId, max_bid_amount: newLocalPrice, status: 'valid' }
-    });
-
+    const existingExactBid = await tx.bid_History.findFirst({ where: { product_id: pId, bidder_id: winner.userId, max_bid_amount: newLocalPrice, status: 'valid' } });
     if (!existingExactBid) {
-      await tx.bid_History.create({
-        data: {
-          product_id: pId, bidder_id: winner.userId, max_bid_amount: newLocalPrice, status: 'valid', bid_time: new Date()
-        }
-      });
+      await tx.bid_History.create({ data: { product_id: pId, bidder_id: winner.userId, max_bid_amount: newLocalPrice, status: 'valid', bid_time: new Date() } });
       await tx.product.update({ where: { product_id: pId }, data: { bid_count: { increment: 1 } } });
     }
   }
@@ -147,6 +105,8 @@ const searchProducts = async ({
   offset = 0,
   status,
 }) => {
+  await updateExpiredAuctions();
+
   if (status && !ALLOWED_STATUS.includes(status)) {
     throw new Error(`Invalid status: ${status}`);
   }
@@ -208,6 +168,8 @@ const searchProducts = async ({
 // 2. PRODUCT DETAILS
 // ==============================================================================
 const getProductById = async (productId) => {
+  await updateExpiredAuctions();
+
   const idInt = parseInt(productId);
   if (isNaN(idInt)) return null;
 
@@ -277,7 +239,6 @@ const getProductById = async (productId) => {
 // 3. RELATED & SUGGESTED
 // ==============================================================================
 const getRelatedProducts = async (productId, categoryId) => {
-  // Fetch up to 20 candidates, shuffle, pick 5 (Merged Logic)
   const candidates = await prisma.product.findMany({
     where: {
       category_id: categoryId,
@@ -332,7 +293,6 @@ const getReplacementProduct = async (excludeIds = [], categoryId = null) => {
 
 const getRandomProducts = async (limit = 10) => {
   const take = parseInt(limit);
-  // Use raw query for true random performance if desired, or skip logic
   const count = await prisma.product.count({ where: { status: "active" } });
   const skip = Math.max(0, Math.floor(Math.random() * count) - take);
 
@@ -371,23 +331,31 @@ const getProductsBySellerId = async (sellerId) => {
 
 const createProduct = async (data) => {
   const {
-    name, description, category_id, seller_id,
-    start_time, end_time, start_price, buy_now_price,
+    name, description, category_id, seller_id, start_time, end_time,
+    start_price, buy_now_price, step_price, auto_extend_enabled, main_image_url, additional_images = []
   } = data;
 
-  if (!name || !category_id || !seller_id || !start_time || !end_time) {
+  if (!name || !category_id || !seller_id || !start_time || !end_time || !main_image_url || start_price === undefined) {
     throw new Error("Missing required fields");
+  }
+
+  const allImages = [main_image_url, ...additional_images].map(url => url.trim());
+  const uniqueImages = new Set(allImages);
+  if (uniqueImages.size < 4) {
+    throw new Error(`Duplicate images detected. You provided ${allImages.length}, but only ${uniqueImages.size} are unique. Minimum 4 unique images required.`);
   }
 
   return await prisma.product.create({
     data: {
-      name, description,
-      category_id: parseInt(category_id),
-      seller_id: parseInt(seller_id),
-      start_time: new Date(start_time),
-      end_time: new Date(end_time),
-      start_price, buy_now_price,
-      status: "active",
+      name, description, category_id: parseInt(category_id), seller_id: parseInt(seller_id),
+      start_time: new Date(start_time), end_time: new Date(end_time),
+      start_price: parseFloat(start_price),
+      current_price: parseFloat(start_price),
+      step_price: parseFloat(step_price || 10),
+      buy_now_price: buy_now_price ? parseFloat(buy_now_price) : null,
+      auto_extend_enabled: Boolean(auto_extend_enabled),
+      main_image_url: main_image_url, status: "active",
+      images: { create: additional_images.map(url => ({ image_url: url })) }
     },
   });
 };
@@ -421,27 +389,22 @@ const rejectBidder = async (sellerId, productId, bidderId) => {
     const product = await tx.product.findUnique({ where: { product_id: pId } });
     if (!product) throw new Error("Product not found");
     if (product.seller_id !== sellerId) throw new Error("Unauthorized");
-    if (product.status !== 'active') throw new Error("Product is not active or sold");
+    if (product.status !== 'active') throw new Error("Product is not active");
 
-    // Fetch user for email
     const bidder = await tx.user.findUnique({ where: { user_id: bId } });
 
-    // Ban (Prevent Re-entry)
     await tx.banned_Bidder.upsert({
       where: { product_id_bidder_id: { product_id: pId, bidder_id: bId } },
       create: { product_id: pId, bidder_id: bId },
       update: {},
     });
 
-    // Delete Bids (As requested: "xóa bên database")
     await tx.bid_History.deleteMany({
       where: { product_id: pId, bidder_id: bId }
     });
 
-    // Recalculate Winner
     const result = await resolveAuctionBattle(tx, pId);
 
-    // Email Notification
     if (bidder?.email) {
       emailService.sendBidderKickNotification(
         bidder.email,
@@ -498,7 +461,6 @@ const addQuestion = async (userId, productId, content) => {
     }
   });
 
-  // Notification (B)
   if (question.product.seller?.email) {
     emailService.sendQuestionNotification(
       question.product.seller.email,
@@ -594,20 +556,14 @@ const getUserActiveBids = async (userId) => {
 };
 
 // ==============================================================================
-// 7. PLACE BID (MERGED LOGIC)
+// 7. PLACE BID (FIXED)
 // ==============================================================================
-
-
-
-
-// --- PUBLIC API: Place Manual Bid ---
 const placeBid = async (userId, productId, amountStr) => {
   const pId = parseInt(productId);
   const uId = parseInt(userId);
   const amount = parseFloat(amountStr);
 
   return await prisma.$transaction(async (tx) => {
-    // 1. Validation
     const product = await tx.product.findUnique({
       where: { product_id: pId },
       include: { bids: { orderBy: { max_bid_amount: 'desc' }, take: 1 } }
@@ -618,47 +574,45 @@ const placeBid = async (userId, productId, amountStr) => {
     if (new Date(product.end_time) < new Date()) throw new Error("Auction has ended");
     if (product.seller_id === uId) throw new Error("You cannot bid on your own product");
 
-    // 2. Check for Active Auto-Bid (User Instruction: Reject Manual if Auto exists)
     const existingAuto = await tx.bid_History.findFirst({
       where: { product_id: pId, bidder_id: uId, status: 'auto' }
     });
-    if (existingAuto) {
-      throw new Error("You have an active auto-bid. Please update that instead.");
-    }
+    if (existingAuto) throw new Error("You have an active auto-bid. Please update that instead.");
 
-    // 3. Min Bid Validation
-    // Note: We use the *Calculated* current state from Product, not just history
     const currentPrice = parseFloat(product.current_price);
-    const minBid = product.bid_count === 0 ? parseFloat(product.start_price) : currentPrice + parseFloat(product.step_price);
+    const startPrice = parseFloat(product.start_price);
+    const stepPrice = parseFloat(product.step_price) || 10;
+    const bidCount = product.bid_count || 0;
+
+    const minBid = bidCount === 0 ? startPrice : currentPrice + stepPrice;
 
     if (amount < minBid) {
       throw new Error(`Bid too low. Minimum required is $${minBid.toLocaleString()}`);
     }
+    
     if (product.buy_now_price && amount > parseFloat(product.buy_now_price)) {
       throw new Error(`Bid cannot exceed Buy Now price`);
     }
 
-    // 4. Insert Manual Bid
+    const safeAmount = Math.round(amount * 100);
+    const safeStart = Math.round(startPrice * 100);
+    const safeStep = Math.round(stepPrice * 100);
+
+    if (safeStep > 0 && (safeAmount - safeStart) % safeStep !== 0) {
+       throw new Error(`Invalid bid. Amount must be a multiple of the step ($${stepPrice}) relative to the start price.`);
+    }
+
     const newBid = await tx.bid_History.create({
-      data: {
-        product_id: pId,
-        bidder_id: uId,
-        max_bid_amount: amount,
-        status: 'valid', // Manual
-        bid_time: new Date()
-      }
+      data: { product_id: pId, bidder_id: uId, max_bid_amount: amount, status: 'valid', bid_time: new Date() }
     });
 
-    // Update count immediately for the manual action
     await tx.product.update({
       where: { product_id: pId },
       data: { bid_count: { increment: 1 } }
     });
 
-    // 5. Trigger Battle (Atomic)
     await resolveAuctionBattle(tx, pId);
 
-    // Auto-Extend Check (Moved here or inside battle? Here is fine)
     if (product.auto_extend_enabled) {
       const now = new Date();
       const timeRemainingMs = new Date(product.end_time) - now;
@@ -674,57 +628,52 @@ const placeBid = async (userId, productId, amountStr) => {
   });
 };
 
-
-// --- PUBLIC API: Place Auto Bid ---
 const placeAutoBid = async (userId, productId, maxAmountStr) => {
   const pId = parseInt(productId);
   const uId = parseInt(userId);
   const maxAmount = parseFloat(maxAmountStr);
 
   return await prisma.$transaction(async (tx) => {
-    // 1. Validation
     const product = await tx.product.findUnique({ where: { product_id: pId } });
     if (!product) throw new Error("Product not found");
     if (product.status !== 'active' || new Date(product.end_time) < new Date()) throw new Error("Auction ended");
     if (product.seller_id === uId) throw new Error("Cannot bid on own product");
 
-    // 2. Upsert Auto Bid Logic
-    // We deactivate old auto bids or just insert a new one?
-    // Usually, a user has ONLY ONE active auto-bid limit.
-    // We can update the existing one or insert new one. 
-    // Inserting new one preserves history of "I increased my limit".
-    // Let's insert new, relying on `resolveAuctionBattle` to pick the latest/highest.
-    // But to keep things clean, let's mark old 'auto' bids as 'outdated'? 
-    // Or valid 'resolveBattle' effectively ignores lower ones.
-    // Let's UPDATE existing if present to keep DB clean, or Insert.
-
     const existingAuto = await tx.bid_History.findFirst({
       where: { product_id: pId, bidder_id: uId, status: 'auto' }
     });
+
+    const startPrice = parseFloat(product.start_price);
+    const stepPrice = parseFloat(product.step_price) || 10;
+
+    const safeMax = Math.round(maxAmount * 100);
+    const safeStart = Math.round(startPrice * 100);
+    const safeStep = Math.round(stepPrice * 100);
+
+    if (safeStep > 0 && (safeMax - safeStart) % safeStep !== 0) {
+       throw new Error(`Auto-bid limit must be a multiple of the step ($${stepPrice}) relative to the start price.`);
+    }
 
     if (existingAuto) {
       if (maxAmount <= parseFloat(existingAuto.max_bid_amount)) {
         throw new Error("New auto-bid must be higher than your current auto-bid.");
       }
-      // Update
       await tx.bid_History.update({
         where: { bid_id: existingAuto.bid_id },
         data: { max_bid_amount: maxAmount, bid_time: new Date() }
       });
     } else {
-      // Create New
       await tx.bid_History.create({
         data: {
           product_id: pId,
           bidder_id: uId,
           max_bid_amount: maxAmount,
-          status: 'auto', // AUTO flag
+          status: 'auto',
           bid_time: new Date()
         }
       });
     }
 
-    // 3. Trigger Battle
     const result = await resolveAuctionBattle(tx, pId);
     return result;
   });
@@ -768,7 +717,6 @@ const createTransaction = async (userId, productId, shippingData) => {
     });
   }
 
-  // Notification (C)
   const [buyer, seller] = await Promise.all([
     prisma.user.findUnique({ where: { user_id: uId } }),
     prisma.user.findUnique({ where: { user_id: product.seller_id } })

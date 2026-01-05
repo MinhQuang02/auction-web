@@ -31,6 +31,7 @@ router.post("/questions/:questionId/reply", productController.answerQuestion);
 router.get('/seller/me', productController.getSellerProducts);
 router.post('/', productController.createProduct);
 router.patch('/:id', productController.updateProduct);
+router.delete('/:id', productController.deleteProduct); 
 router.post("/:id/reject", productController.rejectBidder);
 router.post("/:id/cancel", productController.cancelTransaction);
 

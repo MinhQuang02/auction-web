@@ -1,17 +1,10 @@
 import productService from "../services/productService.js";
 import prisma from "../lib/prisma.js";
 
-// 1. SEARCH LIST (With "New" Badge)
+// 1. SEARCH LIST
 const getProducts = async (req, res) => {
   try {
-    const {
-      keyword,
-      category_id,
-      sort_by,
-      limit = 12,
-      page = 1,
-      status,
-    } = req.query;
+    const { keyword, category_id, sort_by, limit = 12, page = 1, status } = req.query;
     const offset = (page - 1) * limit;
 
     const { products, total } = await productService.searchProducts({
@@ -30,11 +23,7 @@ const getProducts = async (req, res) => {
       const postTime = new Date(p.start_time);
       const diffMs = now - postTime;
       const diffMins = Math.floor(diffMs / 60000);
-
-      return {
-        ...p,
-        is_new: diffMins <= NEW_THRESHOLD_MINUTES,
-      };
+      return { ...p, is_new: diffMins <= NEW_THRESHOLD_MINUTES };
     });
 
     res.status(200).json({
@@ -49,159 +38,94 @@ const getProducts = async (req, res) => {
   }
 };
 
-// 2. PRODUCT DETAIL (With Related Items)
+// 2. PRODUCT DETAIL
 const getProductDetail = async (req, res) => {
   try {
     const { id } = req.params;
     const productId = parseInt(id);
-
-    if (isNaN(productId)) {
-      return res.status(400).json({ message: "Invalid Product ID" });
-    }
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid Product ID" });
 
     const product = await productService.getProductById(productId);
+    if (!product) return res.status(404).json({ message: "Product not found" });
 
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    const related = await productService.getRelatedProducts(
-      productId,
-      product.category_id
-    );
-
+    const related = await productService.getRelatedProducts(productId, product.category_id);
     const questions = await productService.getProductQuestions(productId);
 
-    res.status(200).json({
-      product,
-      related_products: related,
-      questions: questions,
-    });
+    res.status(200).json({ product, related_products: related, questions });
   } catch (error) {
     console.error("Get Detail Error:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// 3. CREATE PRODUCT (Seller Feature)
+// 3. CREATE PRODUCT
 const createProduct = async (req, res) => {
   try {
-    if (!req.auth || !req.auth.userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+    if (!req.auth || !req.auth.userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const sellerId = req.auth.userId;
-    const {
-      name,
-      description,
-      start_price,
-      step_price,
-      buy_now_price,
-      end_time,
-      category_id,
-      auto_extend_enabled,
-      images,
-    } = req.body;
-
-    // Validation
-    if (!name || !start_price || !step_price || !category_id || !end_time) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
-
-    if (!images || !Array.isArray(images) || images.length < 3) {
-      return res
-        .status(400)
-        .json({ message: "You must provide at least 3 images." });
-    }
-
-    const newProduct = await prisma.product.create({
-      data: {
-        name,
-        description,
-        start_price: parseFloat(start_price),
-        step_price: parseFloat(step_price),
-        current_price: parseFloat(start_price),
-        buy_now_price: buy_now_price ? parseFloat(buy_now_price) : null,
-        end_time: new Date(end_time),
-        auto_extend_enabled: !!auto_extend_enabled,
-        seller_id: sellerId,
-        category_id: parseInt(category_id),
-        main_image_url: images[0],
-        status: "active",
-
-        images: {
-          create: images.map((url) => ({ image_url: url })),
-        },
-      },
+    const newProduct = await productService.createProduct({
+      ...req.body,
+      seller_id: req.auth.userId
     });
 
-    return res.status(201).json({
-      message: "Product created successfully",
-      product: newProduct,
-    });
+    return res.status(201).json({ message: "Product created successfully", product: newProduct });
   } catch (error) {
-    console.error("Create Product Error:", error);
+    console.error("Create Product Error:", error.message);
+    if (error.message.includes("Minimum") || error.message.includes("Missing")) {
+      return res.status(400).json({ message: error.message });
+    }
     return res.status(500).json({ message: "Internal server error" });
   }
 };
 
+// 4. UPDATE PRODUCT
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const { description } = req.body;
     const userId = req.auth.userId;
 
-    // 1. Find the product
-    const product = await prisma.product.findUnique({
-      where: { product_id: parseInt(id) },
-    });
-
+    const product = await prisma.product.findUnique({ where: { product_id: parseInt(id) } });
     if (!product) return res.status(404).json({ message: "Product not found" });
+    if (product.seller_id !== userId) return res.status(403).json({ message: "You are not the seller of this product" });
 
-    // 2. Check Ownership
-    if (product.seller_id !== userId) {
-      return res
-        .status(403)
-        .json({ message: "You are not the seller of this product" });
-    }
-
-    // 3. Append Logic
     const timestamp = new Date().toLocaleString();
-    const appendContent = `
-            <div class="append-section" style="margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 10px;">
-                <p><strong>📅 Update ${timestamp}:</strong></p>
-                ${description}
-            </div>
-        `;
+    const appendContent = `<div class="append-section" style="margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 10px;"><p><strong>📅 Update ${timestamp}:</strong></p>${description}</div>`;
+    const finalDescription = (product.description || "") + appendContent;
 
-    const finalDescription = product.description + appendContent;
-
-    // 4. Update DB
-    const updated = await prisma.product.update({
-      where: { product_id: parseInt(id) },
-      data: {
-        description: finalDescription,
-      },
-    });
-
-    res
-      .status(200)
-      .json({ message: "Description updated successfully", product: updated });
+    const updated = await productService.updateProduct(id, { description: finalDescription });
+    res.status(200).json({ message: "Description updated successfully", product: updated });
   } catch (error) {
     console.error("Update Error:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-const getSellerProducts = async (req, res) => {
+// 5. DELETE PRODUCT (New)
+const deleteProduct = async (req, res) => {
   try {
-    if (!req.auth || !req.auth.userId) {
-      return res.status(401).json({ message: "Unauthorized" });
+    const { id } = req.params;
+    const userId = req.auth.userId;
+
+    const product = await prisma.product.findUnique({ where: { product_id: parseInt(id) } });
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    if (product.seller_id !== userId) {
+        return res.status(403).json({ message: "You are not the seller of this product" });
     }
 
-    const sellerId = req.auth.userId;
-    const products = await productService.getProductsBySellerId(sellerId);
+    await productService.deleteProduct(id);
+    res.status(200).json({ message: "Product deleted successfully" });
+  } catch (error) {
+    console.error("Delete Error:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
 
+const getSellerProducts = async (req, res) => {
+  try {
+    if (!req.auth || !req.auth.userId) return res.status(401).json({ message: "Unauthorized" });
+    const products = await productService.getProductsBySellerId(req.auth.userId);
     return res.status(200).json(products);
   } catch (error) {
     console.error("Get Seller Products Error:", error);
@@ -214,11 +138,9 @@ const rejectBidder = async (req, res) => {
     const { id } = req.params;
     const { bidderId } = req.body;
     const sellerId = req.auth.userId;
-
     const result = await productService.rejectBidder(sellerId, id, bidderId);
     res.status(200).json(result);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -228,7 +150,6 @@ const postQuestion = async (req, res) => {
     const { id } = req.params;
     const { content } = req.body;
     const userId = req.auth.userId;
-
     const question = await productService.addQuestion(userId, id, content);
     res.status(201).json(question);
   } catch (error) {
@@ -241,12 +162,7 @@ const answerQuestion = async (req, res) => {
     const { questionId } = req.params;
     const { answer } = req.body;
     const sellerId = req.auth.userId;
-
-    const updated = await productService.answerQuestion(
-      sellerId,
-      questionId,
-      answer
-    );
+    const updated = await productService.answerQuestion(sellerId, questionId, answer);
     res.status(200).json(updated);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -267,12 +183,8 @@ const cancelTransaction = async (req, res) => {
   try {
     const { id } = req.params;
     const sellerId = req.auth.userId;
-
     await productService.cancelTransaction(sellerId, id);
-
-    res
-      .status(200)
-      .json({ message: "Transaction cancelled and user rated -1." });
+    res.status(200).json({ message: "Transaction cancelled." });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -283,7 +195,6 @@ const getAuctionStats = async (req, res) => {
     const stats = await productService.getAuctionStats();
     res.status(200).json(stats);
   } catch (e) {
-    console.error(e);
     res.status(500).json({ message: "Failed to fetch auction stats" });
   }
 };
@@ -293,9 +204,7 @@ const getFeatured = async (req, res) => {
     const limit = req.query.limit || 10;
     const products = await productService.getFeaturedProducts(limit);
     res.status(200).json(products);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
 const getOngoing = async (req, res) => {
@@ -303,9 +212,7 @@ const getOngoing = async (req, res) => {
     const limit = req.query.limit || 10;
     const products = await productService.getOngoingProducts(limit);
     res.status(200).json(products);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
 const getCompetitive = async (req, res) => {
@@ -313,72 +220,44 @@ const getCompetitive = async (req, res) => {
     const limit = req.query.limit || 10;
     const products = await productService.getCompetitiveProducts(limit);
     res.status(200).json(products);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
 const getMyPurchases = async (req, res) => {
   try {
-    if (!req.auth || !req.auth.userId)
-      return res.status(401).json({ message: "Unauthorized" });
+    if (!req.auth || !req.auth.userId) return res.status(401).json({ message: "Unauthorized" });
     const products = await productService.getUserPurchases(req.auth.userId);
     res.status(200).json(products);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: error.message });
-  }
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
 const getMyActiveBids = async (req, res) => {
   try {
-    if (!req.auth || !req.auth.userId)
-      return res.status(401).json({ message: "Unauthorized" });
+    if (!req.auth || !req.auth.userId) return res.status(401).json({ message: "Unauthorized" });
     const products = await productService.getUserActiveBids(req.auth.userId);
     res.status(200).json(products);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: error.message });
-  }
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
 const payForProduct = async (req, res) => {
   try {
-    if (!req.auth || !req.auth.userId)
-      return res.status(401).json({ message: "Unauthorized" });
+    if (!req.auth || !req.auth.userId) return res.status(401).json({ message: "Unauthorized" });
     const { id } = req.params;
     const shippingData = req.body;
-
-    const transaction = await productService.createTransaction(
-      req.auth.userId,
-      id,
-      shippingData
-    );
+    const transaction = await productService.createTransaction(req.auth.userId, id, shippingData);
     res.status(201).json({ message: "Payment successful", transaction });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: error.message });
-  }
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
 const getReplacement = async (req, res) => {
   try {
     const { excludeIds, categoryId } = req.query;
     let ids = [];
-    if (excludeIds) {
-      ids = excludeIds.split(",").map((s) => s.trim());
-    }
-
+    if (excludeIds) ids = excludeIds.split(",").map((s) => s.trim());
     const product = await productService.getReplacementProduct(ids, categoryId);
-
-    if (!product) {
-      return res.status(404).json({ message: "No replacement available" });
-    }
-
+    if (!product) return res.status(404).json({ message: "No replacement available" });
     res.status(200).json(product);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
 const placeBid = async (req, res) => {
@@ -386,16 +265,10 @@ const placeBid = async (req, res) => {
     const { id } = req.params;
     const { amount } = req.body;
     const userId = req.auth.userId;
-
     if (!amount) return res.status(400).json({ message: "Bid amount is required" });
-
     const bid = await productService.placeBid(userId, id, amount);
-
     res.status(201).json({ message: "Bid placed successfully", bid });
-  } catch (error) {
-    console.error("Bid Error:", error.message);
-    res.status(400).json({ message: error.message });
-  }
+  } catch (error) { res.status(400).json({ message: error.message }); }
 };
 
 const placeAutoBid = async (req, res) => {
@@ -403,15 +276,10 @@ const placeAutoBid = async (req, res) => {
     const { id } = req.params;
     const { max_amount } = req.body;
     const userId = req.auth.userId;
-
     if (!max_amount) return res.status(400).json({ message: "Max amount is required" });
-
     const result = await productService.placeAutoBid(userId, id, max_amount);
     res.status(201).json({ message: "Auto-bid placed successfully", result });
-  } catch (error) {
-    console.error("Auto-Bid Error:", error.message);
-    res.status(400).json({ message: error.message });
-  }
+  } catch (error) { res.status(400).json({ message: error.message }); }
 };
 
 const getHero = async (req, res) => {
@@ -419,9 +287,7 @@ const getHero = async (req, res) => {
     const limit = req.query.limit || 10;
     const products = await productService.getRandomProducts(limit);
     res.status(200).json(products);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
 export default {
@@ -429,6 +295,7 @@ export default {
   getProductDetail,
   createProduct,
   updateProduct,
+  deleteProduct, 
   getSellerProducts,
   rejectBidder,
   postQuestion,

@@ -6,6 +6,7 @@ const router = express.Router();
 
 router.get("/", categoryController.getCategories);
 router.get("/subcategory", categoryController.getSubCategories);
+
 router.get("/:id", categoryController.getCategory);
 router.post("/", requireRole("admin"), categoryController.createCategory);
 router.put("/:id", requireRole("admin"), categoryController.updateCategory);
