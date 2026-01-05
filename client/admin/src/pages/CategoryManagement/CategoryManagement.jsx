@@ -81,7 +81,6 @@ const CategoryManagement = () => {
     const res = await apiFetch(`${API_URL}/api/categories`);
     if (!res.ok) throw new Error("Failed to fetch categories");
     const data = await res.json();
-    console.log(data);
     const normalized = data.map((cat) => normalizeCategory(cat));
     setCategories(normalized);
     if (!selectedId && normalized.length > 0) {
