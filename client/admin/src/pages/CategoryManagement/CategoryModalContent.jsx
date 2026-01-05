@@ -104,9 +104,20 @@ const CategoryModalContent = ({
         value={parentId ?? ""}
         onChange={(e) => setParentId(e.target.value || null)}
       >
-        <option value="">No parent</option>
+        <option
+          value=""
+          disabled={mode === "edit" && category?.product_count > 0}
+        >
+          No parent
+        </option>
+
         {categories
-          .filter((c) => mode !== "edit" || c.id !== category?.id)
+          .filter((c) => {
+            if (mode === "edit" && category?.children?.length > 0) {
+              return false;
+            }
+            return mode !== "edit" || c.id !== category?.id;
+          })
           .map((c) => (
             <option key={c.id} value={c.id}>
               {c.path}

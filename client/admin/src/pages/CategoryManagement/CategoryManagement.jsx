@@ -105,6 +105,16 @@ const CategoryManagement = () => {
     [categories]
   );
 
+  const level1Categories = useMemo(
+    () => categories.map((cat) => ({ ...cat, children: undefined })),
+    [categories]
+  );
+
+  const level2Categories = useMemo(
+    () => flattenCategories(categories).filter((c) => c.parent_id),
+    [categories]
+  );
+
   const selectedCategory = useMemo(
     () => allCategories.find((c) => c.id === selectedId),
     [allCategories, selectedId]
@@ -253,7 +263,7 @@ const CategoryManagement = () => {
                 : null
             }
             defaultParent={modalMode === "add" ? selectedCategory : null}
-            categories={allCategories}
+            categories={level1Categories}
             canDeleteCategory={canDeleteCategory}
             onCancel={() => setModalMode(null)}
             onConfirm={async (payload) => {
