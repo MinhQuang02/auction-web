@@ -1,25 +1,35 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import VBox from "@components/VBox";
 import HBox from "@components/HBox";
+import { apiFetch } from "@utils/ApiFetch.jsx";
 
 const AuctionDetail = ({ auction, onSave, onRemove }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState({
-    description: auction.description ?? "",
     buy_now_price: auction.buy_now_price,
     end_time: auction.end_time,
+    category_id: auction.category?.id || "",
   });
+
+  const [subcategories, setSubcategories] = useState([]);
 
   const isFinalized =
     auction.status === "sold" || auction.status === "ended_no_winner";
 
   const isRemoved = auction.status === "removed";
 
+  useEffect(() => {
+    apiFetch("/api/categories/subcategory")
+      .then((res) => res.json())
+      .then(setSubcategories)
+      .catch(console.error);
+  }, []);
+
   const resetDraft = () => {
     setDraft({
-      description: auction.description ?? "",
       buy_now_price: auction.buy_now_price,
       end_time: auction.end_time,
+      category_id: auction.category?.id || "",
     });
   };
 
@@ -44,9 +54,9 @@ const AuctionDetail = ({ auction, onSave, onRemove }) => {
             <button
               disabled={isFinalized}
               onClick={() => setIsEditing(true)}
-              className={`px-3 py-1 border rounded text-sm
-                ${isFinalized ? "opacity-50 cursor-not-allowed" : ""}
-              `}
+              className={`px-3 py-1 border rounded text-sm ${
+                isFinalized ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
               Edit
             </button>
@@ -77,7 +87,25 @@ const AuctionDetail = ({ auction, onSave, onRemove }) => {
           </p>
 
           <p>
-            <strong>Category:</strong> {auction.category?.name ?? "-"}
+            <strong>Category:</strong>{" "}
+            {!isEditing ? (
+              auction.category?.name ?? "-"
+            ) : (
+              <select
+                className="border px-2 py-1 rounded w-full"
+                value={draft.category_id}
+                onChange={(e) =>
+                  setDraft({ ...draft, category_id: Number(e.target.value) })
+                }
+              >
+                <option value="">Select a subcategory</option>
+                {subcategories.map((sub) => (
+                  <option key={sub.category_id} value={sub.category_id}>
+                    {sub.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </p>
 
           <p>
@@ -147,23 +175,14 @@ const AuctionDetail = ({ auction, onSave, onRemove }) => {
 
       <VBox className="gap-2">
         <h3 className="text-lg font-semibold">Description</h3>
-        {!isEditing ? (
-          <p className="text-gray-600">{auction.description}</p>
-        ) : (
-          <textarea
-            className="border rounded p-2 w-full"
-            rows={4}
-            value={draft.description}
-            onChange={(e) =>
-              setDraft({ ...draft, description: e.target.value })
-            }
-          />
-        )}
+        <div
+          className="text-gray-600"
+          dangerouslySetInnerHTML={{ __html: auction.description }}
+        />
       </VBox>
 
       <VBox className="gap-3">
         <h3 className="text-lg font-semibold">Bid History</h3>
-
         {auction.bids?.length > 0 ? (
           <div className="max-h-64 overflow-y-auto border rounded divide-y text-sm">
             {auction.bids.map((bid) => (
@@ -203,13 +222,11 @@ const AuctionDetail = ({ auction, onSave, onRemove }) => {
               onRemove?.(auction);
             }
           }}
-          className={`w-full px-4 py-2 rounded text-white
-            ${
-              isFinalized || isRemoved
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-red-600 hover:bg-red-700"
-            }
-          `}
+          className={`w-full px-4 py-2 rounded text-white ${
+            isFinalized || isRemoved
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-red-600 hover:bg-red-700"
+          }`}
         >
           Remove Auction
         </button>

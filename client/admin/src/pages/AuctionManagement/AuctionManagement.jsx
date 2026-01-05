@@ -87,9 +87,6 @@ const AuctionManagement = () => {
     const res = await apiFetch(`${API_URL}/api/products?${params}`);
     const { products, total } = await res.json();
 
-    console.log(products);
-    console.log(total);
-
     setProducts(products);
     setTotalPages(Math.ceil(total / PAGE_SIZE));
   };
