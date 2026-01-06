@@ -46,29 +46,28 @@ const ProductReview = () => {
     }, [token]);
 
 
-    const renderStars = (rating) => {
-        return (
-            <div className="flex text-[#EBC37E] text-xs gap-1">
-                {[...Array(5)].map((_, i) => (
-                    <span key={i}>{i < rating ? '★' : '☆'}</span>
-                ))}
-            </div>
-        );
-    };
+    const renderRecommendation = (val) => {
+        const isPositive = parseInt(val) === 1;
+        const isNegative = parseInt(val) === -1;
 
-    // Helper to render stars for header (SVG version from original code)
-    const renderHeaderStars = (avgRating) => {
-        const fullStars = Math.round(avgRating);
-        return (
-            <div className="flex text-[#FFAD33] text-xs">
-                {[...Array(5)].map((_, i) => (
-                    <svg key={i} className={`w-3.5 h-3.5 ${i < fullStars ? 'fill-current' : 'text-gray-400 fill-current'}`} viewBox="0 0 20 20">
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                ))}
-            </div>
-        );
-    }
+        if (isPositive) {
+            return (
+                <div className="flex items-center gap-1 text-xs font-bold text-[#AE9B84]">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M2.203 12.043l3.355 9.773a1 1 0 00.95.674h12.553a1 1 0 00.95-.68l2.956-9.288a1 1 0 00-.95-1.3l-5.6-.002a2 2 0 01-1.996-2.181l.666-6.6a1 1 0 00-1.63-.787l-7.794 7.794a1 1 0 00-.002.002l-.638 1.93a1 1 0 01-.87.665z"></path></svg>
+                    <span>Recommended</span>
+                </div>
+            )
+        }
+        if (isNegative) {
+            return (
+                <div className="flex items-center gap-1 text-xs font-bold text-[#4B4B4B]">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M21.797 11.957l-3.355-9.773a1 1 0 00-.95-.674H4.939a1 1 0 00-.95.68L1.033 11.478a1 1 0 00.95 1.3l5.6 .002a2 2 0 011.996 2.181l-.666 6.6a1 1 0 001.63 .787l7.794-7.794a1 1 0 00.002-.002l.638-1.93a1 1 0 01.87-.665z"></path></svg>
+                    <span>Not Recommended</span>
+                </div>
+            )
+        }
+        return <span className="text-gray-400 text-xs">No Status</span>;
+    };
 
     if (loading) return <div>Loading reviews...</div>;
 
@@ -84,8 +83,10 @@ const ProductReview = () => {
                     <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
                         <span>by {stats.names},</span>
 
-                        {/* Rating display for header */}
-                        {renderHeaderStars(stats.avg)}
+                        {/* Rating display for header - Numeric */}
+                        <span className={`font-bold ${stats.avg >= 0 ? 'text-[#AE9B84]' : 'text-[#4B4B4B]'}`}>
+                            {stats.avg > 0 ? "+" : ""}{parseFloat(stats.avg || 0).toFixed(1)} Rating
+                        </span>
                         <span className="text-gray-500">({stats.count} Reviews)</span>
                     </div>
                 </div>
@@ -99,10 +100,6 @@ const ProductReview = () => {
 
                     <div className="flex items-center gap-1">
                         <button className="w-7 h-7 bg-[#AE9B84] text-white rounded flex items-center justify-center">1</button>
-                        {/* 
-                           Simplified pagination for dynamic data. 
-                           Ideally should be calculated based on total pages.
-                        */}
                     </div>
 
                     <button className="flex items-center gap-1 hover:text-black transition">
@@ -125,7 +122,6 @@ const ProductReview = () => {
                             if (index % 2 === 0) borderClasses += "md:border-r border-dashed border-gray-400 ";
                             if (index < reviews.length - 2) borderClasses += "border-b border-dashed border-gray-400 ";
                             // Adjust border logic for simple list to grid mapping
-                            // The original code had static indices logic. For dynamic list:
                             const isLastRow = index >= reviews.length - (reviews.length % 2 === 0 ? 2 : 1);
                             if (!isLastRow) {
                                 // border bottom
@@ -146,10 +142,18 @@ const ProductReview = () => {
                                                 <p className="text-xs font-mono text-gray-600">{review.rater?.address || "Unknown Location"}</p>
                                             </div>
                                         </div>
-                                        <div className="bg-[#D8D3CD] w-8 h-6 rounded flex items-center justify-center text-gray-500 text-xs cursor-pointer hover:bg-[#c2bdb6]">✉</div>
+                                        {/* Mail Button */}
+                                        <a
+                                            href={`mailto:${review.rater?.email || ''}`}
+                                            className="bg-[#D8D3CD] w-8 h-6 rounded flex items-center justify-center text-gray-500 text-xs cursor-pointer hover:bg-[#c2bdb6]"
+                                            title={`Email ${review.rater?.full_name || 'User'}`}
+                                        >
+                                            ✉
+                                        </a>
                                     </div>
 
-                                    {renderStars(review.rating_value)}
+                                    {/* Recommendation Tag */}
+                                    {renderRecommendation(review.rating_value)}
 
                                     <p className="text-sm text-gray-600 leading-relaxed">
                                         {review.comment}

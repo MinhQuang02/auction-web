@@ -17,6 +17,7 @@ import authContext from "./middlewares/authContext.js";
 import adminProductRoutes from "./routes/adminProductRoutes.js";
 import adminUserRoutes from "./routes/adminUserRoutes.js";
 import requireRole from "./middlewares/requireRole.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -42,6 +43,7 @@ app.use("/api/upgrades", upgradeRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/config", configRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/upload", uploadRoutes);
 
 app.use("/api/admin/products", requireRole("admin"), adminProductRoutes);
 app.use("/api/admin/users", requireRole("admin"), adminUserRoutes);

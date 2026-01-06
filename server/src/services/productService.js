@@ -223,7 +223,7 @@ const getProductById = async (productId) => {
         orderBy: { max_bid_amount: "desc" },
         include: {
           bidder: {
-            select: { full_name: true, avg_rating: true },
+            select: { full_name: true, avg_rating: true, total_ratings: true },
           },
         },
       },

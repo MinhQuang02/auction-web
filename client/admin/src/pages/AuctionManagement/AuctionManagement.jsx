@@ -84,11 +84,25 @@ const AuctionManagement = () => {
     if (categoryId !== "all") params.set("category_id", categoryId);
     if (sortBy) params.set("sort_by", sortBy);
 
-    const res = await apiFetch(`${API_URL}/api/products?${params}`);
-    const { products, total } = await res.json();
+    try {
+      const res = await apiFetch(`${API_URL}/api/products?${params}`);
 
-    setProducts(products);
-    setTotalPages(Math.ceil(total / PAGE_SIZE));
+      if (res.ok) {
+        const json = await res.json();
+        const products = Array.isArray(json.products) ? json.products : [];
+        const total = typeof json.total === 'number' ? json.total : 0;
+
+        setProducts(products);
+        setTotalPages(Math.ceil(total / PAGE_SIZE));
+      } else {
+        setProducts([]);
+        setTotalPages(1);
+      }
+    } catch (err) {
+      console.error("Failed to fetch products:", err);
+      setProducts([]);
+      setTotalPages(1);
+    }
   };
 
   useEffect(() => {
@@ -217,9 +231,9 @@ const AuctionManagement = () => {
             setSelectedRow(row);
             openDetail(row.id);
           }}
-          // onRowDoubleClick={(row) => {
-          //   openDetail(row.id);
-          // }}
+        // onRowDoubleClick={(row) => {
+        //   openDetail(row.id);
+        // }}
         />
 
         <Pagination

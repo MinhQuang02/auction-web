@@ -45,9 +45,15 @@ const UserManagement = () => {
   });
 
   const fetchUserStats = async () => {
-    const res = await apiFetch(`${API_URL}/api/admin/users/stats`);
-    const data = await res.json();
-    setUserStats(data);
+    try {
+      const res = await apiFetch(`${API_URL}/api/admin/users/stats`);
+      if (res.ok) {
+        const data = await res.json();
+        setUserStats(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch user stats", e);
+    }
   };
 
   const refreshCurrentView = () => {
@@ -74,10 +80,22 @@ const UserManagement = () => {
       if (sortBy) params.set("sort_by", sortBy);
 
       const res = await apiFetch(`${API_URL}/api/admin/users?${params}`);
-      const { items, total } = await res.json();
 
-      setUsers(items);
-      setTotalPages(Math.ceil(total / PAGE_SIZE));
+      if (res.ok) {
+        const json = await res.json();
+        const items = Array.isArray(json.items) ? json.items : [];
+        const total = typeof json.total === 'number' ? json.total : 0;
+
+        setUsers(items);
+        setTotalPages(Math.ceil(total / PAGE_SIZE));
+      } else {
+        setUsers([]);
+        setTotalPages(1);
+      }
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      setUsers([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -291,20 +309,18 @@ const UserManagement = () => {
 
               <button
                 onClick={() => setStatus("all")}
-                className={`px-4 py-2 rounded shadow-lg ${
-                  status === "all" ? "bg-primary text-white" : "bg-lightGray"
-                }`}
+                className={`px-4 py-2 rounded shadow-lg ${status === "all" ? "bg-primary text-white" : "bg-lightGray"
+                  }`}
               >
                 All Users
               </button>
 
               <button
                 onClick={() => setStatus("upgrade")}
-                className={`px-4 py-2 rounded shadow-lg ${
-                  status === "upgrade"
+                className={`px-4 py-2 rounded shadow-lg ${status === "upgrade"
                     ? "bg-primary text-white"
                     : "bg-lightGray"
-                }`}
+                  }`}
               >
                 Upgrade Requests
               </button>
