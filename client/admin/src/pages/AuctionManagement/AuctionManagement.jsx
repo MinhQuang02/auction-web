@@ -64,7 +64,7 @@ const AuctionManagement = () => {
       .then((res) => res.json())
       .then(setAuctionStats)
       .catch(console.error);
-  }, []);
+  }, [products]);
 
   useEffect(() => {
     apiFetch(`${API_URL}/api/categories`)
@@ -90,7 +90,7 @@ const AuctionManagement = () => {
       if (res.ok) {
         const json = await res.json();
         const products = Array.isArray(json.products) ? json.products : [];
-        const total = typeof json.total === 'number' ? json.total : 0;
+        const total = typeof json.total === "number" ? json.total : 0;
 
         setProducts(products);
         setTotalPages(Math.ceil(total / PAGE_SIZE));
@@ -231,9 +231,9 @@ const AuctionManagement = () => {
             setSelectedRow(row);
             openDetail(row.id);
           }}
-        // onRowDoubleClick={(row) => {
-        //   openDetail(row.id);
-        // }}
+          // onRowDoubleClick={(row) => {
+          //   openDetail(row.id);
+          // }}
         />
 
         <Pagination
