@@ -226,10 +226,8 @@ const Product = ({ product, onRefresh }) => {
     }
 
     if (isSimulatedAutoBid) {
-      addToast(`Auto Bidding set to maximum $${bidAmount} successfully!`, "success");
-      setIsSimulatedAutoBid(false);
-      setBidAmount(inputFloor);
-      return;
+      // Proceed to server request
+      // addToast(`Auto Bidding set to maximum $${bidAmount} successfully!`, "success"); // Removed Client-Side only msg
     }
 
     setPlacingBid(true);
@@ -240,12 +238,17 @@ const Product = ({ product, onRefresh }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ amount: bidAmount })
+        body: JSON.stringify(
+          isSimulatedAutoBid
+            ? { max_amount: bidAmount, isAutoBid: true }
+            : { amount: bidAmount }
+        )
       });
       const data = await res.json();
 
       if (res.ok) {
-        addToast("Success! You are the highest bidder.", "success");
+        addToast("Success! Bid placed.", "success");
+        setIsSimulatedAutoBid(false);
         if (onRefresh) onRefresh();
       } else {
         addToast(data.message || "Failed to place bid", "error");
@@ -485,6 +488,9 @@ const Product = ({ product, onRefresh }) => {
               </div>
             )}
           </div>
+
+
+
 
         </div>
       </div>

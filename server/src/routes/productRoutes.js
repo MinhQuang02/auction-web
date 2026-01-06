@@ -21,7 +21,6 @@ router.get('/user/purchases', productController.getMyPurchases);
 router.get('/user/active-bids', productController.getMyActiveBids);
 router.post('/user/purchases/:id/pay', productController.payForProduct);
 router.post("/:id/bid", requireRole("bidder"), productController.placeBid);
-router.post("/:id/bid/auto", requireRole("bidder"), productController.placeAutoBid);
 
 // Q&A
 router.post("/:id/questions", productController.postQuestion);

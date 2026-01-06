@@ -384,32 +384,23 @@ const getReplacement = async (req, res) => {
 const placeBid = async (req, res) => {
   try {
     const { id } = req.params;
-    const { amount } = req.body;
+    // Accept isAutoBid flag, and amount/maxAmount/max_amount (for compatibility)
+    const { amount, maxAmount, max_amount, isAutoBid } = req.body;
     const userId = req.auth.userId;
 
-    if (!amount) return res.status(400).json({ message: "Bid amount is required" });
+    // Determine the actual amount value (Manual Amount or Auto Max Amount)
+    const finalAmount = isAutoBid ? (maxAmount || max_amount || amount) : amount;
 
-    const bid = await productService.placeBid(userId, id, amount);
+    if (!finalAmount) {
+      return res.status(400).json({ message: "Bid amount is required" });
+    }
 
-    res.status(201).json({ message: "Bid placed successfully", bid });
+    // Call service with flag
+    const result = await productService.placeBid(userId, id, finalAmount, !!isAutoBid);
+
+    res.status(201).json(result);
   } catch (error) {
     console.error("Bid Error:", error.message);
-    res.status(400).json({ message: error.message });
-  }
-};
-
-const placeAutoBid = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { max_amount } = req.body;
-    const userId = req.auth.userId;
-
-    if (!max_amount) return res.status(400).json({ message: "Max amount is required" });
-
-    const result = await productService.placeAutoBid(userId, id, max_amount);
-    res.status(201).json({ message: "Auto-bid placed successfully", result });
-  } catch (error) {
-    console.error("Auto-Bid Error:", error.message);
     res.status(400).json({ message: error.message });
   }
 };
@@ -444,6 +435,5 @@ export default {
   getMyActiveBids,
   payForProduct,
   placeBid,
-  placeAutoBid,
   getHero,
 };

@@ -21,16 +21,17 @@ const maskProducts = (products) => {
 
     // Mask Bids
     const maskedBids = (p.bids || []).map((bid) => {
-      let maskedBidder = bid.bidder;
-      if (bid.bidder?.full_name) {
+      const { max_auto_bid_amount, ...safeBid } = bid;
+      let maskedBidder = safeBid.bidder;
+      if (safeBid.bidder?.full_name) {
         maskedBidder = {
-          ...bid.bidder,
-          full_name: "***" + bid.bidder.full_name.trim().slice(-3),
+          ...safeBid.bidder,
+          full_name: "***" + safeBid.bidder.full_name.trim().slice(-3),
         };
-      } else if (bid.bidder) {
-        maskedBidder = { ...bid.bidder, full_name: "***" };
+      } else if (safeBid.bidder) {
+        maskedBidder = { ...safeBid.bidder, full_name: "***" };
       }
-      return { ...bid, bidder: maskedBidder };
+      return { ...safeBid, bidder: maskedBidder };
     });
 
     // Mask Current Bidder
@@ -69,36 +70,69 @@ const resolveAuctionBattle = async (tx, productId) => {
   const step = parseFloat(product.step_price);
   const startPrice = parseFloat(product.start_price);
 
-  const allBids = await tx.bid_History.findMany({
-    where: { product_id: pId, status: { in: ['valid', 'auto'] } },
-    orderBy: { bid_time: 'asc' }
+  // 1. Fetch Active Competitors
+  // A. Active Auto Bids
+  const autoBids = await tx.bid_History.findMany({
+    where: { product_id: pId, status: "auto" },
+    include: { bidder: true },
   });
 
-  const bidderMap = new Map();
+  // B. Current Highest Manual Bid (Valid)
+  const highestManualBid = await tx.bid_History.findFirst({
+    where: { product_id: pId, status: "valid" },
+    orderBy: { max_bid_amount: "desc" },
+    include: { bidder: true },
+  });
 
-  for (const bid of allBids) {
-    const amount = parseFloat(bid.max_bid_amount);
-    const existing = bidderMap.get(bid.bidder_id);
+  // 2. Normalize Competitors
+  const competitors = [];
 
-    if (!existing || amount > existing.capacity) {
-      bidderMap.set(bid.bidder_id, {
-        userId: bid.bidder_id, capacity: amount, type: bid.status, time: bid.bid_time
-      });
-    } else if (amount === existing.capacity && bid.status === 'auto') {
-      existing.type = 'auto';
-    }
+  // Add Manual Leader
+  if (highestManualBid) {
+    competitors.push({
+      id: highestManualBid.bid_id,
+      userId: highestManualBid.bidder_id,
+      capacity: parseFloat(highestManualBid.max_bid_amount), // Fixed amount
+      type: "valid", // Manual
+      bidTime: highestManualBid.bid_time,
+      bidder: highestManualBid.bidder,
+    });
   }
 
-  const competitors = Array.from(bidderMap.values()).sort((a, b) => {
-    if (b.capacity !== a.capacity) return b.capacity - a.capacity;
-    return new Date(a.time) - new Date(b.time);
+  // Add Auto Bidders
+  // Note: A user can only be in one state strictly, but if DB has garbage, we handle it.
+  for (const ab of autoBids) {
+    // Capacity is the HIDDEN Max Amount
+    const cap = ab.max_auto_bid_amount
+      ? parseFloat(ab.max_auto_bid_amount)
+      : parseFloat(ab.max_bid_amount);
+
+    competitors.push({
+      id: ab.bid_id,
+      userId: ab.bidder_id,
+      capacity: cap,
+      type: "auto",
+      bidTime: ab.bid_time,
+      bidder: ab.bidder,
+    });
+  }
+
+  // 3. Determine Ranking
+  // Sort by Capacity DESC, then Time ASC (Earliest bid at that capacity wins)
+  competitors.sort((a, b) => {
+    if (a.capacity !== b.capacity) return b.capacity - a.capacity;
+    return new Date(a.bidTime) - new Date(b.bidTime);
   });
 
+  // Handle No Bids
   if (competitors.length === 0) {
-    // Reset to start if no bidders left
     await tx.product.update({
       where: { product_id: pId },
-      data: { current_price: startPrice, current_bidder_id: null, bid_count: 0 }
+      data: {
+        current_price: startPrice,
+        current_bidder_id: null,
+        bid_count: 0,
+      },
     });
     return { winnerId: null, price: startPrice };
   }
@@ -106,37 +140,106 @@ const resolveAuctionBattle = async (tx, productId) => {
   const winner = competitors[0];
   const runnerUp = competitors[1];
 
-  let newLocalPrice = startPrice;
+  // 4. Calculate Winning Price
+  let newPrice = startPrice;
 
-  if (winner.type === 'valid') {
-    newLocalPrice = winner.capacity;
+  if (!runnerUp) {
+    // Winner is uncontested (among active logic checks)
+    // If Manual: They pay what they bid.
+    // If Auto: They pay Start Price OR Current Price (if they just joined).
+    // Logic: If I am the only one, I pay the floor price.
+    // However, to avoid dropping price if checks happen, max(start, current)?
+    // But 'current' might be stale.
+    // Let's use Start Price as base.
+    if (winner.type === "valid") {
+      newPrice = winner.capacity;
+    } else {
+      // Auto: Wins at start price (or keeps current if nobody pushed)
+      // If we strictly follow "Amount: Current + Step" from entry, we should respect that minimum.
+      // But let's assume 'One King' resets price to fair market value (Second Best + Step).
+      // If Second Best is 0/Null, Fair Value = Start Price.
+      newPrice = Math.max(startPrice, parseFloat(product.current_price)); // Safety to not drop price?
+      // Actually, if everyone else cancels, price SHOULD drop.
+      // But standard proxy behavior: You hold it at minimum.
+      // IMPORTANT: In "Step A", we set amount = Current + Step.
+      // So let's respect the current amount stored in the bid record if meaningful?
+      // But we are recalculating.
+      // Let's stick to the prompt's Battle Resolve: "New Current Price = Loser's Max + Step".
+      // If no loser, Price = Start Price.
+      // But we have a constraint: Price cannot go below Start Price.
+      newPrice = startPrice;
+      // Note: If newPrice calculated is lower than current product price, it might confuse users.
+      // But technically correct if higher bidder rescinded.
+    }
   } else {
-    const opponentMax = runnerUp ? runnerUp.capacity : 0;
-    let calculated = opponentMax + step;
-    if (!runnerUp) calculated = startPrice;
-    newLocalPrice = Math.min(winner.capacity, calculated);
+    // Battle!
+    // Price = RunnerUp Capacity + Step
+    const calculated = runnerUp.capacity + step;
+    // Cap at Winner's Capacity
+    newPrice = Math.min(winner.capacity, calculated);
   }
 
+  // Ensure we don't drop below start price
+  newPrice = Math.max(newPrice, startPrice);
+
+  // 5. Update Winner State
+  if (winner.type === "auto") {
+    // Update the visual bid amount to the new calculated price
+    await tx.bid_History.update({
+      where: { bid_id: winner.id },
+      data: {
+        max_bid_amount: newPrice, // Visual Price
+        status: "auto", // Remains Auto
+      },
+    });
+  } else {
+    // Manual Winner
+    // Their bid amount is fixed (winner.capacity).
+    // But if we calculated a lower price (proxy style) for proper display?
+    // Manual bids are usually NOT proxy in this hybrid system. manual = flat amount.
+    // So if winner is manual, newPrice MUST be winner.capacity
+    newPrice = winner.capacity;
+  }
+
+  // 6. Outcome: Defeated Auto-Bidders -> 'outbid'
+  const loserIds = competitors
+    .slice(1)
+    .filter((c) => c.type === "auto")
+    .map((c) => c.id);
+
+  if (loserIds.length > 0) {
+    await tx.bid_History.updateMany({
+      where: { bid_id: { in: loserIds } },
+      data: { status: "outbid" },
+    });
+  }
+
+  // Notify ALL Losers (Manual and Auto)
+  // We want to notify the immediate losers in this battle resolution.
+  const losers = competitors
+    .slice(1)
+    .map((c) => c.bidder)
+    .filter((b) => b && b.email); // Ensure valid user objects
+
+  if (losers.length > 0) {
+    // Async notification (Fire & Forget)
+    emailService.sendOutbidNotifications(losers, product.name, pId, newPrice);
+  }
+
+  // 7. Update Product Global State
   await tx.product.update({
     where: { product_id: pId },
-    data: { current_price: newLocalPrice, current_bidder_id: winner.userId }
+    data: {
+      current_price: newPrice,
+      current_bidder_id: winner.userId,
+      // Recalculate bid count because we might have collapsed/changed status?
+      // Or just keep incrementing. History rows still exist.
+      // Proper: Count 'valid', 'auto', 'outbid' (all history)
+      // Usually bid_count increases on new entry. We don't change it here.
+    },
   });
 
-  if (winner.type === 'auto') {
-    const existingExactBid = await tx.bid_History.findFirst({
-      where: { product_id: pId, bidder_id: winner.userId, max_bid_amount: newLocalPrice, status: 'valid' }
-    });
-
-    if (!existingExactBid) {
-      await tx.bid_History.create({
-        data: {
-          product_id: pId, bidder_id: winner.userId, max_bid_amount: newLocalPrice, status: 'valid', bid_time: new Date()
-        }
-      });
-      await tx.product.update({ where: { product_id: pId }, data: { bid_count: { increment: 1 } } });
-    }
-  }
-  return { winnerId: winner.userId, price: newLocalPrice };
+  return { winnerId: winner.userId, price: newPrice };
 };
 
 const searchProducts = async ({
@@ -241,7 +344,7 @@ const getProductById = async (productId) => {
 
   const maskedBids = product.bids.map((bid) => {
     const isBanned = bannedSet.has(bid.bidder_id);
-    const status = isBanned ? 'rejected' : 'valid';
+    const status = isBanned ? 'rejected' : bid.status;
 
     let maskedName = "***";
     if (bid.bidder && bid.bidder.full_name) {
@@ -554,7 +657,7 @@ const getUserPurchases = async (userId) => {
   return products.map((p) => {
     let paymentStatus = "Unpaid";
     if (p.transaction) {
-      if (['completed', 'pending_shipping', 'shipped'].includes(p.transaction.status)) paymentStatus = 'Paid';
+      if (['completed', 'shipped', 'pending_shipping'].includes(p.transaction.status)) paymentStatus = 'Paid';
       else if (p.transaction.status === 'cancelled') paymentStatus = 'Cancelled';
     }
 
@@ -597,68 +700,310 @@ const getUserActiveBids = async (userId) => {
 // 7. PLACE BID (MERGED LOGIC)
 // ==============================================================================
 
-
-
-
-// --- PUBLIC API: Place Manual Bid ---
-const placeBid = async (userId, productId, amountStr) => {
+// --- UNIFIED PUBLIC API: Place Bid ---
+const placeBid = async (userId, productId, amountStr, isAutoBid = false) => {
   const pId = parseInt(productId);
   const uId = parseInt(userId);
-  const amount = parseFloat(amountStr);
+  const inputAmount = parseFloat(amountStr);
 
   return await prisma.$transaction(async (tx) => {
-    // 1. Validation
+    // 1. Validation & Locking
     const product = await tx.product.findUnique({
       where: { product_id: pId },
-      include: { bids: { orderBy: { max_bid_amount: 'desc' }, take: 1 } }
     });
 
     if (!product) throw new Error("Product not found");
-    if (product.status !== 'active') throw new Error("Auction is closed");
-    if (new Date(product.end_time) < new Date()) throw new Error("Auction has ended");
-    if (product.seller_id === uId) throw new Error("You cannot bid on your own product");
+    if (product.status !== "active") throw new Error("Auction is closed");
+    if (new Date(product.end_time) < new Date())
+      throw new Error("Auction has ended");
+    if (product.seller_id === uId)
+      throw new Error("You cannot bid on your own product");
 
-    // 2. Check for Active Auto-Bid (User Instruction: Reject Manual if Auto exists)
-    const existingAuto = await tx.bid_History.findFirst({
-      where: { product_id: pId, bidder_id: uId, status: 'auto' }
-    });
-    if (existingAuto) {
-      throw new Error("You have an active auto-bid. Please update that instead.");
-    }
-
-    // 3. Min Bid Validation
-    // Note: We use the *Calculated* current state from Product, not just history
+    const step = parseFloat(product.step_price);
     const currentPrice = parseFloat(product.current_price);
-    const minBid = product.bid_count === 0 ? parseFloat(product.start_price) : currentPrice + parseFloat(product.step_price);
+    const startPrice = parseFloat(product.start_price);
 
-    if (amount < minBid) {
-      throw new Error(`Bid too low. Minimum required is $${minBid.toLocaleString()}`);
+    // Calculate Minimum Entry Requirement
+    // Case: No bids yet -> Start Price. One bid -> Current + Step.
+    const minEntryPrice = product.bid_count === 0 ? startPrice : currentPrice + step;
+
+    if (inputAmount < minEntryPrice) {
+      throw new Error(
+        `Bid too low. Minimum required is $${minEntryPrice.toLocaleString()}`
+      );
     }
-    if (product.buy_now_price && amount > parseFloat(product.buy_now_price)) {
+    if (product.buy_now_price && inputAmount > parseFloat(product.buy_now_price)) {
       throw new Error(`Bid cannot exceed Buy Now price`);
     }
 
-    // 4. Insert Manual Bid
-    const newBid = await tx.bid_History.create({
+    // ==============================================================================
+    // STEP A: Fetch Current State (The "Defender")
+    // ==============================================================================
+    // Find the single active auto-bidder if any.
+    // Constraint: Max 1 active auto-bidder per product.
+    const defender = await tx.bid_History.findFirst({
+      where: { product_id: pId, status: "auto" },
+    });
+
+    // ==============================================================================
+    // STEP B: Branching Logic
+    // ==============================================================================
+
+    let outputNewPrice = currentPrice;
+    let outputWinnerId = uId; // Tentatively Challenger
+    let oldDefenderUserToNotify = null;
+    let challengerUserToNotify = null; // If they lose immediately
+
+    if (!defender) {
+      // ---------------------------------------------------------
+      // CASE 1: No Existing Auto-Bidder (Open Field)
+      // ---------------------------------------------------------
+      if (!isAutoBid) {
+        // Manual Challenger
+        // If Incoming is Manual: Create a standard bid record (status: 'VALID'). Update Product price.
+        await tx.bid_History.create({
+          data: {
+            product_id: pId,
+            bidder_id: uId,
+            max_bid_amount: inputAmount,
+            status: "valid",
+            bid_time: new Date(),
+          },
+        });
+        outputNewPrice = inputAmount;
+      } else {
+        // Auto Challenger
+        // If Incoming is Auto: Create a record with status: 'AUTO', amount: currentPrice + step, and max_auto_bid_amount: user_input.
+        // We use minEntryPrice as the "Current + Step" equivalent for the first visible bid amount.
+        const startingBid = minEntryPrice;
+
+        await tx.bid_History.create({
+          data: {
+            product_id: pId,
+            bidder_id: uId,
+            max_bid_amount: startingBid, // Visible Amount
+            max_auto_bid_amount: inputAmount, // Hidden Cap
+            status: "auto",
+            bid_time: new Date(),
+          },
+        });
+        outputNewPrice = startingBid;
+      }
+    } else {
+      // ---------------------------------------------------------
+      // CASE 2: Defender EXISTS
+      // ---------------------------------------------------------
+      const defenderMax = parseFloat(defender.max_auto_bid_amount);
+
+      // Handle Self-Bidding edge case (Defender updating their own bid)
+      // If user is the defender, we treat them as a "Challenger" who beats themselves?
+      // Or we just update their max?
+      // Logic: If I am defender and I bid higher, I update my max.
+      if (defender.bidder_id === uId && isAutoBid) {
+        if (inputAmount <= defenderMax) throw new Error("New auto-bid must be higher than your current max.");
+        // Update Max Amount
+        await tx.bid_History.update({
+          where: { bid_id: defender.bid_id },
+          data: { max_auto_bid_amount: inputAmount }
+        });
+        return { winnerId: uId, price: parseFloat(defender.max_bid_amount) }; // No price change, just capacity
+      }
+
+      if (!isAutoBid) {
+        // --- SUB-CASE 2.1: Challenger is MANUAL ---
+        const challengerAmount = inputAmount;
+
+        // "Logic: Compare Challenger Amount vs Defender.max_auto_bid_amount"
+        if (challengerAmount <= defenderMax) { // Assuming Tie goes to Defender (Defender was there first)
+          // => Defender Wins
+          // 1. Create Challenger's record ('VALID', amount: Challenger Amount).
+          await tx.bid_History.create({
+            data: {
+              product_id: pId,
+              bidder_id: uId,
+              max_bid_amount: challengerAmount,
+              status: "valid",
+              bid_time: new Date(),
+            }
+          });
+          challengerUserToNotify = await tx.user.findUnique({ where: { user_id: uId } });
+
+          // 2. Auto-Reply: The system immediately places a *new* bid for the Defender
+          // New Price = Challenger Amount + Step.
+          let newDefPrice = challengerAmount + step;
+          newDefPrice = Math.min(defenderMax, newDefPrice); // Cap at Defender Max
+
+          // Archive old Defender record to enforce "At Most One Auto"
+          await tx.bid_History.update({
+            where: { bid_id: defender.bid_id },
+            data: { status: "outbid" }
+          });
+
+          await tx.bid_History.create({
+            data: {
+              product_id: pId,
+              bidder_id: defender.bidder_id,
+              max_bid_amount: newDefPrice,
+              max_auto_bid_amount: defenderMax,
+              status: "auto",
+              bid_time: new Date()
+            }
+          });
+
+          outputNewPrice = newDefPrice;
+          outputWinnerId = defender.bidder_id;
+
+        } else {
+          // => Challenger Wins (Challenger > Defender Max)
+          // 1. Update Defender status from 'AUTO' to 'VALID' (Defender is defeated).
+          // We mark it as 'valid' history (or 'outbid'? Query implies 'valid' but beaten).
+          // Prompt says "Update Defender status ... to 'VALID'".
+          await tx.bid_History.update({
+            where: { bid_id: defender.bid_id },
+            data: { status: "valid" }
+          });
+          oldDefenderUserToNotify = await tx.user.findUnique({ where: { user_id: defender.bidder_id } });
+
+          // 2. Create Challenger's record (status: 'VALID', amount: Challenger Amount).
+          await tx.bid_History.create({
+            data: {
+              product_id: pId,
+              bidder_id: uId,
+              max_bid_amount: challengerAmount,
+              status: "valid",
+              bid_time: new Date()
+            }
+          });
+
+          outputNewPrice = challengerAmount;
+          outputWinnerId = uId;
+        }
+
+      } else {
+        // --- SUB-CASE 2.2: Challenger is ALSO AUTO ---
+        const challengerMax = inputAmount;
+
+        if (challengerMax > defenderMax) {
+          // => Challenger Wins
+          // 1. Update Defender - Defeated
+          await tx.bid_History.update({
+            where: { bid_id: defender.bid_id },
+            data: { status: "valid" }
+          });
+          oldDefenderUserToNotify = await tx.user.findUnique({ where: { user_id: defender.bidder_id } });
+
+          // 2. Create Challenger's record ('AUTO')
+          // Price Calculation: Set current price to Defender Max + Step.
+          let newPrice = defenderMax + step;
+          newPrice = Math.min(challengerMax, newPrice); // Safety check so we don't exceed challenger max
+
+          await tx.bid_History.create({
+            data: {
+              product_id: pId,
+              bidder_id: uId,
+              max_bid_amount: newPrice,
+              max_auto_bid_amount: challengerMax,
+              status: "auto",
+              bid_time: new Date()
+            }
+          });
+
+          outputNewPrice = newPrice;
+          outputWinnerId = uId;
+
+        } else if (challengerMax < defenderMax) {
+          // => Defender Wins
+          // 1. Create Challenger's record ('VALID' - immediately defeated)
+          await tx.bid_History.create({
+            data: {
+              product_id: pId,
+              bidder_id: uId,
+              max_bid_amount: challengerMax, // They were willing to go up to this
+              status: "valid",
+              bid_time: new Date()
+            }
+          });
+          challengerUserToNotify = await tx.user.findUnique({ where: { user_id: uId } });
+
+          // 2. Auto-Reply: The system places a new bid for the Defender.
+          // Price Calculation: Set current price to Challenger Max + Step.
+          let newDefPrice = challengerMax + step;
+          newDefPrice = Math.min(defenderMax, newDefPrice);
+
+          // Archive Old
+          await tx.bid_History.update({
+            where: { bid_id: defender.bid_id },
+            data: { status: "outbid" }
+          });
+
+          await tx.bid_History.create({
+            data: {
+              product_id: pId,
+              bidder_id: defender.bidder_id,
+              max_bid_amount: newDefPrice,
+              max_auto_bid_amount: defenderMax,
+              status: "auto",
+              bid_time: new Date()
+            }
+          });
+
+          outputNewPrice = newDefPrice;
+          outputWinnerId = defender.bidder_id;
+
+        } else {
+          // => TIE-BREAKER (Challenger Max == Defender Max)
+          // Rule: The existing Defender (First comer) wins.
+
+          // 1. Create Challenger's record ('VALID')
+          await tx.bid_History.create({
+            data: {
+              product_id: pId,
+              bidder_id: uId,
+              max_bid_amount: challengerMax,
+              status: "valid",
+              bid_time: new Date()
+            }
+          });
+          challengerUserToNotify = await tx.user.findUnique({ where: { user_id: uId } });
+
+          // 2. Update Defender's current price to their Max Amount.
+          // Archive Old
+          await tx.bid_History.update({
+            where: { bid_id: defender.bid_id },
+            data: { status: "outbid" }
+          });
+
+          await tx.bid_History.create({
+            data: {
+              product_id: pId,
+              bidder_id: defender.bidder_id,
+              max_bid_amount: defenderMax, // Reached Max
+              max_auto_bid_amount: defenderMax,
+              status: "auto",
+              bid_time: new Date()
+            }
+          });
+
+          outputNewPrice = defenderMax;
+          outputWinnerId = defender.bidder_id;
+        }
+      }
+    }
+
+    // ==============================================================================
+    // 3. Post-Processing
+    // ==============================================================================
+    // Product Update: ALWAYS update currentPrice, bidCount, and winnerId
+    await tx.product.update({
+      where: { product_id: pId },
       data: {
-        product_id: pId,
-        bidder_id: uId,
-        max_bid_amount: amount,
-        status: 'valid', // Manual
-        bid_time: new Date()
+        current_price: outputNewPrice,
+        current_bidder_id: outputWinnerId,
+        bid_count: { increment: 1 }
       }
     });
 
-    // Update count immediately for the manual action
-    await tx.product.update({
-      where: { product_id: pId },
-      data: { bid_count: { increment: 1 } }
-    });
-
-    // 5. Trigger Battle (Atomic)
-    await resolveAuctionBattle(tx, pId);
-
-    // Auto-Extend Check (Moved here or inside battle? Here is fine)
+    // Auto-Extend
     if (product.auto_extend_enabled) {
       const now = new Date();
       const timeRemainingMs = new Date(product.end_time) - now;
@@ -670,63 +1015,19 @@ const placeBid = async (userId, productId, amountStr) => {
       }
     }
 
-    return newBid;
-  });
-};
-
-
-// --- PUBLIC API: Place Auto Bid ---
-const placeAutoBid = async (userId, productId, maxAmountStr) => {
-  const pId = parseInt(productId);
-  const uId = parseInt(userId);
-  const maxAmount = parseFloat(maxAmountStr);
-
-  return await prisma.$transaction(async (tx) => {
-    // 1. Validation
-    const product = await tx.product.findUnique({ where: { product_id: pId } });
-    if (!product) throw new Error("Product not found");
-    if (product.status !== 'active' || new Date(product.end_time) < new Date()) throw new Error("Auction ended");
-    if (product.seller_id === uId) throw new Error("Cannot bid on own product");
-
-    // 2. Upsert Auto Bid Logic
-    // We deactivate old auto bids or just insert a new one?
-    // Usually, a user has ONLY ONE active auto-bid limit.
-    // We can update the existing one or insert new one. 
-    // Inserting new one preserves history of "I increased my limit".
-    // Let's insert new, relying on `resolveAuctionBattle` to pick the latest/highest.
-    // But to keep things clean, let's mark old 'auto' bids as 'outdated'? 
-    // Or valid 'resolveBattle' effectively ignores lower ones.
-    // Let's UPDATE existing if present to keep DB clean, or Insert.
-
-    const existingAuto = await tx.bid_History.findFirst({
-      where: { product_id: pId, bidder_id: uId, status: 'auto' }
-    });
-
-    if (existingAuto) {
-      if (maxAmount <= parseFloat(existingAuto.max_bid_amount)) {
-        throw new Error("New auto-bid must be higher than your current auto-bid.");
-      }
-      // Update
-      await tx.bid_History.update({
-        where: { bid_id: existingAuto.bid_id },
-        data: { max_bid_amount: maxAmount, bid_time: new Date() }
-      });
-    } else {
-      // Create New
-      await tx.bid_History.create({
-        data: {
-          product_id: pId,
-          bidder_id: uId,
-          max_bid_amount: maxAmount,
-          status: 'auto', // AUTO flag
-          bid_time: new Date()
-        }
-      });
+    // Email Notifications
+    if (oldDefenderUserToNotify?.email) {
+      emailService.sendOutbidNotifications([oldDefenderUserToNotify], product.name, pId, outputNewPrice);
+    }
+    if (challengerUserToNotify?.email) {
+      emailService.sendOutbidNotifications([challengerUserToNotify], product.name, pId, outputNewPrice);
     }
 
-    // 3. Trigger Battle
-    const result = await resolveAuctionBattle(tx, pId);
-    return result;
+    return {
+      message: "Bid processed",
+      winnerId: outputWinnerId,
+      price: outputNewPrice
+    };
   });
 };
 
@@ -843,6 +1144,5 @@ export default {
   createTransaction,
   getAuctionStats,
   getRandomProducts,
-  placeBid,
-  placeAutoBid
+  placeBid
 };

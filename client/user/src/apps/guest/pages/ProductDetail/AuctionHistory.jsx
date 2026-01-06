@@ -170,7 +170,11 @@ const AuctionHistory = ({ bids = [], isSeller = false, productId, onRefresh, pro
                                         </>
                                     )}
 
-                                    <div className="font-semibold text-[#AE9B84]">{priceStr}</div>
+                                    <div className="font-semibold text-[#AE9B84]">
+                                        {priceStr}
+                                        {bid.status === 'auto' && <span className="ml-2 text-xs bg-[#AE9B84] text-white px-1.5 py-0.5 rounded">Auto</span>}
+                                        {bid.status === 'outbid' && <span className="ml-2 text-xs bg-gray-300 text-gray-600 px-1.5 py-0.5 rounded">Outbid</span>}
+                                    </div>
 
                                     {canKick && (
                                         <div className="flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
