@@ -8,6 +8,7 @@ import {
   getResetLinkTemplate,
   getBidderKickTemplate,
   getNewPasswordTemplate,
+  getProductUpdateTemplate,
 } from "../utils/emailTemplates.js";
 
 // Configure Transporter
@@ -136,6 +137,12 @@ class EmailService {
   async sendNewPasswordEmail(email, fullName, newPassword) {
     const html = getNewPasswordTemplate(fullName, newPassword);
     await sendEmail(email, "Your New Password - bid.dify", html);
+  }
+
+  async sendProductUpdateNotification(email, fullName, productName, productId, updateContent) {
+    const productUrl = `${process.env.FRONTEND_URL}/product/${productId}`;
+    const html = getProductUpdateTemplate(fullName, productName, productUrl, updateContent);
+    await sendEmail(email, `Update on ${productName}`, html);
   }
 }
 

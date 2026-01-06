@@ -258,3 +258,24 @@ export const getNewPasswordTemplate = (fullName, newPassword) => {
   `;
   return getBaseTemplate(content, "Your New Password");
 };
+
+export const getProductUpdateTemplate = (bidderName, productName, productUrl, updateContent) => {
+  const content = `
+    <h2>New Update on Product Description</h2>
+    <p>Hi <strong>${bidderName}</strong>,</p>
+    <p>The seller has added new information to the product you are bidding on: <strong>${productName}</strong>.</p>
+    
+    <div class="info-box">
+      <h3>New Information Added:</h3>
+      <div style="background-color: #fff; padding: 15px; border-radius: 4px; border-left: 4px solid #AE9B84;">
+        ${updateContent}
+      </div>
+    </div>
+    
+    <p>Review the new details to ensure you still want to proceed with your bid.</p>
+    <div style="text-align: center;">
+      <a href="${productUrl}" class="btn">View Product</a>
+    </div>
+  `;
+  return getBaseTemplate(content, "Auction Update: New Description Added");
+};

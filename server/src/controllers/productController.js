@@ -151,6 +151,19 @@ const updateProduct = async (req, res) => {
     const { description } = req.body;
     const userId = req.auth.userId;
 
+    import("../services/emailService.js").then(async (module) => {
+      // Dynamic import to avoid circular dep if any, though likely safe with ES modules top level too.
+      // Actually I'll use the already imported productService or emailService if available.
+      // But wait, emailService is not imported in this controller yet?
+      // Let's assume I need to import it or rely on productService to handle it?
+      // The prompt said "read through... code", I saw emailService.js.
+      // It seems productController.js only imports productService and prisma.
+      // I should probably import emailService at the top, but I'm editing a block.
+      // I'll stick to logic here, but I must import emailService at the top of the file separately 
+      // OR use dynamic import inside if I can't edit the top.
+      // The instruction lets me replace lines.
+    });
+
     // 1. Find the product
     const product = await prisma.product.findUnique({
       where: { product_id: parseInt(id) },
@@ -176,7 +189,34 @@ const updateProduct = async (req, res) => {
 
     const finalDescription = product.description + appendContent;
 
-    // 4. Update DB
+    // 4. Notify Highest Bidder (New Logic)
+    // Find the current highest bid
+    const highestBid = await prisma.bid_History.findFirst({
+      where: { product_id: product.product_id },
+      orderBy: { max_bid_amount: 'desc' }, // Also fix sorting key if needed
+      include: { bidder: true }
+    });
+
+    if (highestBid && highestBid.bidder) {
+      // We import emailService here dynamically or reuse if I add import at top. 
+      // Since I cannot easily edit top without replacing whole file, I will use dynamic import.
+      const emailService = (await import("../services/emailService.js")).default;
+
+      // Prepare the text content provided in the update for the email
+      // We might want to strip HTML or just send the raw text if 'description' is raw? 
+      // 'description' from body usually contains HTML from Quill.
+      // The template handles HTML content.
+
+      await emailService.sendProductUpdateNotification(
+        highestBid.bidder.email,
+        highestBid.bidder.full_name,
+        product.name,
+        product.product_id,
+        description // This is the new append content
+      );
+    }
+
+    // 5. Update DB
     const updated = await prisma.product.update({
       where: { product_id: parseInt(id) },
       data: {
