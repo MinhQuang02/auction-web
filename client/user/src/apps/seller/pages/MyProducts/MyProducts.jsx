@@ -36,79 +36,96 @@ const MyProducts = () => {
     }
   };
 
-  useEffect(() => {
-    fetchMyProducts();
-  }, []);
+  // --- CHAT STATE ---
+  const [conversations, setConversations] = useState([]);
+  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [currentMessage, setCurrentMessage] = useState("");
+  const [loadingChat, setLoadingChat] = useState(false);
 
-  // --- ACTIONS ---
-
-  const handleCancelTransaction = async (productId) => {
-    if (!confirm("Cancel transaction? This will automatically rate the winner -1.")) return;
+  const fetchConversations = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${API_URL}/api/products/${productId}/cancel`, {
-        method: "POST",
+      const res = await fetch(`${API_URL}/api/messages/conversations`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error("Failed to cancel");
-      addToast("Transaction cancelled.", "success");
-      fetchMyProducts(); // Refresh list
+      if (res.ok) setConversations(await res.json());
     } catch (err) {
-      addToast(err.message, "error");
+      console.error(err);
     }
   };
 
-  const handleRateSubmit = async () => {
-    if (!selectedProduct) return;
+  const fetchMessages = async (productId) => {
+    setLoadingChat(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${API_URL}/api/ratings`, {
+      const res = await fetch(`${API_URL}/api/messages/${productId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setMessages(await res.json());
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingChat(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!currentMessage.trim() || !selectedConversation) return;
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/api/messages/${selectedConversation.productId}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({
-          product_id: selectedProduct.product_id,
-          rated_user_id: selectedProduct.winner_id,
-          rating_value: ratingValue,
-          comment: ratingComment
-        })
+        body: JSON.stringify({ messageText: currentMessage })
       });
 
-      if (!res.ok) throw new Error("Failed to submit rating");
-      addToast("Rating submitted!", "success");
-      setShowRateModal(false);
-      fetchMyProducts();
+      if (res.ok) {
+        const newMsg = await res.json();
+        setMessages([...messages, { ...newMsg, sender: { full_name: "Me" } }]); // Optimistic append
+        setCurrentMessage("");
+      }
     } catch (err) {
-      addToast(err.message, "error");
+      addToast("Failed to send message", "error");
     }
   };
 
-  const openRateModal = (product) => {
-    setSelectedProduct(product);
-    setRatingValue(1);
-    setRatingComment("");
-    setShowRateModal(true);
-  };
+  useEffect(() => {
+    if (activeTab === 'messages') {
+      fetchConversations();
+    } else {
+      fetchMyProducts();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (selectedConversation) {
+      fetchMessages(selectedConversation.productId);
+      // Optional: Polling could go here
+    }
+  }, [selectedConversation]);
+
 
   // --- FILTER LOGIC ---
   const displayedProducts = products.filter(p => {
     const hasWinner = !!p.winner_id;
-    // 'active' tab: Active status OR (Ended but NO winner)
-    // 'sold' tab: Has winner
     if (activeTab === "active") return p.status === 'active' || (p.status !== 'active' && !hasWinner);
     if (activeTab === "sold") return hasWinner;
     return false;
   });
 
   return (
-    <div className="p-10 relative">
-      <Panel className="p-6">
-        <VBox className="gap-6">
+    <div className="p-10 relative h-[calc(100vh-64px)] flex flex-col">
+      <Panel className="p-6 flex-1 flex flex-col min-h-0">
+        <VBox className="gap-6 h-full">
 
           {/* Header & Tabs */}
-          <div className="flex justify-between items-center border-b pb-4">
+          <div className="flex justify-between items-center border-b pb-4 shrink-0">
             <div className="flex gap-6">
               <button
                 onClick={() => setActiveTab("active")}
@@ -122,71 +139,161 @@ const MyProducts = () => {
               >
                 Sold / Winning
               </button>
+              <button
+                onClick={() => setActiveTab("messages")}
+                className={`text-lg font-bold pb-2 border-b-2 ${activeTab === 'messages' ? 'border-[#AD9C86] text-black' : 'border-transparent text-gray-400'}`}
+              >
+                Messages
+              </button>
             </div>
 
-            <button
-              onClick={() => navigate("/seller/products/new")}
-              className="bg-primary/60 px-4 py-2 rounded-xl font-semibold hover:bg-primary/80"
-            >
-              + New Product
-            </button>
+            {activeTab !== 'messages' && (
+              <button
+                onClick={() => navigate("/seller/products/new")}
+                className="bg-primary/60 px-4 py-2 rounded-xl font-semibold hover:bg-primary/80"
+              >
+                + New Product
+              </button>
+            )}
           </div>
 
-          {/* Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {displayedProducts.map((p) => (
-              <div key={p.product_id} className="relative group">
-                {/* Reusing ProductCard but wrapping it to add Sold Actions */}
-                <ProductCard
-                  product={{
-                    id: p.product_id,
-                    name: p.name,
-                    price: `$${p.current_price || p.start_price}`,
-                    image: p.main_image_url || "https://placehold.co/600x400",
-                    status: p.status,
-                    seller: "You"
-                  }}
-                  mode="owner"
-                />
-
-                {/* SOLD ACTIONS OVERLAY */}
-                {activeTab === "sold" && (
-                  <div className="mt-2 p-3 bg-gray-50 rounded-lg border text-sm">
-                    <p className="font-bold mb-1">Winner: {p.winner?.full_name}</p>
-
-                    {/* If already rated, show status */}
-                    {p.ratings && p.ratings.length > 0 ? (
-                      <span className="text-green-600 text-xs font-bold">✓ Rated</span>
-                    ) : (
-                      <div className="flex gap-2 mt-2">
-                        <button
-                          onClick={() => openRateModal(p)}
-                          className="flex-1 bg-blue-100 text-blue-700 py-1 rounded hover:bg-blue-200"
-                        >
-                          Rate
-                        </button>
-                        <button
-                          onClick={() => handleCancelTransaction(p.product_id)}
-                          className="flex-1 bg-red-100 text-red-700 py-1 rounded hover:bg-red-200"
-                        >
-                          Cancel
-                        </button>
+          {/* CONTENT AREA */}
+          {activeTab === 'messages' ? (
+            <div className="flex flex-1 gap-6 min-h-0 overflow-hidden">
+              {/* SIDEBAR: Conversation List */}
+              <div className="w-1/3 border-r overflow-y-auto pr-4">
+                {conversations.length === 0 ? (
+                  <div className="text-gray-400 text-center mt-10">No messages yet.</div>
+                ) : (
+                  conversations.map(conv => (
+                    <div
+                      key={conv.transactionId}
+                      onClick={() => setSelectedConversation(conv)}
+                      className={`p-4 rounded-lg cursor-pointer mb-2 transition hover:bg-gray-50 border ${selectedConversation?.transactionId === conv.transactionId ? 'bg-[#F4EBE2] border-[#AD9C86]' : 'bg-white border-transparent'}`}
+                    >
+                      <div className="flex gap-3 items-center">
+                        <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden shrink-0">
+                          {conv.productImage && <img src={conv.productImage} className="w-full h-full object-cover" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm truncate text-[#1f1f1f]">{conv.otherUser?.full_name || "User"}</p>
+                          <p className="text-xs text-gray-500 truncate">{conv.productName}</p>
+                          <p className="text-xs text-gray-400 truncate mt-1">
+                            {conv.lastMessage?.message_text || "Attachment..."}
+                          </p>
+                        </div>
                       </div>
-                    )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* MAIN: Chat Window */}
+              <div className="flex-1 flex flex-col bg-gray-50 rounded-xl overflow-hidden border">
+                {selectedConversation ? (
+                  <>
+                    {/* Chat Header */}
+                    <div className="p-4 bg-white border-b flex justify-between items-center shadow-sm">
+                      <div>
+                        <h3 className="font-bold text-[#1f1f1f]">{selectedConversation.otherUser?.full_name}</h3>
+                        <p className="text-xs text-gray-500">Re: {selectedConversation.productName}</p>
+                      </div>
+                    </div>
+
+                    {/* Messages Area */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                      {loadingChat ? (
+                        <div className="flex justify-center mt-10"><span className="animate-spin h-6 w-6 border-2 border-[#AD9C86] rounded-full border-t-transparent"></span></div>
+                      ) : (
+                        messages.map((msg, idx) => {
+                          const isMe = msg.sender_id ? (msg.sender_id !== selectedConversation.otherUser?.user_id) : (msg.sender?.full_name === "Me");
+                          // Simple check: if msg sender is NOT the 'otherUser', it's active user. 
+                          // Or rely on auth userId if available in state? checking undefined might be risky.
+                          // Better: check if msg.sender_id exists. Compare with token user ID?
+                          // Actually API returns sender object. 
+                          // Let's assume right-align if it is ME.
+                          return (
+                            <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`max-w-[70%] px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-[#AD9C86] text-white rounded-tr-none' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'}`}>
+                                {msg.message_text}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {/* Input Area */}
+                    <div className="p-4 bg-white border-t">
+                      <form
+                        onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }}
+                        className="flex gap-2"
+                      >
+                        <input
+                          type="text"
+                          className="flex-1 border rounded-full px-4 py-2 outline-none focus:ring-2 ring-[#AD9C86]"
+                          placeholder="Type a message..."
+                          value={currentMessage}
+                          onChange={(e) => setCurrentMessage(e.target.value)}
+                        />
+                        <button
+                          type="submit"
+                          className="bg-[#AD9C86] text-white px-6 py-2 rounded-full font-bold hover:bg-[#968672] transition"
+                        >
+                          Send
+                        </button>
+                      </form>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-gray-400">
+                    Select a conversation to start chatting
                   </div>
                 )}
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            /* REGULAR GRID CONTENT */
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 overflow-y-auto pr-2 pb-10">
+              {displayedProducts.map((p) => (
+                <div key={p.product_id} className="relative group">
+                  <ProductCard
+                    product={{
+                      id: p.product_id,
+                      name: p.name,
+                      price: `$${p.current_price || p.start_price}`,
+                      image: p.main_image_url || "https://placehold.co/600x400",
+                      status: p.status,
+                      seller: "You"
+                    }}
+                    mode="owner"
+                  />
 
-          {displayedProducts.length === 0 && !loading && (
-            <p className="text-center text-gray-400 py-10">No products found in this tab.</p>
+                  {activeTab === "sold" && (
+                    <div className="mt-2 p-3 bg-gray-50 rounded-lg border text-sm">
+                      <p className="font-bold mb-1">Winner: {p.winner?.full_name}</p>
+                      {p.ratings && p.ratings.length > 0 ? (
+                        <span className="text-green-600 text-xs font-bold">✓ Rated</span>
+                      ) : (
+                        <div className="flex gap-2 mt-2">
+                          <button onClick={() => openRateModal(p)} className="flex-1 bg-blue-100 text-blue-700 py-1 rounded hover:bg-blue-200">Rate</button>
+                          <button onClick={() => handleCancelTransaction(p.product_id)} className="flex-1 bg-red-100 text-red-700 py-1 rounded hover:bg-red-200">Cancel</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {displayedProducts.length === 0 && !loading && (
+                <div className="col-span-full text-center text-gray-400 py-10">No products found in this tab.</div>
+              )}
+            </div>
           )}
 
         </VBox>
       </Panel>
-
-      {/* RATING MODAL */}
+      {/* RATING MODAL code preserved below... */}
       {showRateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-2xl w-[400px] shadow-2xl">
@@ -226,5 +333,6 @@ const MyProducts = () => {
     </div>
   );
 };
+
 
 export default MyProducts;

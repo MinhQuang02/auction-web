@@ -25,6 +25,57 @@ const router = express.Router();
 // I will implement `getProductMessages` controller.
 // It will find or create a transaction for (product_id, buyer_id, seller_id).
 
+// GET /conversations - List all active conversations (Transactions with messages)
+router.get('/conversations', requireRole('seller', 'bidder'), async (req, res) => {
+    try {
+        const userId = req.auth.userId;
+
+        // Find transactions where I am buyer or seller AND matches logic
+        // We want ones with messages ideally, OR just all active "deal" contexts.
+        // User request: "hien thi ra nhung nguoi ma seller nay co nhan tin" -> interactions.
+
+        const transactions = await prisma.transaction.findMany({
+            where: {
+                OR: [
+                    { seller_id: userId },
+                    { buyer_id: userId }
+                ]
+            },
+            include: {
+                product: { select: { product_id: true, name: true, main_image_url: true } },
+                buyer: { select: { user_id: true, full_name: true } },
+                seller: { select: { user_id: true, full_name: true } },
+                messages: {
+                    orderBy: { sent_at: 'desc' },
+                    take: 1
+                }
+            },
+            orderBy: { created_at: 'desc' }
+        });
+
+        // Map to conversation format
+        const conversations = transactions
+            .filter(t => t.messages.length > 0) // Only showing threads with actual history? Or all? User said "hien thi nhung nguoi ... co nhan tin". Let's show existing chats.
+            .map(t => {
+                const isSeller = t.seller_id === userId;
+                const otherUser = isSeller ? t.buyer : t.seller;
+                return {
+                    transactionId: t.transaction_id,
+                    productId: t.product.product_id,
+                    productName: t.product.name,
+                    productImage: t.product.main_image_url,
+                    otherUser: otherUser,
+                    lastMessage: t.messages[0]
+                };
+            });
+
+        res.json(conversations);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: e.message });
+    }
+});
+
 router.get('/:productId', requireRole('bidder', 'seller'), async (req, res) => {
     try {
         const { productId } = req.params;
